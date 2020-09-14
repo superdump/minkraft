@@ -30,7 +30,7 @@ fn generate(
     let mesh = meshes.add(Mesh::from(shape::Cube::default()));
     let material = materials.add(Color::GREEN.into());
     let yscale = 5.0f64;
-    let n = 200;
+    let n = 100;
     for z in 0..n {
         for x in 0..n {
             commands
