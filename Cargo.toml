@@ -1,5 +1,5 @@
 [package]
-name = "bevy-book"
+name = "minkraft"
 version = "0.1.0"
 authors = ["Robert Swain <robert.swain@gmail.com>"]
 edition = "2018"
@@ -8,4 +8,14 @@ edition = "2018"
 bevy = "0.1.3"
 bevy_fly_camera = "0.3.0"
 env_logger = "0.7.1"
+log = "0.4.11"
 noise = "0.6.0"
+
+[profile.dev]
+opt-level = 3
+
+[profile.release]
+lto = true
+opt-level = 3
+incremental = false
+codegen-units = 1
