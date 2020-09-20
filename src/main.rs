@@ -41,6 +41,8 @@ fn setup_world(mut commands: Commands) {
             yaw: -135.0f32,
             key_up: KeyCode::Q,
             key_down: KeyCode::E,
+            activate_is_toggle: false,
+            mouse_button_activate: Some(MouseButton::Right),
             ..Default::default()
         })
         .with(CameraTag);
