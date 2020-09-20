@@ -51,14 +51,56 @@ fn debug_setup(
                         .spawn(PbrComponents {
                             material: red,
                             mesh: cone_mesh,
+                            global_transform: GlobalTransform::from_translation_rotation(
+                                Vec3::new(0.85f32, 0.0f32, 0.0f32),
+                                Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2),
+                            ),
+                            ..Default::default()
+                        })
+                        .spawn(PbrComponents {
+                            material: red,
+                            mesh: cylinder_mesh,
+                            global_transform: GlobalTransform::from_rotation(
+                                Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2),
+                            ),
+                            ..Default::default()
+                        });
+                })
+                .spawn((Transform::identity(),))
+                .with_children(|axis_root| {
+                    axis_root
+                        .spawn(PbrComponents {
+                            material: green,
+                            mesh: cone_mesh,
                             global_transform: GlobalTransform::from_translation(Vec3::new(
                                 0.0f32, 0.85f32, 0.0f32,
                             )),
                             ..Default::default()
                         })
                         .spawn(PbrComponents {
-                            material: red,
+                            material: green,
                             mesh: cylinder_mesh,
+                            ..Default::default()
+                        });
+                })
+                .spawn((Transform::identity(),))
+                .with_children(|axis_root| {
+                    axis_root
+                        .spawn(PbrComponents {
+                            material: blue,
+                            mesh: cone_mesh,
+                            global_transform: GlobalTransform::from_translation_rotation(
+                                Vec3::new(0.0f32, 0.0f32, 0.85f32),
+                                Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
+                            ),
+                            ..Default::default()
+                        })
+                        .spawn(PbrComponents {
+                            material: blue,
+                            mesh: cylinder_mesh,
+                            global_transform: GlobalTransform::from_rotation(
+                                Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
+                            ),
                             ..Default::default()
                         });
                 });
