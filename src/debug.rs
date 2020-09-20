@@ -166,7 +166,7 @@ fn debug_setup(
                     ..Default::default()
                 },
                 text: Text {
-                    value: "POS:".to_string(),
+                    value: "XYZ:".to_string(),
                     font: font_handle,
                     style: TextStyle {
                         font_size: 24.0,
@@ -181,7 +181,7 @@ fn debug_setup(
                     ..Default::default()
                 },
                 text: Text {
-                    value: "ROT:".to_string(),
+                    value: "YP:".to_string(),
                     font: font_handle,
                     style: TextStyle {
                         font_size: 24.0,
@@ -231,17 +231,17 @@ fn debug_system(
                     }
                 }
             }
-            Some("POS") => {
+            Some("XYZ") => {
                 let cam_pos = cam_transform.translation();
                 text.value = format!(
-                    "POS: ({:>8.2}, {:>8.2}, {:>8.2})",
+                    "XYZ: ({:>8.2}, {:>8.2}, {:>8.2})",
                     cam_pos.x(),
                     cam_pos.y(),
                     cam_pos.z()
                 );
             }
-            Some("ROT") => {
-                text.value = format!("ROT: ({:>8.2}, {:>8.2})", fly_cam.pitch, fly_cam.yaw);
+            Some("YP") => {
+                text.value = format!("YP: ({:>8.2}, {:>8.2})", fly_cam.yaw, fly_cam.pitch);
             }
             _ => {}
         }
