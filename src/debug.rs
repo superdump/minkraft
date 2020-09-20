@@ -69,24 +69,23 @@ fn debug_setup(
         ))
         .with_children(|axes_root| {
             axes_root
-                .spawn((GlobalTransform::identity(), Transform::identity()))
+                .spawn((
+                    GlobalTransform::identity(),
+                    Transform::from_rotation(Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2)),
+                ))
                 .with_children(|axis_root| {
                     axis_root
                         .spawn(PbrComponents {
                             material: red,
                             mesh: cone_mesh,
-                            transform: Transform::from_translation_rotation(
-                                Vec3::new(0.85f32, 0.0f32, 0.0f32),
-                                Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2),
-                            ),
+                            transform: Transform::from_translation(Vec3::new(
+                                0.0f32, 0.85f32, 0.0f32,
+                            )),
                             ..Default::default()
                         })
                         .spawn(PbrComponents {
                             material: red,
                             mesh: cylinder_mesh,
-                            transform: Transform::from_rotation(Quat::from_rotation_z(
-                                -std::f32::consts::FRAC_PI_2,
-                            )),
                             ..Default::default()
                         });
                 })
@@ -107,24 +106,23 @@ fn debug_setup(
                             ..Default::default()
                         });
                 })
-                .spawn((GlobalTransform::identity(), Transform::identity()))
+                .spawn((
+                    GlobalTransform::identity(),
+                    Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)),
+                ))
                 .with_children(|axis_root| {
                     axis_root
                         .spawn(PbrComponents {
                             material: blue,
                             mesh: cone_mesh,
-                            transform: Transform::from_translation_rotation(
-                                Vec3::new(0.0f32, 0.0f32, 0.85f32),
-                                Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
-                            ),
+                            transform: Transform::from_translation(Vec3::new(
+                                0.0f32, 0.85f32, 0.0f32,
+                            )),
                             ..Default::default()
                         })
                         .spawn(PbrComponents {
                             material: blue,
                             mesh: cylinder_mesh,
-                            transform: Transform::from_rotation(Quat::from_rotation_x(
-                                std::f32::consts::FRAC_PI_2,
-                            )),
                             ..Default::default()
                         });
                 });
