@@ -226,7 +226,7 @@ fn create_face_back(
     normals.push(normal);
     uvs.push([1.0, 0.0]);
 
-    let mut new_indices = vec![i, i + 2, i + 1, i, i + 3, i + 2];
+    let mut new_indices = vec![i, i + 1, i + 2, i, i + 2, i + 3];
     indices.append(&mut new_indices);
 }
 
@@ -290,7 +290,7 @@ fn create_face_left(
     normals.push(normal);
     uvs.push([1.0, 0.0]);
 
-    let mut new_indices = vec![i, i + 2, i + 1, i, i + 3, i + 2];
+    let mut new_indices = vec![i, i + 1, i + 2, i, i + 2, i + 3];
     indices.append(&mut new_indices);
 }
 
