@@ -35,12 +35,8 @@ impl From<Cone> for Mesh {
 
         // circular base of cone
         for i in 0..cone.segments {
-            let x = cone.radius * (angle * i as f32).cos();
-            let z = cone.radius * (angle * i as f32).sin();
-            // let magnitude = (x * x + z * z).sqrt();
-            positions.push([x, 0.0, z]);
-            // normals.push([x / magnitude, 0.0, z / magnitude]);
-            normals.push([0.0, -1.0, 0.0]);
+            let (z, x) = (angle * i as f32).sin_cos();
+            let (z, x) = (cone.radius * z, cone.radius * x);
             // FIXME
             uvs.push([0.5, 0.0]);
         }
@@ -114,8 +110,8 @@ impl From<Cylinder> for Mesh {
 
         // circular base of cylinder
         for i in 0..cylinder.segments {
-            let x = cylinder.radius * (angle * i as f32).cos();
-            let z = cylinder.radius * (angle * i as f32).sin();
+            let (z, x) = (angle * i as f32).sin_cos();
+            let (z, x) = (cylinder.radius * z, cylinder.radius * x);
             positions.push([x, 0.0, z]);
             normals.push([0.0, -1.0, 0.0]);
             // FIXME
@@ -124,8 +120,8 @@ impl From<Cylinder> for Mesh {
 
         // circular top of cylinder
         for i in 0..cylinder.segments {
-            let x = cylinder.radius * (angle * i as f32).cos();
-            let z = cylinder.radius * (angle * i as f32).sin();
+            let (z, x) = (angle * i as f32).sin_cos();
+            let (z, x) = (cylinder.radius * z, cylinder.radius * x);
             let magnitude = (x * x + z * z).sqrt();
             positions.push([x, cylinder.height, z]);
             normals.push([x / magnitude, 0.0, z / magnitude]);
