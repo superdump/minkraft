@@ -26,6 +26,15 @@ fn main() {
 }
 
 fn setup_world(mut commands: Commands) {
+    let eye = Vec3::new(-1.0, 10.0, -1.0);
+    let center = Vec3::new(0.0, 0.0, 0.0);
+    let camera_transform = Mat4::face_toward(eye, center, Vec3::unit_y());
+
+    // FIXME: Hacks to sync the FlyCamera with the camera_transform
+    let eye_center = (center - eye).normalize();
+    let pitch = eye_center.y().asin();
+    let yaw = eye_center.z().atan2(eye_center.x());
+
     commands
         .spawn(UiCameraComponents::default())
         .spawn(LightComponents {
@@ -33,12 +42,15 @@ fn setup_world(mut commands: Commands) {
             ..Default::default()
         })
         .spawn(Camera3dComponents {
-            transform: Transform::from_translation(Vec3::new(-30f32, 65f32, -30f32)),
+            transform: Transform::new(camera_transform),
+            global_transform: GlobalTransform::new(camera_transform),
             ..Default::default()
         })
         .with(FlyCamera {
-            pitch: 40.0f32,
-            yaw: -135.0f32,
+            speed: 0.1f32,
+            max_speed: 5.0f32,
+            pitch: -pitch.to_degrees(),
+            yaw: yaw.to_degrees() - 180.0f32,
             key_up: KeyCode::Q,
             key_down: KeyCode::E,
             activate_is_toggle: false,
