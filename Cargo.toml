@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 bevy = "0.2.0"
-bevy_fly_camera = { path = "vendor/bevy_fly_camera" }
+bevy_fly_camera = "0.4.0"
 env_logger = "0.7.1"
 log = "0.4.11"
 noise = "0.6.0"

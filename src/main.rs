@@ -22,12 +22,13 @@ fn main() {
         .add_plugin(GeneratePlugin)
         .add_startup_system(setup_world.system())
         .add_system(exit_on_esc_system.system())
+        .add_system(enable_fly_camera.system())
         .run();
 }
 
 fn setup_world(mut commands: Commands) {
-    let eye = Vec3::new(1.0, 1.0, 1.0);
-    let center = Vec3::new(0.0, 0.0, 0.0);
+    let eye = Vec3::new(-10.0, 10.0, -10.0);
+    let center = Vec3::new(10.0, 0.0, 10.0);
     let camera_transform = Mat4::face_toward(eye, center, Vec3::unit_y());
 
     // FIXME: Hacks to sync the FlyCamera with the camera_transform
@@ -53,9 +54,13 @@ fn setup_world(mut commands: Commands) {
             yaw: yaw.to_degrees() - 180.0f32,
             key_up: KeyCode::Q,
             key_down: KeyCode::E,
-            activate_is_toggle: false,
-            mouse_button_activate: Some(MouseButton::Right),
             ..Default::default()
         })
         .with(CameraTag);
+}
+
+fn enable_fly_camera(keyboard_input: Res<Input<KeyCode>>, mut options: Mut<FlyCamera>) {
+    if keyboard_input.just_pressed(KeyCode::M) {
+        options.enabled = !options.enabled;
+    }
 }
