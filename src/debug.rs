@@ -28,36 +28,39 @@ fn debug_setup(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // In-scene
-    let cube_mesh = meshes.add(Mesh::from(shape::Cube::default()));
-    commands
-        .spawn((Transform::identity(),))
-        .with_children(|parent| {
-            parent
-                .spawn(PbrComponents {
-                    material: standard_materials.add(Color::RED.into()),
-                    mesh: cube_mesh,
-                    transform: Transform::new_sync_disabled(Mat4::from_scale(Vec3::new(
-                        1.0f32, 0.1f32, 0.1f32,
-                    ))),
-                    ..Default::default()
-                })
-                .spawn(PbrComponents {
-                    material: standard_materials.add(Color::BLUE.into()),
-                    mesh: cube_mesh,
-                    transform: Transform::new_sync_disabled(Mat4::from_scale(Vec3::new(
-                        0.1f32, 1.0f32, 0.1f32,
-                    ))),
-                    ..Default::default()
-                })
-                .spawn(PbrComponents {
-                    material: standard_materials.add(Color::GREEN.into()),
-                    mesh: cube_mesh,
-                    transform: Transform::new_sync_disabled(Mat4::from_scale(Vec3::new(
-                        0.1f32, 0.1f32, 1.0f32,
-                    ))),
-                    ..Default::default()
-                });
-        });
+    // let axes_mesh = asset_server.load("assets/models/axes.glb").unwrap();
+    let cube_mesh = meshes.add(Mesh::from(shape::Icosphere {
+        radius: 0.5f32,
+        subdivisions: 1,
+    }));
+    commands.spawn(PbrComponents {
+        material: standard_materials.add(Color::RED.into()),
+        mesh: cube_mesh,
+        transform: Transform::from_scale(0.1f32),
+        ..Default::default()
+    });
+    // .spawn((Transform::identity(),))
+    // .with_children(|parent| {
+    //     parent
+    //         .spawn(PbrComponents {
+    //             material: standard_materials.add(Color::RED.into()),
+    //             mesh: cube_mesh,
+    //             transform: Transform::from_non_uniform_scale(Vec3::new(1.0f32, 0.1f32, 0.1f32)),
+    //             ..Default::default()
+    //         })
+    //         .spawn(PbrComponents {
+    //             material: standard_materials.add(Color::BLUE.into()),
+    //             mesh: cube_mesh,
+    //             transform: Transform::from_non_uniform_scale(Vec3::new(0.1f32, 1.0f32, 0.1f32)),
+    //             ..Default::default()
+    //         })
+    //         .spawn(PbrComponents {
+    //             material: standard_materials.add(Color::GREEN.into()),
+    //             mesh: cube_mesh,
+    //             transform: Transform::from_non_uniform_scale(Vec3::new(0.1f32, 0.1f32, 1.0f32)),
+    //             ..Default::default()
+    //         });
+    // });
 
     // UI
     let font_handle = asset_server
@@ -148,11 +151,11 @@ fn quat_to_euler(q: &Quat) -> (f32, f32, f32) {
 
 fn debug_system(
     diagnostics: Res<Diagnostics>,
-    mut camera: Query<(&CameraTag, &Translation, &FlyCamera)>,
+    mut camera: Query<(&CameraTag, &Transform, &FlyCamera)>,
     mut query: Query<&mut Text>,
 ) {
     let mut cam_iter = camera.iter();
-    let (_, cam_pos, fly_cam) = cam_iter.into_iter().next().unwrap();
+    let (_, cam_transform, fly_cam) = cam_iter.into_iter().next().unwrap();
     for mut text in &mut query.iter() {
         match text.value.get(..3) {
             Some("FDT") => {
@@ -163,6 +166,7 @@ fn debug_system(
                 }
             }
             Some("POS") => {
+                let cam_pos = cam_transform.translation();
                 text.value = format!(
                     "POS: ({:>8.2}, {:>8.2}, {:>8.2})",
                     cam_pos.x(),

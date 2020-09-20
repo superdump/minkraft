@@ -1,0 +1,3 @@
+[submodule "vendor/bevy_fly_camera"]
+	path = vendor/bevy_fly_camera
+	url = git@github.com:superdump/bevy_fly_camera.git

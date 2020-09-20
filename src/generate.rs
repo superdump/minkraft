@@ -36,12 +36,11 @@ fn generate(
     for z in 0..n {
         for x in 0..n {
             commands.spawn(PbrComponents {
-                translation: Vec3::new(
+                transform: Transform::from_translation(Vec3::new(
                     x as f32,
                     (noise.noise.get([x as f64, z as f64]) * yscale).round() as f32,
                     z as f32,
-                )
-                .into(),
+                )),
                 mesh,
                 material,
                 ..Default::default()

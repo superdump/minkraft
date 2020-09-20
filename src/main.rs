@@ -29,11 +29,11 @@ fn setup_world(mut commands: Commands) {
     commands
         .spawn(UiCameraComponents::default())
         .spawn(LightComponents {
-            translation: Translation::new(14.0, 18.0, 14.0),
+            transform: Transform::from_translation(Vec3::new(14.0, 18.0, 14.0)),
             ..Default::default()
         })
         .spawn(Camera3dComponents {
-            translation: Vec3::new(-30f32, 65f32, -30f32).into(),
+            transform: Transform::from_translation(Vec3::new(-30f32, 65f32, -30f32)),
             ..Default::default()
         })
         .with(FlyCamera {
