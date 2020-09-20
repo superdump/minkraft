@@ -218,7 +218,7 @@ fn debug_system(
                     cam_pos.z()
                 );
             }
-            Some("YP") => {
+            Some("YP:") => {
                 text.value = format!("YP: ({:>8.2}, {:>8.2})", fly_cam.yaw, fly_cam.pitch);
             }
             _ => {}
