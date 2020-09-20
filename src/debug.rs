@@ -193,28 +193,6 @@ fn debug_setup(
         });
 }
 
-fn quat_to_euler(q: &Quat) -> (f32, f32, f32) {
-    // roll (x-axis rotation)
-    let sinr_cosp = 2.0f32 * (q.w() * q.x() + q.y() * q.z());
-    let cosr_cosp = 1.0f32 - 2.0f32 * (q.x() * q.x() + q.y() * q.y());
-    let roll = sinr_cosp.atan2(cosr_cosp);
-
-    // pitch (y-axis rotation)
-    let sinp = 2.0f32 * (q.w() * q.y() - q.z() * q.x());
-    let pitch = if sinp.abs() >= 1.0 {
-        std::f32::consts::FRAC_PI_2.copysign(sinp) // use 90 degrees if out of range
-    } else {
-        sinp.asin()
-    };
-
-    // yaw (z-axis rotation)
-    let siny_cosp = 2.0f32 * (q.w() * q.z() + q.x() * q.y());
-    let cosy_cosp = 1.0f32 - 2.0f32 * (q.y() * q.y() + q.z() * q.z());
-    let yaw = siny_cosp.atan2(cosy_cosp);
-
-    (roll, pitch, yaw)
-}
-
 fn debug_system(
     diagnostics: Res<Diagnostics>,
     mut camera: Query<(&CameraTag, &Transform, &FlyCamera)>,
