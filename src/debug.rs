@@ -1,4 +1,4 @@
-use crate::types::CameraTag;
+use crate::{shapes::*, types::CameraTag};
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
     prelude::*,
@@ -8,7 +8,6 @@ use bevy_fly_camera::FlyCamera;
 #[derive(Default)]
 struct Debug(bool);
 
-const RADIANS_TO_DEGREES: f32 = 180.0 / std::f32::consts::PI;
 pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
@@ -28,39 +27,42 @@ fn debug_setup(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // In-scene
-    // let axes_mesh = asset_server.load("assets/models/axes.glb").unwrap();
-    let cube_mesh = meshes.add(Mesh::from(shape::Icosphere {
-        radius: 0.5f32,
-        subdivisions: 1,
-    }));
-    commands.spawn(PbrComponents {
-        material: standard_materials.add(Color::RED.into()),
-        mesh: cube_mesh,
-        transform: Transform::from_scale(0.1f32),
+    let cylinder_mesh = meshes.add(Mesh::from(Cylinder {
+        height: 0.85f32,
+        radius: 0.03f32,
         ..Default::default()
-    });
-    // .spawn((Transform::identity(),))
-    // .with_children(|parent| {
-    //     parent
-    //         .spawn(PbrComponents {
-    //             material: standard_materials.add(Color::RED.into()),
-    //             mesh: cube_mesh,
-    //             transform: Transform::from_non_uniform_scale(Vec3::new(1.0f32, 0.1f32, 0.1f32)),
-    //             ..Default::default()
-    //         })
-    //         .spawn(PbrComponents {
-    //             material: standard_materials.add(Color::BLUE.into()),
-    //             mesh: cube_mesh,
-    //             transform: Transform::from_non_uniform_scale(Vec3::new(0.1f32, 1.0f32, 0.1f32)),
-    //             ..Default::default()
-    //         })
-    //         .spawn(PbrComponents {
-    //             material: standard_materials.add(Color::GREEN.into()),
-    //             mesh: cube_mesh,
-    //             transform: Transform::from_non_uniform_scale(Vec3::new(0.1f32, 0.1f32, 1.0f32)),
-    //             ..Default::default()
-    //         });
-    // });
+    }));
+    let cone_mesh = meshes.add(Mesh::from(Cone {
+        height: 0.15f32,
+        radius: 0.07f32,
+        ..Default::default()
+    }));
+    let red = standard_materials.add(Color::RED.into());
+    let green = standard_materials.add(Color::GREEN.into());
+    let blue = standard_materials.add(Color::BLUE.into());
+
+    commands
+        .spawn((Transform::identity(),))
+        .with_children(|axes_root| {
+            axes_root
+                .spawn((Transform::identity(),))
+                .with_children(|axis_root| {
+                    axis_root
+                        .spawn(PbrComponents {
+                            material: red,
+                            mesh: cone_mesh,
+                            global_transform: GlobalTransform::from_translation(Vec3::new(
+                                0.0f32, 0.85f32, 0.0f32,
+                            )),
+                            ..Default::default()
+                        })
+                        .spawn(PbrComponents {
+                            material: red,
+                            mesh: cylinder_mesh,
+                            ..Default::default()
+                        });
+                });
+        });
 
     // UI
     let font_handle = asset_server
