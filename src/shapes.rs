@@ -1,6 +1,9 @@
-use bevy::render::{
-    mesh::{Mesh, VertexAttribute},
-    pipeline::PrimitiveTopology,
+use bevy::{
+    prelude::*,
+    render::{
+        mesh::{Mesh, VertexAttribute},
+        pipeline::PrimitiveTopology,
+    },
 };
 
 pub struct Cone {
@@ -34,9 +37,14 @@ impl From<Cone> for Mesh {
         let angle = 2.0f32 * std::f32::consts::PI / cone.segments as f32;
 
         // circular base of cone
+        let frac_h_2 = Vec3::new(0.0f32, 0.5f32 * cone.height, 0.0f32);
         for i in 0..cone.segments {
             let (z, x) = (angle * i as f32).sin_cos();
             let (z, x) = (cone.radius * z, cone.radius * x);
+            let position = Vec3::new(x, 0.0f32, z);
+            positions.push(*position.as_ref());
+            let normal = (position - frac_h_2).normalize();
+            normals.push(*normal.as_ref());
             // FIXME
             uvs.push([0.5, 0.0]);
         }
@@ -112,8 +120,9 @@ impl From<Cylinder> for Mesh {
         for i in 0..cylinder.segments {
             let (z, x) = (angle * i as f32).sin_cos();
             let (z, x) = (cylinder.radius * z, cylinder.radius * x);
+            let magnitude = (x * x + z * z).sqrt();
             positions.push([x, 0.0, z]);
-            normals.push([0.0, -1.0, 0.0]);
+            normals.push([x / magnitude, 0.0, z / magnitude]);
             // FIXME
             uvs.push([0.5, 0.0]);
         }
