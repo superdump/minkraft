@@ -17,8 +17,8 @@ fn main() {
         })
         .add_resource(Msaa { samples: 4 })
         .add_default_plugins()
-        .add_plugin(DebugPlugin)
         .add_plugin(FlyCameraPlugin)
+        .add_plugin(DebugPlugin)
         .add_plugin(GeneratePlugin)
         .add_startup_system(setup_world.system())
         .add_system(exit_on_esc_system.system())
@@ -43,7 +43,6 @@ fn setup_world(mut commands: Commands) {
         })
         .spawn(Camera3dComponents {
             transform: Transform::new(camera_transform),
-            global_transform: GlobalTransform::new(camera_transform),
             ..Default::default()
         })
         .with(FlyCamera {

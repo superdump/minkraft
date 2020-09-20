@@ -15,8 +15,28 @@ impl Plugin for DebugPlugin {
         app.init_resource::<Debug>()
             .add_plugin(FrameTimeDiagnosticsPlugin::default())
             .add_startup_system(debug_setup.system())
-            .add_system(debug_system.system());
+            .add_system(debug_system.system())
+            .add_system(axes_system.system());
     }
+}
+
+struct AxesTag;
+
+fn axes_system(
+    mut camera_query: Query<(&CameraTag, &Transform)>,
+    mut axes_query: Query<(&AxesTag, &mut Transform)>,
+) {
+    let mut cam_temp = camera_query.iter();
+    let (_, camera_transform) = cam_temp.iter().next().unwrap();
+    let mut axes_temp = axes_query.iter();
+    let (_, mut axes_transform) = axes_temp.iter().next().unwrap();
+
+    let forward = camera_transform.rotation() * Vec3::unit_z();
+    let right = camera_transform.rotation() * Vec3::unit_x();
+    let up = camera_transform.rotation() * Vec3::unit_y();
+    let mut translation = camera_transform.translation();
+    translation += -2.0f32 * forward + 1.25f32 * right - 0.68f32 * up;
+    axes_transform.set_translation(translation);
 }
 
 fn debug_setup(
@@ -42,16 +62,20 @@ fn debug_setup(
     let blue = standard_materials.add(Color::BLUE.into());
 
     commands
-        .spawn((Transform::identity(),))
+        .spawn((
+            GlobalTransform::identity(),
+            Transform::from_scale(0.1f32),
+            AxesTag,
+        ))
         .with_children(|axes_root| {
             axes_root
-                .spawn((Transform::identity(),))
+                .spawn((GlobalTransform::identity(), Transform::identity()))
                 .with_children(|axis_root| {
                     axis_root
                         .spawn(PbrComponents {
                             material: red,
                             mesh: cone_mesh,
-                            global_transform: GlobalTransform::from_translation_rotation(
+                            transform: Transform::from_translation_rotation(
                                 Vec3::new(0.85f32, 0.0f32, 0.0f32),
                                 Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2),
                             ),
@@ -60,19 +84,19 @@ fn debug_setup(
                         .spawn(PbrComponents {
                             material: red,
                             mesh: cylinder_mesh,
-                            global_transform: GlobalTransform::from_rotation(
-                                Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2),
-                            ),
+                            transform: Transform::from_rotation(Quat::from_rotation_z(
+                                -std::f32::consts::FRAC_PI_2,
+                            )),
                             ..Default::default()
                         });
                 })
-                .spawn((Transform::identity(),))
+                .spawn((GlobalTransform::identity(), Transform::identity()))
                 .with_children(|axis_root| {
                     axis_root
                         .spawn(PbrComponents {
                             material: green,
                             mesh: cone_mesh,
-                            global_transform: GlobalTransform::from_translation(Vec3::new(
+                            transform: Transform::from_translation(Vec3::new(
                                 0.0f32, 0.85f32, 0.0f32,
                             )),
                             ..Default::default()
@@ -83,13 +107,13 @@ fn debug_setup(
                             ..Default::default()
                         });
                 })
-                .spawn((Transform::identity(),))
+                .spawn((GlobalTransform::identity(), Transform::identity()))
                 .with_children(|axis_root| {
                     axis_root
                         .spawn(PbrComponents {
                             material: blue,
                             mesh: cone_mesh,
-                            global_transform: GlobalTransform::from_translation_rotation(
+                            transform: Transform::from_translation_rotation(
                                 Vec3::new(0.0f32, 0.0f32, 0.85f32),
                                 Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
                             ),
@@ -98,9 +122,9 @@ fn debug_setup(
                         .spawn(PbrComponents {
                             material: blue,
                             mesh: cylinder_mesh,
-                            global_transform: GlobalTransform::from_rotation(
-                                Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
-                            ),
+                            transform: Transform::from_rotation(Quat::from_rotation_x(
+                                std::f32::consts::FRAC_PI_2,
+                            )),
                             ..Default::default()
                         });
                 });
