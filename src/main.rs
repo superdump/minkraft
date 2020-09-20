@@ -47,6 +47,7 @@ fn setup_world(mut commands: Commands) {
             ..Default::default()
         })
         .with(FlyCamera {
+            sensitivity: 10.0f32,
             speed: 0.1f32,
             max_speed: 5.0f32,
             pitch: -pitch.to_degrees(),
