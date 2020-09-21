@@ -151,7 +151,7 @@ fn debug_setup(
                     ..Default::default()
                 },
                 text: Text {
-                    value: "FDT:".to_string(),
+                    value: "FT:".to_string(),
                     font: font_handle,
                     style: TextStyle {
                         font_size: 24.0,
@@ -202,10 +202,11 @@ fn debug_system(
     let (_, cam_transform, fly_cam) = cam_iter.into_iter().next().unwrap();
     for mut text in &mut query.iter() {
         match text.value.get(..3) {
-            Some("FDT") => {
+            Some("FT:") => {
                 if let Some(frame_time) = diagnostics.get(FrameTimeDiagnosticsPlugin::FRAME_TIME) {
                     if let Some(fdt) = frame_time.average() {
-                        text.value = format!("FDT: {:6.2}ms", fdt * 1000.0f64);
+                        text.value =
+                            format!("FT: {:6.2}ms {:6.2}fps", fdt * 1000.0f64, 1.0f64 / fdt);
                     }
                 }
             }
