@@ -2,6 +2,8 @@ use bevy::{
     prelude::*,
     render::{mesh::VertexAttribute, pipeline::PrimitiveTopology},
 };
+use ilattice3::{prelude::*, ChunkedLatticeMap, ChunkedLatticeMapReader, YLevelsIndexer};
+use ilattice3_mesh::{greedy_quads, make_pos_norm_tang_tex_mesh_from_quads, GreedyQuadsVoxel};
 use noise::*;
 
 #[derive(Default)]
@@ -19,8 +21,82 @@ impl Plugin for GeneratePlugin {
                 .set_frequency(0.01)
                 .set_octaves(5),
         })
-        .add_startup_system(generate_mesh.system());
+        .add_startup_system(generate_ilattice3.system());
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Voxel(u16);
+
+impl Default for Voxel {
+    fn default() -> Self {
+        Voxel(0)
+    }
+}
+
+impl IsEmpty for Voxel {
+    fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
+}
+
+impl GreedyQuadsVoxel for Voxel {
+    type Material = u16;
+
+    fn material(&self) -> Self::Material {
+        self.0
+    }
+}
+
+fn generate_ilattice3(
+    mut commands: Commands,
+    noise: Res<GenerateResource>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    let n = 100i32;
+    let mut chunked_lattice_map =
+        ChunkedLatticeMap::<_, (), YLevelsIndexer>::new([16, 16, 16].into());
+
+    // Chunk generation
+    let yoffset = 12.0f64;
+    let yscale = 10.0f64;
+    for z in 0..n {
+        for x in 0..n {
+            let y = (noise.noise.get([x as f64, z as f64]) * yscale + yoffset).round() as i32;
+            let (_p, v) =
+                chunked_lattice_map.get_mut_or_default(&Point::new(x, y, z), (), Voxel(0));
+            *v = Voxel(1);
+        }
+    }
+
+    // Mesh generation
+    let reader = ChunkedLatticeMapReader::new(&chunked_lattice_map);
+    let map = reader.map.copy_extent_into_new_map(
+        Extent::from_min_and_world_supremum([0, 0, 0].into(), [n, n, n].into()),
+        &reader.local_cache,
+    );
+    let quads = greedy_quads(&map, *map.get_extent());
+    let pos_norm_tang_tex_ind = make_pos_norm_tang_tex_mesh_from_quads(&quads);
+    println!("##### materials: {:?}", pos_norm_tang_tex_ind.keys());
+    let pos_norm_tex_ind = pos_norm_tang_tex_ind.get(&1).unwrap();
+    let indices = pos_norm_tex_ind.indices.iter().map(|i| *i as u32).collect();
+
+    let mesh = meshes.add(Mesh {
+        primitive_topology: PrimitiveTopology::TriangleList,
+        attributes: vec![
+            VertexAttribute::position(pos_norm_tex_ind.positions.clone()),
+            VertexAttribute::normal(pos_norm_tex_ind.normals.clone()),
+            VertexAttribute::uv(pos_norm_tex_ind.tex_coords.clone()),
+        ],
+        indices: Some(indices),
+    });
+    let material = materials.add(Color::GREEN.into());
+    commands.spawn(PbrComponents {
+        mesh,
+        material,
+        ..Default::default()
+    });
 }
 
 fn generate(
@@ -301,8 +377,8 @@ fn generate_mesh(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     // Chunk generation
-    let yoffset = 5.0f64;
-    let yscale = 5.0f64;
+    let yoffset = 12.0f64;
+    let yscale = 10.0f64;
     let n = 100;
     let mut cells = vec![false; n * n * n];
     for z in 0..n {

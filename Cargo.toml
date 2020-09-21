@@ -8,6 +8,8 @@ edition = "2018"
 bevy = "0.2.0"
 bevy_fly_camera = "0.4.0"
 env_logger = "0.7.1"
+ilattice3 = { git = "https://github.com/bonsairobo/ilattice3", rev = "9586551f" }
+ilattice3-mesh = { git = "https://github.com/bonsairobo/ilattice3-mesh", rev = "15101c65e" }
 log = "0.4.11"
 noise = "0.6.0"
 
