@@ -6,9 +6,18 @@ use ilattice3::{prelude::*, ChunkedLatticeMap, ChunkedLatticeMapReader, YLevelsI
 use ilattice3_mesh::{greedy_quads, make_pos_norm_tang_tex_mesh_from_quads, GreedyQuadsVoxel};
 use noise::*;
 
-#[derive(Default)]
 struct GenerateResource {
     pub noise: RidgedMulti,
+    pub map: ChunkedLatticeMap<Voxel, (), YLevelsIndexer>,
+}
+
+impl Default for GenerateResource {
+    fn default() -> Self {
+        GenerateResource {
+            noise: RidgedMulti::default(),
+            map: ChunkedLatticeMap::<_, (), YLevelsIndexer>::new([16, 16, 16].into()),
+        }
+    }
 }
 
 pub struct GeneratePlugin;
@@ -20,6 +29,7 @@ impl Plugin for GeneratePlugin {
                 .set_seed(1234)
                 .set_frequency(0.01)
                 .set_octaves(5),
+            map: ChunkedLatticeMap::<_, (), YLevelsIndexer>::new([16, 16, 16].into()),
         })
         .add_startup_system(generate_ilattice3.system());
     }
@@ -48,37 +58,42 @@ impl GreedyQuadsVoxel for Voxel {
     }
 }
 
+fn generate_chunk(res: &mut ResMut<GenerateResource>, min: Point, max: Point) {
+    let yoffset = 12.0f64;
+    let yscale = 10.0f64;
+    for z in min.z..max.z {
+        for x in min.x..max.x {
+            let max_y = (res.noise.get([x as f64, z as f64]) * yscale + yoffset).round() as i32;
+            for y in 0..(max_y + 1) {
+                let (_p, v) = res
+                    .map
+                    .get_mut_or_default(&Point::new(x, y, z), (), Voxel(0));
+                *v = Voxel(1);
+            }
+        }
+    }
+}
+
 fn generate_ilattice3(
     mut commands: Commands,
-    noise: Res<GenerateResource>,
+    mut res: ResMut<GenerateResource>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let n = 100i32;
-    let mut chunked_lattice_map =
-        ChunkedLatticeMap::<_, (), YLevelsIndexer>::new([16, 16, 16].into());
+    let n = 200i32;
+    let height = 256i32;
 
     // Chunk generation
-    let yoffset = 12.0f64;
-    let yscale = 10.0f64;
-    for z in 0..n {
-        for x in 0..n {
-            let y = (noise.noise.get([x as f64, z as f64]) * yscale + yoffset).round() as i32;
-            let (_p, v) =
-                chunked_lattice_map.get_mut_or_default(&Point::new(x, y, z), (), Voxel(0));
-            *v = Voxel(1);
-        }
-    }
+    generate_chunk(&mut res, Point::new(0, 0, 0), Point::new(n, height, n));
 
     // Mesh generation
-    let reader = ChunkedLatticeMapReader::new(&chunked_lattice_map);
+    let reader = ChunkedLatticeMapReader::new(&res.map);
     let map = reader.map.copy_extent_into_new_map(
-        Extent::from_min_and_world_supremum([0, 0, 0].into(), [n, n, n].into()),
+        Extent::from_min_and_world_supremum([0, 0, 0].into(), [n, height, n].into()),
         &reader.local_cache,
     );
     let quads = greedy_quads(&map, *map.get_extent());
     let pos_norm_tang_tex_ind = make_pos_norm_tang_tex_mesh_from_quads(&quads);
-    println!("##### materials: {:?}", pos_norm_tang_tex_ind.keys());
     let pos_norm_tex_ind = pos_norm_tang_tex_ind.get(&1).unwrap();
     let indices = pos_norm_tex_ind.indices.iter().map(|i| *i as u32).collect();
 
