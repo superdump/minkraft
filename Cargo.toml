@@ -5,8 +5,8 @@ authors = ["Robert Swain <robert.swain@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-bevy = "0.2.0"
-bevy_fly_camera = "0.4.0"
+bevy = "0.2.1"
+bevy_fly_camera = "0.4.1"
 env_logger = "0.7.1"
 ilattice3 = { git = "https://github.com/bonsairobo/ilattice3", rev = "9586551f" }
 ilattice3-mesh = { git = "https://github.com/bonsairobo/ilattice3-mesh", rev = "15101c65e" }
