@@ -2,4 +2,4 @@
 
 cargo fmt
 
-RUST_BACKTRACE=full RUST_LOG=info cargo run
+RUST_BACKTRACE=full RUST_LOG=info cargo run $@

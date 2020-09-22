@@ -13,6 +13,10 @@ ilattice3-mesh = { git = "https://github.com/bonsairobo/ilattice3-mesh", rev = "
 log = "0.4.11"
 noise = "0.6.0"
 
+[features]
+default = []
+profiler = ["bevy/profiler"]
+
 [profile.dev]
 opt-level = 3
 

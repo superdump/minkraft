@@ -1,3 +1,5 @@
+#[cfg(feature = "profiler")]
+use bevy::diagnostic::PrintDiagnosticsPlugin;
 use bevy::{
     input::{keyboard::KeyCode, system::exit_on_esc_system},
     prelude::*,
@@ -10,7 +12,9 @@ struct Debug(bool);
 
 fn main() {
     env_logger::builder().format_timestamp_micros().init();
-    App::build()
+
+    let mut app_builder = App::build();
+    app_builder
         .add_resource(WindowDescriptor {
             title: env!("CARGO_PKG_NAME").to_string(),
             ..Default::default()
@@ -22,8 +26,12 @@ fn main() {
         .add_plugin(GeneratePlugin)
         .add_startup_system(setup_world.system())
         .add_system(exit_on_esc_system.system())
-        .add_system(enable_fly_camera.system())
-        .run();
+        .add_system(enable_fly_camera.system());
+
+    #[cfg(feature = "profiler")]
+    app_builder.add_plugin(PrintDiagnosticsPlugin::default());
+
+    app_builder.run();
 }
 
 fn setup_world(mut commands: Commands) {
