@@ -2,11 +2,23 @@ use crate::{shapes::*, types::CameraTag};
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
     prelude::*,
+    render::camera::Camera,
 };
 use bevy_fly_camera::FlyCamera;
 
-#[derive(Default)]
-struct Debug(bool);
+pub struct Debug {
+    pub enabled: bool,
+    pub screen_position: Vec3,
+}
+
+impl Default for Debug {
+    fn default() -> Self {
+        Debug {
+            enabled: true,
+            screen_position: Vec3::new(0.95, 0.95, 0.3),
+        }
+    }
+}
 
 pub struct DebugPlugin;
 
@@ -20,23 +32,34 @@ impl Plugin for DebugPlugin {
     }
 }
 
-struct AxesTag;
+pub struct AxesTag;
+pub struct AxesCameraTag;
 
 fn axes_system(
-    mut camera_query: Query<(&CameraTag, &Transform)>,
+    debug: Res<Debug>,
+    mut camera_query: Query<(&AxesCameraTag, &Camera, &Transform)>,
     mut axes_query: Query<(&AxesTag, &mut Transform)>,
 ) {
     let mut cam_temp = camera_query.iter();
-    let (_, camera_transform) = cam_temp.iter().next().unwrap();
+    let (_, camera, camera_transform) = cam_temp.iter().next().unwrap();
     let mut axes_temp = axes_query.iter();
     let (_, mut axes_transform) = axes_temp.iter().next().unwrap();
 
+    let view_matrix = camera_transform.value().inverse();
+    let projection_matrix = camera.projection_matrix;
+    let world_pos: Vec4 = (projection_matrix * view_matrix)
+        .inverse()
+        .mul_vec4(Vec4::new(
+            debug.screen_position.x(),
+            -debug.screen_position.y(),
+            0.0,
+            1.0,
+        ));
+    let position: Vec3 = (world_pos / world_pos.w()).truncate().into();
+
     let forward = camera_transform.rotation() * Vec3::unit_z();
-    let right = camera_transform.rotation() * Vec3::unit_x();
-    let up = camera_transform.rotation() * Vec3::unit_y();
-    let mut translation = camera_transform.translation();
-    translation += -2.0f32 * forward + 1.25f32 * right - 0.68f32 * up;
-    axes_transform.set_translation(translation);
+
+    axes_transform.set_translation(position - debug.screen_position.z() * forward);
 }
 
 fn debug_setup(

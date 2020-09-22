@@ -5,7 +5,11 @@ use bevy::{
     prelude::*,
 };
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
-use minkraft::{debug::DebugPlugin, generate::*, types::CameraTag};
+use minkraft::{
+    debug::{AxesCameraTag, DebugPlugin},
+    generate::*,
+    types::CameraTag,
+};
 
 #[derive(Default)]
 struct Debug(bool);
@@ -64,7 +68,8 @@ fn setup_world(mut commands: Commands) {
             key_down: KeyCode::E,
             ..Default::default()
         })
-        .with(CameraTag);
+        .with(CameraTag)
+        .with(AxesCameraTag);
 }
 
 fn enable_fly_camera(keyboard_input: Res<Input<KeyCode>>, mut options: Mut<FlyCamera>) {
