@@ -1,21 +1,23 @@
-use crate::{shapes::*, types::CameraTag};
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
     prelude::*,
-    render::camera::Camera,
 };
 use bevy_fly_camera::FlyCamera;
 
 pub struct Debug {
     pub enabled: bool,
-    pub screen_position: Vec3,
+    font_handle: Option<Handle<Font>>,
+    pub text_entity: Option<Entity>,
+    pub transparent_material: Option<Handle<ColorMaterial>>,
 }
 
 impl Default for Debug {
     fn default() -> Self {
         Debug {
             enabled: true,
-            screen_position: Vec3::new(0.95, 0.95, 0.3),
+            font_handle: None,
+            text_entity: None,
+            transparent_material: None,
         }
     }
 }
@@ -27,194 +29,107 @@ impl Plugin for DebugPlugin {
         app.init_resource::<Debug>()
             .add_plugin(FrameTimeDiagnosticsPlugin::default())
             .add_startup_system(debug_setup.system())
-            .add_system(debug_system.system())
-            .add_system(axes_system.system());
+            .add_system(debug_toggle_system.system())
+            .add_system(debug_system.system());
     }
 }
 
-pub struct AxesTag;
-pub struct AxesCameraTag;
-
-fn axes_system(
-    debug: Res<Debug>,
-    mut camera_query: Query<(&Camera, &Transform)>,
-    mut axes_query: Query<(&AxesTag, &mut Transform)>,
-) {
-    let mut cam_temp = camera_query.iter();
-    let (camera, camera_transform) = cam_temp.iter().next().unwrap();
-    let mut axes_temp = axes_query.iter();
-    let (_, mut axes_transform) = axes_temp.iter().next().unwrap();
-
-    let view_matrix = camera_transform.value();
-    let projection_matrix = camera.projection_matrix;
-    let world_pos: Vec4 =
-        (*view_matrix * projection_matrix.inverse()).mul_vec4(debug.screen_position.extend(1.0));
-    let position: Vec3 = (world_pos / world_pos.w()).truncate().into();
-
-    axes_transform.set_translation(position);
-}
+pub struct DebugCameraTag;
 
 fn debug_setup(
-    mut commands: Commands,
+    mut debug: ResMut<Debug>,
     asset_server: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
-    mut standard_materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    // In-scene
-    let cylinder_mesh = meshes.add(Mesh::from(Cylinder {
-        height: 0.85f32,
-        radius: 0.03f32,
-        ..Default::default()
-    }));
-    let cone_mesh = meshes.add(Mesh::from(Cone {
-        height: 0.15f32,
-        radius: 0.07f32,
-        ..Default::default()
-    }));
-    let red = standard_materials.add(Color::RED.into());
-    let green = standard_materials.add(Color::GREEN.into());
-    let blue = standard_materials.add(Color::BLUE.into());
+    debug.font_handle = Some(
+        asset_server
+            .load("assets/fonts/FiraMono-Medium.ttf")
+            .unwrap(),
+    );
+    debug.transparent_material = Some(color_materials.add(ColorMaterial::color(Color::NONE)));
+}
 
-    commands
-        .spawn((
-            GlobalTransform::identity(),
-            Transform::from_scale(0.1f32),
-            AxesTag,
-        ))
-        .with_children(|axes_root| {
-            axes_root
-                .spawn((
-                    GlobalTransform::identity(),
-                    Transform::from_rotation(Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2)),
-                ))
-                .with_children(|axis_root| {
-                    axis_root
-                        .spawn(PbrComponents {
-                            material: red,
-                            mesh: cone_mesh,
-                            transform: Transform::from_translation(Vec3::new(
-                                0.0f32, 0.85f32, 0.0f32,
-                            )),
-                            ..Default::default()
-                        })
-                        .spawn(PbrComponents {
-                            material: red,
-                            mesh: cylinder_mesh,
-                            ..Default::default()
-                        });
+fn debug_toggle_system(mut commands: Commands, mut debug: ResMut<Debug>) {
+    if debug.enabled {
+        if debug.text_entity.is_none() {
+            debug.text_entity = commands
+                .spawn(NodeComponents {
+                    style: Style {
+                        size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                        flex_direction: FlexDirection::Column,
+                        justify_content: JustifyContent::FlexEnd,
+                        padding: Rect::all(Val::Px(16.0f32)),
+                        ..Default::default()
+                    },
+                    material: debug.transparent_material.unwrap(),
+                    ..Default::default()
                 })
-                .spawn((GlobalTransform::identity(), Transform::identity()))
-                .with_children(|axis_root| {
-                    axis_root
-                        .spawn(PbrComponents {
-                            material: green,
-                            mesh: cone_mesh,
-                            transform: Transform::from_translation(Vec3::new(
-                                0.0f32, 0.85f32, 0.0f32,
-                            )),
+                .with_children(|p| {
+                    p.spawn(TextComponents {
+                        style: Style {
+                            align_self: AlignSelf::FlexStart,
                             ..Default::default()
-                        })
-                        .spawn(PbrComponents {
-                            material: green,
-                            mesh: cylinder_mesh,
+                        },
+                        text: Text {
+                            value: "FT:".to_string(),
+                            font: debug.font_handle.unwrap(),
+                            style: TextStyle {
+                                font_size: 24.0,
+                                color: Color::WHITE,
+                            },
+                        },
+                        ..Default::default()
+                    })
+                    .spawn(TextComponents {
+                        style: Style {
+                            align_self: AlignSelf::FlexStart,
                             ..Default::default()
-                        });
+                        },
+                        text: Text {
+                            value: "XYZ:".to_string(),
+                            font: debug.font_handle.unwrap(),
+                            style: TextStyle {
+                                font_size: 24.0,
+                                color: Color::WHITE,
+                            },
+                        },
+                        ..Default::default()
+                    })
+                    .spawn(TextComponents {
+                        style: Style {
+                            align_self: AlignSelf::FlexStart,
+                            ..Default::default()
+                        },
+                        text: Text {
+                            value: "YP:".to_string(),
+                            font: debug.font_handle.unwrap(),
+                            style: TextStyle {
+                                font_size: 24.0,
+                                color: Color::WHITE,
+                            },
+                        },
+                        ..Default::default()
+                    });
                 })
-                .spawn((
-                    GlobalTransform::identity(),
-                    Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)),
-                ))
-                .with_children(|axis_root| {
-                    axis_root
-                        .spawn(PbrComponents {
-                            material: blue,
-                            mesh: cone_mesh,
-                            transform: Transform::from_translation(Vec3::new(
-                                0.0f32, 0.85f32, 0.0f32,
-                            )),
-                            ..Default::default()
-                        })
-                        .spawn(PbrComponents {
-                            material: blue,
-                            mesh: cylinder_mesh,
-                            ..Default::default()
-                        });
-                });
-        });
-
-    // UI
-    let font_handle = asset_server
-        .load("assets/fonts/FiraMono-Medium.ttf")
-        .unwrap();
-    commands
-        .spawn(NodeComponents {
-            style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::FlexEnd,
-                padding: Rect::all(Val::Px(16.0f32)),
-                ..Default::default()
-            },
-            material: color_materials.add(ColorMaterial::color(Color::NONE)),
-            ..Default::default()
-        })
-        .with_children(|p| {
-            p.spawn(TextComponents {
-                style: Style {
-                    align_self: AlignSelf::FlexStart,
-                    ..Default::default()
-                },
-                text: Text {
-                    value: "FT:".to_string(),
-                    font: font_handle,
-                    style: TextStyle {
-                        font_size: 24.0,
-                        color: Color::WHITE,
-                    },
-                },
-                ..Default::default()
-            })
-            .spawn(TextComponents {
-                style: Style {
-                    align_self: AlignSelf::FlexStart,
-                    ..Default::default()
-                },
-                text: Text {
-                    value: "XYZ:".to_string(),
-                    font: font_handle,
-                    style: TextStyle {
-                        font_size: 24.0,
-                        color: Color::WHITE,
-                    },
-                },
-                ..Default::default()
-            })
-            .spawn(TextComponents {
-                style: Style {
-                    align_self: AlignSelf::FlexStart,
-                    ..Default::default()
-                },
-                text: Text {
-                    value: "YP:".to_string(),
-                    font: font_handle,
-                    style: TextStyle {
-                        font_size: 24.0,
-                        color: Color::WHITE,
-                    },
-                },
-                ..Default::default()
-            });
-        });
+                .current_entity();
+        }
+    } else if let Some(entity) = debug.text_entity {
+        commands.despawn_recursive(entity);
+        debug.text_entity = None;
+    }
 }
 
 fn debug_system(
+    debug: Res<Debug>,
     diagnostics: Res<Diagnostics>,
-    mut camera: Query<(&CameraTag, &Transform, &FlyCamera)>,
+    mut camera: Query<(&DebugCameraTag, &Transform, &FlyCamera)>,
     mut query: Query<&mut Text>,
 ) {
+    if !debug.enabled || debug.text_entity.is_none() {
+        return;
+    }
     let mut cam_iter = camera.iter();
-    let (_, cam_transform, fly_cam) = cam_iter.into_iter().next().unwrap();
+    let (_, cam_transform, fly_cam) = cam_iter.iter().next().unwrap();
     for mut text in &mut query.iter() {
         match text.value.get(..3) {
             Some("FT:") => {

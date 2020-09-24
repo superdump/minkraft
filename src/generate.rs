@@ -1,4 +1,3 @@
-use crate::types::CameraTag;
 use bevy::{
     prelude::*,
     render::{mesh::VertexAttribute, pipeline::PrimitiveTopology},
@@ -9,6 +8,8 @@ use noise::*;
 use std::collections::{HashMap, HashSet};
 
 type VoxelMap = ChunkedLatticeMap<Voxel, (), YLevelsIndexer>;
+
+pub struct GeneratedVoxelsCameraTag;
 
 struct GeneratedMeshesResource {
     pub generated_map: HashMap<Point, (Entity, Handle<Mesh>)>,
@@ -112,7 +113,7 @@ fn generate_chunk(res: &mut ResMut<GeneratedVoxelResource>, min: Point, max: Poi
 fn generate_voxels(
     mut voxels: ResMut<GeneratedVoxelResource>,
     voxel_meshes: Res<GeneratedMeshesResource>,
-    _cam: &CameraTag,
+    _cam: &GeneratedVoxelsCameraTag,
     cam_transform: &Transform,
 ) {
     let cam_pos = cam_transform.translation();
@@ -221,7 +222,7 @@ fn generate_meshes(
     mut meshes: ResMut<Assets<Mesh>>,
     voxels: ChangedRes<GeneratedVoxelResource>,
     mut voxel_meshes: ResMut<GeneratedMeshesResource>,
-    _cam: &CameraTag,
+    _cam: &GeneratedVoxelsCameraTag,
     cam_transform: &Transform,
 ) {
     let cam_pos = cam_transform.translation();
