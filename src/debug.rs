@@ -37,29 +37,21 @@ pub struct AxesCameraTag;
 
 fn axes_system(
     debug: Res<Debug>,
-    mut camera_query: Query<(&AxesCameraTag, &Camera, &Transform)>,
+    mut camera_query: Query<(&Camera, &Transform)>,
     mut axes_query: Query<(&AxesTag, &mut Transform)>,
 ) {
     let mut cam_temp = camera_query.iter();
-    let (_, camera, camera_transform) = cam_temp.iter().next().unwrap();
+    let (camera, camera_transform) = cam_temp.iter().next().unwrap();
     let mut axes_temp = axes_query.iter();
     let (_, mut axes_transform) = axes_temp.iter().next().unwrap();
 
-    let view_matrix = camera_transform.value().inverse();
+    let view_matrix = camera_transform.value();
     let projection_matrix = camera.projection_matrix;
-    let world_pos: Vec4 = (projection_matrix * view_matrix)
-        .inverse()
-        .mul_vec4(Vec4::new(
-            debug.screen_position.x(),
-            -debug.screen_position.y(),
-            0.0,
-            1.0,
-        ));
+    let world_pos: Vec4 =
+        (*view_matrix * projection_matrix.inverse()).mul_vec4(debug.screen_position.extend(1.0));
     let position: Vec3 = (world_pos / world_pos.w()).truncate().into();
 
-    let forward = camera_transform.rotation() * Vec3::unit_z();
-
-    axes_transform.set_translation(position - debug.screen_position.z() * forward);
+    axes_transform.set_translation(position);
 }
 
 fn debug_setup(
