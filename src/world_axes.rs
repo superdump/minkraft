@@ -154,16 +154,16 @@ fn world_axes_toggle_system(mut commands: Commands, mut world_axes: ResMut<World
 
 fn world_axes_system(
     world_axes: Res<WorldAxes>,
-    mut camera_query: Query<(&WorldAxesCameraTag, &Camera, &Transform)>,
-    mut axes_query: Query<(&WorldAxesTag, &mut Transform)>,
+    mut camera_query: Query<With<WorldAxesCameraTag, (&Camera, &Transform)>>,
+    mut axes_query: Query<With<WorldAxesTag, (&mut Transform,)>>,
 ) {
     if !world_axes.enabled || world_axes.axes_entity.is_none() {
         return;
     }
     let mut cam_temp = camera_query.iter();
-    let (_, camera, camera_transform) = cam_temp.iter().next().unwrap();
+    let (camera, camera_transform) = cam_temp.iter().next().unwrap();
     let mut axes_temp = axes_query.iter();
-    let (_, mut axes_transform) = axes_temp.iter().next().unwrap();
+    let (mut axes_transform,) = axes_temp.iter().next().unwrap();
 
     let view_matrix = camera_transform.value();
     let projection_matrix = camera.projection_matrix;

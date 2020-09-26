@@ -122,14 +122,14 @@ fn debug_toggle_system(mut commands: Commands, mut debug: ResMut<Debug>) {
 fn debug_system(
     debug: Res<Debug>,
     diagnostics: Res<Diagnostics>,
-    mut camera: Query<(&DebugCameraTag, &Transform, &FlyCamera)>,
+    mut camera: Query<With<DebugCameraTag, (&Transform, &FlyCamera)>>,
     mut query: Query<&mut Text>,
 ) {
     if !debug.enabled || debug.text_entity.is_none() {
         return;
     }
     let mut cam_iter = camera.iter();
-    let (_, cam_transform, fly_cam) = cam_iter.iter().next().unwrap();
+    let (cam_transform, fly_cam) = cam_iter.iter().next().unwrap();
     for mut text in &mut query.iter() {
         match text.value.get(..3) {
             Some("FT:") => {
