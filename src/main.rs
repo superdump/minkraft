@@ -31,7 +31,7 @@ fn main() {
         .add_plugin(FlyCameraPlugin)
         .add_plugin(DebugPlugin)
         .add_plugin(WorldAxesPlugin)
-        // .add_plugin(GeneratePlugin)
+        .add_plugin(GeneratePlugin)
         .add_startup_system(setup_world.system())
         .add_startup_system(setup_physics.system())
         .add_system(physics_input.system())
@@ -54,35 +54,35 @@ fn setup_physics(
 ) {
     let grey = materials.add(Color::rgb(0.8, 0.8, 0.8).into());
     let cube = meshes.add(Mesh::from(shape::Cube::default()));
-    commands.spawn(PbrComponents {
-        material: grey,
-        mesh: cube,
-        transform: Transform::new(Mat4::from_scale_rotation_translation(
-            Vec3::new(512.0, 1.0, 512.0),
-            Quat::identity(),
-            Vec3::new(0.0, 32.0, 0.0),
-        )),
-        ..Default::default()
-    });
+    // commands.spawn(PbrComponents {
+    //     material: grey,
+    //     mesh: cube,
+    //     transform: Transform::new(Mat4::from_scale_rotation_translation(
+    //         Vec3::new(512.0, 1.0, 512.0),
+    //         Quat::identity(),
+    //         Vec3::new(0.0, 32.0, 0.0),
+    //     )),
+    //     ..Default::default()
+    // });
     // .with(RigidBodyBuilder::new_static().translation(0.0, 32.0, 0.0))
     // .with(ColliderBuilder::cuboid(512.0, 1.0, 512.0));
 
-    let N = 100i32;
-    let H = 16i32;
-    let mut cubes = Vec::with_capacity((N * N * H) as usize);
-    for y in 0..H {
-        for z in -(N / 2)..(N / 2) {
-            for x in -(N / 2)..(N / 2) {
-                cubes.push((
-                    GlobalTransform::identity(),
-                    Transform::from_translation(Vec3::new(x as f32, y as f32, z as f32)),
-                    RigidBodyBuilder::new_static().translation(x as f32, y as f32, z as f32),
-                    ColliderBuilder::cuboid(1.0, 1.0, 1.0),
-                ));
-            }
-        }
-    }
-    commands.spawn_batch(cubes.into_iter());
+    // let N = 100i32;
+    // let H = 16i32;
+    // let mut cubes = Vec::with_capacity((N * N * H) as usize);
+    // for y in 0..H {
+    //     for z in -(N / 2)..(N / 2) {
+    //         for x in -(N / 2)..(N / 2) {
+    //             cubes.push((
+    //                 GlobalTransform::identity(),
+    //                 Transform::from_translation(Vec3::new(x as f32, y as f32, z as f32)),
+    //                 RigidBodyBuilder::new_static().translation(x as f32, y as f32, z as f32),
+    //                 ColliderBuilder::cuboid(1.0, 1.0, 1.0),
+    //             ));
+    //         }
+    //     }
+    // }
+    // commands.spawn_batch(cubes.into_iter());
 
     commands
         .spawn(PbrComponents {
@@ -91,18 +91,18 @@ fn setup_physics(
             transform: Transform::new(Mat4::from_scale_rotation_translation(
                 Vec3::new(1.0, 2.0, 1.0),
                 Quat::identity(),
-                Vec3::new(40.0, 50.0, 40.0),
+                Vec3::new(0.0, 35.0, 0.0),
             )),
             ..Default::default()
         })
-        .with(RigidBodyBuilder::new_dynamic().translation(40.0, 50.0, 40.0))
+        .with(RigidBodyBuilder::new_dynamic().translation(0.0, 35.0, 0.0))
         .with(ColliderBuilder::cuboid(1.0, 2.0, 1.0))
         .with(PlayerTag);
 }
 
 fn setup_world(mut commands: Commands) {
-    let eye = Vec3::new(0.0, 64.0, 0.0);
-    let center = Vec3::new(100.0, 0.0, 100.0);
+    let eye = Vec3::new(0.0, 35.0, 0.0);
+    let center = Vec3::new(1.0, 0.0, 1.0);
     let camera_transform = Mat4::face_toward(eye, center, Vec3::unit_y());
 
     // FIXME: Hacks to sync the FlyCamera with the camera_transform
