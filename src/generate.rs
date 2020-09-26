@@ -2,6 +2,7 @@ use bevy::{
     prelude::*,
     render::{mesh::VertexAttribute, pipeline::PrimitiveTopology},
 };
+use bevy_rapier3d::rapier::{dynamics::RigidBodyBuilder, geometry::ColliderBuilder};
 use ilattice3::{prelude::*, ChunkedLatticeMap, ChunkedLatticeMapReader, YLevelsIndexer};
 use ilattice3_mesh::{greedy_quads, make_pos_norm_tang_tex_mesh_from_quads, GreedyQuadsVoxel};
 use noise::*;
@@ -219,7 +220,7 @@ fn spawn_mesh(
 
     let mut entities = Vec::with_capacity(pos_norm_tang_tex_ind.len());
     for (i, pos_norm_tex_ind) in pos_norm_tang_tex_ind {
-        let indices = pos_norm_tex_ind.indices.iter().map(|i| *i as u32).collect();
+        let indices: Vec<u32> = pos_norm_tex_ind.indices.iter().map(|i| *i as u32).collect();
         let mesh = meshes.add(Mesh {
             primitive_topology: PrimitiveTopology::TriangleList,
             attributes: vec![
@@ -227,14 +228,25 @@ fn spawn_mesh(
                 VertexAttribute::normal(pos_norm_tex_ind.normals.clone()),
                 VertexAttribute::uv(pos_norm_tex_ind.tex_coords.clone()),
             ],
-            indices: Some(indices),
+            indices: Some(indices.clone()),
         });
+        let vertices = pos_norm_tex_ind
+            .positions
+            .iter()
+            .map(|p| bevy_rapier3d::rapier::math::Point::from_slice(p))
+            .collect();
+        let indices = indices
+            .chunks(3)
+            .map(|i| bevy_rapier3d::rapier::na::Point3::<u32>::from_slice(i))
+            .collect();
         let entity = commands
             .spawn(PbrComponents {
                 mesh,
                 material: materials[i as usize],
                 ..Default::default()
             })
+            .with(RigidBodyBuilder::new_static())
+            .with(ColliderBuilder::trimesh(vertices, indices))
             .current_entity()
             .unwrap();
         entities.push((entity, mesh));
