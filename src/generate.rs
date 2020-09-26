@@ -117,11 +117,7 @@ fn generate_voxels(
     cam_transform: &Transform,
 ) {
     let cam_pos = cam_transform.translation();
-    let cam_pos = Point::new(
-        cam_pos.x().round() as i32,
-        cam_pos.y().round() as i32,
-        cam_pos.z().round() as i32,
-    );
+    let cam_pos = Point::new(cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32);
 
     let extent = transform_to_extent(cam_pos, voxels.view_distance);
     let extent = extent_modulo_expand(extent, voxels.chunk_size);
@@ -226,11 +222,7 @@ fn generate_meshes(
     cam_transform: &Transform,
 ) {
     let cam_pos = cam_transform.translation();
-    let cam_pos = Point::new(
-        cam_pos.x().round() as i32,
-        cam_pos.y().round() as i32,
-        cam_pos.z().round() as i32,
-    );
+    let cam_pos = Point::new(cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32);
 
     let view_distance = voxels.view_distance;
     let chunk_size = voxels.chunk_size;
