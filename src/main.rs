@@ -59,7 +59,7 @@ fn setup_world(mut commands: Commands) {
         })
         .with(FlyCamera {
             sensitivity: 10.0f32,
-            speed: 0.1f32,
+            speed: 5.0f32,
             max_speed: 5.0f32,
             pitch: -pitch.to_degrees(),
             yaw: yaw.to_degrees() - 180.0f32,
