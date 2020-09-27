@@ -7,12 +7,16 @@ use ilattice3_mesh::{greedy_quads, make_pos_norm_tang_tex_mesh_from_quads, Greed
 use noise::*;
 use std::collections::{HashMap, HashSet};
 
+const SEA_LEVEL: f64 = 64.0;
+const TERRAIN_Y_SCALE: f64 = 0.2;
+
 type VoxelMap = ChunkedLatticeMap<Voxel, (), YLevelsIndexer>;
+type VoxelMaterial = u8;
 
 pub struct GeneratedVoxelsCameraTag;
 
 struct GeneratedMeshesResource {
-    pub generated_map: HashMap<Point, (Entity, Handle<Mesh>)>,
+    pub generated_map: HashMap<Point, Vec<(Entity, Handle<Mesh>)>>,
 }
 
 impl Default for GeneratedMeshesResource {
@@ -38,7 +42,7 @@ impl Default for GeneratedVoxelResource {
         GeneratedVoxelResource {
             noise: RidgedMulti::new()
                 .set_seed(1234)
-                .set_frequency(0.01)
+                .set_frequency(0.008)
                 .set_octaves(5),
             chunk_size,
             map: ChunkedLatticeMap::<_, (), YLevelsIndexer>::new(
@@ -68,11 +72,22 @@ fn init_generation(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     res.materials.push(materials.add(Color::NONE.into()));
-    res.materials.push(materials.add(Color::GREEN.into()));
+    res.materials
+        .push(materials.add(Color::hex("4682B4").unwrap().into())); // Blue
+    res.materials
+        .push(materials.add(Color::hex("FFFACD").unwrap().into())); // Yellow
+    res.materials
+        .push(materials.add(Color::hex("9ACD32").unwrap().into())); // Green
+    res.materials
+        .push(materials.add(Color::hex("8B4513").unwrap().into())); // Brown
+    res.materials
+        .push(materials.add(Color::hex("808080").unwrap().into())); // Grey
+    res.materials
+        .push(materials.add(Color::hex("FFFAFA").unwrap().into())); // White
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-struct Voxel(u16);
+struct Voxel(VoxelMaterial);
 
 impl Default for Voxel {
     fn default() -> Self {
@@ -87,16 +102,27 @@ impl IsEmpty for Voxel {
 }
 
 impl GreedyQuadsVoxel for Voxel {
-    type Material = u16;
+    type Material = VoxelMaterial;
 
     fn material(&self) -> Self::Material {
         self.0
     }
 }
 
+fn height_to_material(y: i32) -> VoxelMaterial {
+    match y {
+        y if (y as f64) < 0.85 * SEA_LEVEL => 1, // Blue
+        y if (y as f64) < 0.87 * SEA_LEVEL => 2, // Yellow
+        y if (y as f64) < 0.90 * SEA_LEVEL => 3, // Green
+        y if (y as f64) < 0.92 * SEA_LEVEL => 4, // Brown
+        y if (y as f64) < 1.1 * SEA_LEVEL => 5,  // Grey
+        _ => 6,                                  // White
+    }
+}
+
 fn generate_chunk(res: &mut ResMut<GeneratedVoxelResource>, min: Point, max: Point) {
-    let yoffset = 12.0f64;
-    let yscale = 10.0f64;
+    let yoffset = SEA_LEVEL;
+    let yscale = TERRAIN_Y_SCALE * yoffset;
     for z in min.z..max.z {
         for x in min.x..max.x {
             let max_y = (res.noise.get([x as f64, z as f64]) * yscale + yoffset).round() as i32;
@@ -104,7 +130,7 @@ fn generate_chunk(res: &mut ResMut<GeneratedVoxelResource>, min: Point, max: Poi
                 let (_p, v) = res
                     .map
                     .get_mut_or_default(&Point::new(x, y, z), (), Voxel(0));
-                *v = Voxel(1);
+                *v = Voxel(height_to_material(y));
             }
         }
     }
@@ -183,34 +209,37 @@ fn spawn_mesh(
     materials: &[Handle<StandardMaterial>],
     voxel_map: &VoxelMap,
     extent: Extent,
-) -> (Entity, Handle<Mesh>) {
+) -> Vec<(Entity, Handle<Mesh>)> {
     let reader = ChunkedLatticeMapReader::new(voxel_map);
     let map = reader
         .map
         .copy_extent_into_new_map(extent, &reader.local_cache);
     let quads = greedy_quads(&map, *map.get_extent());
     let pos_norm_tang_tex_ind = make_pos_norm_tang_tex_mesh_from_quads(&quads);
-    let pos_norm_tex_ind = pos_norm_tang_tex_ind.get(&1).unwrap();
-    let indices = pos_norm_tex_ind.indices.iter().map(|i| *i as u32).collect();
 
-    let mesh = meshes.add(Mesh {
-        primitive_topology: PrimitiveTopology::TriangleList,
-        attributes: vec![
-            VertexAttribute::position(pos_norm_tex_ind.positions.clone()),
-            VertexAttribute::normal(pos_norm_tex_ind.normals.clone()),
-            VertexAttribute::uv(pos_norm_tex_ind.tex_coords.clone()),
-        ],
-        indices: Some(indices),
-    });
-    let entity = commands
-        .spawn(PbrComponents {
-            mesh,
-            material: materials[1],
-            ..Default::default()
-        })
-        .current_entity()
-        .unwrap();
-    (entity, mesh)
+    let mut entities = Vec::with_capacity(pos_norm_tang_tex_ind.len());
+    for (i, pos_norm_tex_ind) in pos_norm_tang_tex_ind {
+        let indices = pos_norm_tex_ind.indices.iter().map(|i| *i as u32).collect();
+        let mesh = meshes.add(Mesh {
+            primitive_topology: PrimitiveTopology::TriangleList,
+            attributes: vec![
+                VertexAttribute::position(pos_norm_tex_ind.positions.clone()),
+                VertexAttribute::normal(pos_norm_tex_ind.normals.clone()),
+                VertexAttribute::uv(pos_norm_tex_ind.tex_coords.clone()),
+            ],
+            indices: Some(indices),
+        });
+        let entity = commands
+            .spawn(PbrComponents {
+                mesh,
+                material: materials[i as usize],
+                ..Default::default()
+            })
+            .current_entity()
+            .unwrap();
+        entities.push((entity, mesh));
+    }
+    entities
 }
 
 fn generate_meshes(
@@ -259,9 +288,11 @@ fn generate_meshes(
         }
     }
     for p in &to_remove {
-        if let Some((entity, mesh)) = voxel_meshes.generated_map.remove(p) {
-            commands.despawn(entity);
-            meshes.remove(&mesh);
+        if let Some(entities) = voxel_meshes.generated_map.remove(p) {
+            for (entity, mesh) in entities {
+                commands.despawn(entity);
+                meshes.remove(&mesh);
+            }
         }
     }
 }

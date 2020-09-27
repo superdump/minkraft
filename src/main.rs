@@ -38,8 +38,8 @@ fn main() {
 }
 
 fn setup_world(mut commands: Commands) {
-    let eye = Vec3::new(0.0, 64.0, 0.0);
-    let center = Vec3::new(64.0, 0.0, 64.0);
+    let eye = Vec3::new(17.0, 65.0, 30.0);
+    let center = Vec3::new(0.0, 65.0, 56.0);
     let camera_transform = Mat4::face_toward(eye, center, Vec3::unit_y());
 
     // FIXME: Hacks to sync the FlyCamera with the camera_transform
