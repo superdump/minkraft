@@ -52,43 +52,14 @@ fn setup_physics(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let grey = materials.add(Color::rgb(0.8, 0.8, 0.8).into());
+    let red = materials.add(Color::hex("DC143C").unwrap().into());
     let cube = meshes.add(Mesh::from(shape::Cube::default()));
-    // commands.spawn(PbrComponents {
-    //     material: grey,
-    //     mesh: cube,
-    //     transform: Transform::new(Mat4::from_scale_rotation_translation(
-    //         Vec3::new(512.0, 1.0, 512.0),
-    //         Quat::identity(),
-    //         Vec3::new(0.0, 32.0, 0.0),
-    //     )),
-    //     ..Default::default()
-    // });
-    // .with(RigidBodyBuilder::new_static().translation(0.0, 32.0, 0.0))
-    // .with(ColliderBuilder::cuboid(512.0, 1.0, 512.0));
 
-    // let N = 100i32;
-    // let H = 16i32;
-    // let mut cubes = Vec::with_capacity((N * N * H) as usize);
-    // for y in 0..H {
-    //     for z in -(N / 2)..(N / 2) {
-    //         for x in -(N / 2)..(N / 2) {
-    //             cubes.push((
-    //                 GlobalTransform::identity(),
-    //                 Transform::from_translation(Vec3::new(x as f32, y as f32, z as f32)),
-    //                 RigidBodyBuilder::new_static().translation(x as f32, y as f32, z as f32),
-    //                 ColliderBuilder::cuboid(1.0, 1.0, 1.0),
-    //             ));
-    //         }
-    //     }
-    // }
-    // commands.spawn_batch(cubes.into_iter());
-
-    let spawn_pos = Vec3::new(1.0, 35.0, 1.0);
-    let obj_scale = Vec3::new(1.0, 2.0, 1.0);
+    let spawn_pos = Vec3::new(1.1, 95.0, 1.1);
+    let obj_scale = Vec3::new(0.465, 1.75, 0.25);
     commands
         .spawn(PbrComponents {
-            material: grey,
+            material: red,
             mesh: cube,
             transform: Transform::new(Mat4::from_scale_rotation_translation(
                 obj_scale,
@@ -111,8 +82,8 @@ fn setup_physics(
 }
 
 fn setup_world(mut commands: Commands) {
-    let eye = Vec3::new(30.0, 35.0, 30.0);
-    let center = Vec3::new(-10.0, 0.0, -10.0);
+    let eye = Vec3::new(30.0, 75.0, 30.0);
+    let center = Vec3::new(0.0, 60.0, 0.0);
     let camera_transform = Mat4::face_toward(eye, center, Vec3::unit_y());
 
     // FIXME: Hacks to sync the FlyCamera with the camera_transform
