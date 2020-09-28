@@ -8,7 +8,7 @@ license = "MIT"
 [dependencies]
 bevy = "0.2.1"
 bevy_fly_camera = "0.4.1"
-bevy_rapier3d = { version = "0.2.0", features = [ "parallel" ] }
+bevy_rapier3d = { version = "0.2.0", features = [ "parallel", "simd-nightly" ] }
 env_logger = "0.7.1"
 ilattice3 = { git = "https://github.com/bonsairobo/ilattice3", rev = "9586551f" }
 ilattice3-mesh = { git = "https://github.com/bonsairobo/ilattice3-mesh", rev = "15101c65e" }

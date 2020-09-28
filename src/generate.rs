@@ -50,7 +50,7 @@ impl Default for GeneratedVoxelResource {
                 [chunk_size, chunk_size, chunk_size].into(),
             ),
             max_height: 256,
-            view_distance: 32,
+            view_distance: 256,
             materials: Vec::new(),
         }
     }

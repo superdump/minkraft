@@ -84,25 +84,35 @@ fn setup_physics(
     // }
     // commands.spawn_batch(cubes.into_iter());
 
+    let spawn_pos = Vec3::new(1.0, 35.0, 1.0);
+    let obj_scale = Vec3::new(1.0, 2.0, 1.0);
     commands
         .spawn(PbrComponents {
             material: grey,
             mesh: cube,
             transform: Transform::new(Mat4::from_scale_rotation_translation(
-                Vec3::new(1.0, 2.0, 1.0),
+                obj_scale,
                 Quat::identity(),
-                Vec3::new(0.0, 35.0, 0.0),
+                spawn_pos,
             )),
             ..Default::default()
         })
-        .with(RigidBodyBuilder::new_dynamic().translation(0.0, 35.0, 0.0))
-        .with(ColliderBuilder::cuboid(1.0, 2.0, 1.0))
+        .with(RigidBodyBuilder::new_dynamic().translation(
+            spawn_pos.x(),
+            spawn_pos.y(),
+            spawn_pos.z(),
+        ))
+        .with(ColliderBuilder::cuboid(
+            obj_scale.x(),
+            obj_scale.y(),
+            obj_scale.z(),
+        ))
         .with(PlayerTag);
 }
 
 fn setup_world(mut commands: Commands) {
-    let eye = Vec3::new(0.0, 35.0, 0.0);
-    let center = Vec3::new(1.0, 0.0, 1.0);
+    let eye = Vec3::new(30.0, 35.0, 30.0);
+    let center = Vec3::new(-10.0, 0.0, -10.0);
     let camera_transform = Mat4::face_toward(eye, center, Vec3::unit_y());
 
     // FIXME: Hacks to sync the FlyCamera with the camera_transform
