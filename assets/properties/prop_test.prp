@@ -1,0 +1,20 @@
+{
+  "type": "MyStruct",
+  "map": {
+    "data": 4,
+    "v_s": {
+      "type": "SomeType",
+      "map": {
+        "v": {
+          "type": "alloc::vec::Vec<usize>",
+          "seq": [
+            1,
+            2,
+            3,
+          ],
+        },
+        "s": "Hello",
+      },
+    },
+  },
+}

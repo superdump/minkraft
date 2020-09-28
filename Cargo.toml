@@ -6,7 +6,8 @@ edition = "2018"
 license = "MIT"
 
 [dependencies]
-bevy = "0.2.1"
+anyhow = "1.0.32"
+bevy = { git = "https://github.com/superdump/bevy.git", branch = "hot-reload-fix" }
 bevy_fly_camera = "0.4.1"
 bevy_rapier3d = { version = "0.2.0", features = [ "parallel", "simd-nightly" ] }
 env_logger = "0.7.1"
@@ -14,6 +15,12 @@ ilattice3 = { git = "https://github.com/bonsairobo/ilattice3", rev = "9586551f" 
 ilattice3-mesh = { git = "https://github.com/bonsairobo/ilattice3-mesh", rev = "15101c65e" }
 log = "0.4.11"
 noise = "0.6.0"
+parking_lot = "0.11.0"
+ron = "0.6.2"
+serde = "1.0.116"
+
+[patch.crates-io]
+bevy = { git = "https://github.com/superdump/bevy.git", branch = "hot-reload-fix" }
 
 [features]
 default = []

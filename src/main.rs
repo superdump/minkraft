@@ -13,6 +13,7 @@ use bevy_rapier3d::{
 use minkraft::{
     debug::{Debug, DebugCameraTag, DebugPlugin},
     generate::*,
+    prop_test::PropTestPlugin,
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
 
@@ -27,6 +28,7 @@ fn main() {
         })
         .add_resource(Msaa { samples: 4 })
         .add_default_plugins()
+        .add_plugin(PropTestPlugin)
         .add_plugin(RapierPhysicsPlugin)
         .add_plugin(FlyCameraPlugin)
         .add_plugin(DebugPlugin)
@@ -83,7 +85,7 @@ fn setup_physics(
 
 fn setup_world(mut commands: Commands) {
     let eye = Vec3::new(30.0, 75.0, 30.0);
-    let center = Vec3::new(0.0, 60.0, 0.0);
+    let center = Vec3::new(0.0, 75.0, 0.0);
     let camera_transform = Mat4::face_toward(eye, center, Vec3::unit_y());
 
     // FIXME: Hacks to sync the FlyCamera with the camera_transform
@@ -102,7 +104,7 @@ fn setup_world(mut commands: Commands) {
             ..Default::default()
         })
         .with(FlyCamera {
-            sensitivity: 10.0f32,
+            sensitivity: 1.0f32,
             speed: 5.0f32,
             max_speed: 5.0f32,
             pitch: -pitch.to_degrees(),
