@@ -14,7 +14,7 @@ const TERRAIN_Y_SCALE: f64 = 0.2;
 type VoxelMap = ChunkedLatticeMap<Voxel, (), YLevelsIndexer>;
 type VoxelMaterial = u8;
 
-pub struct GeneratedVoxelsCameraTag;
+pub struct GeneratedVoxelsTag;
 
 struct GeneratedMeshesResource {
     pub generated_map: HashMap<Point, Vec<(Entity, Handle<Mesh>)>>,
@@ -140,7 +140,7 @@ fn generate_chunk(res: &mut ResMut<GeneratedVoxelResource>, min: Point, max: Poi
 fn generate_voxels(
     mut voxels: ResMut<GeneratedVoxelResource>,
     voxel_meshes: Res<GeneratedMeshesResource>,
-    _cam: &GeneratedVoxelsCameraTag,
+    _cam: &GeneratedVoxelsTag,
     cam_transform: &Transform,
 ) {
     let cam_pos = cam_transform.translation();
@@ -259,7 +259,7 @@ fn generate_meshes(
     mut meshes: ResMut<Assets<Mesh>>,
     voxels: ChangedRes<GeneratedVoxelResource>,
     mut voxel_meshes: ResMut<GeneratedMeshesResource>,
-    _cam: &GeneratedVoxelsCameraTag,
+    _cam: &GeneratedVoxelsTag,
     cam_transform: &Transform,
 ) {
     let cam_pos = cam_transform.translation();

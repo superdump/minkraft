@@ -11,6 +11,7 @@ use bevy_rapier3d::{
     rapier::geometry::ColliderBuilder,
 };
 use minkraft::{
+    character_controller::*,
     debug::{Debug, DebugCameraTag, DebugPlugin},
     generate::*,
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
@@ -32,8 +33,9 @@ fn main() {
         .add_plugin(DebugPlugin)
         .add_plugin(WorldAxesPlugin)
         .add_plugin(GeneratePlugin)
+        .add_plugin(CharacterControllerPlugin)
         .add_startup_system(setup_world.system())
-        .add_startup_system(setup_physics.system())
+        .add_startup_system(setup_player.system())
         .add_system(physics_input.system())
         .add_system(exit_on_esc_system.system())
         .add_system(enable_fly_camera.system())
@@ -47,28 +49,32 @@ fn main() {
 
 pub struct PlayerTag;
 
-fn setup_physics(
+fn setup_player(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let red = materials.add(Color::hex("DC143C").unwrap().into());
-    let cube = meshes.add(Mesh::from(shape::Cube::default()));
-
     let spawn_pos = Vec3::new(1.1, 95.0, 1.1);
     let obj_scale = Vec3::new(0.465, 1.75, 0.25);
+
+    let eye = Vec3::new(0.0, 5.0, -15.0);
+    let center = Vec3::zero();
+    let camera_transform = Mat4::face_toward(eye, center, Vec3::unit_y());
+
+    // FIXME: Hacks to sync the FlyCamera with the camera_transform
+    let eye_center = (center - eye).normalize();
+    let pitch = eye_center.y().asin();
+    let yaw = eye_center.z().atan2(eye_center.x());
+
+    let red = materials.add(Color::hex("DC143C").unwrap().into());
+    let cuboid = meshes.add(Mesh::from(shape::Cube::default()));
+
     commands
-        .spawn(PbrComponents {
-            material: red,
-            mesh: cube,
-            transform: Transform::new(Mat4::from_scale_rotation_translation(
-                obj_scale,
-                Quat::identity(),
-                spawn_pos,
-            )),
-            ..Default::default()
-        })
-        .with(RigidBodyBuilder::new_dynamic().translation(
+        .spawn((
+            GlobalTransform::identity(),
+            Transform::from_translation(spawn_pos),
+        ))
+        .with(RigidBodyBuilder::new_kinematic().translation(
             spawn_pos.x(),
             spawn_pos.y(),
             spawn_pos.z(),
@@ -78,42 +84,47 @@ fn setup_physics(
             obj_scale.y(),
             obj_scale.z(),
         ))
-        .with(PlayerTag);
+        .with(CharacterController {
+            pitch: -pitch.to_degrees(),
+            yaw: yaw.to_degrees() - 180.0f32,
+            ..Default::default()
+        })
+        .with(PlayerTag)
+        .with(GeneratedVoxelsTag)
+        .with(CharacterControllerBodyTag)
+        .with_children(|body| {
+            body.spawn(PbrComponents {
+                material: red,
+                mesh: cuboid,
+                transform: Transform::new(Mat4::from_scale(obj_scale)),
+                ..Default::default()
+            })
+            .spawn((
+                GlobalTransform::identity(),
+                Transform::new(Mat4::from_translation(
+                    0.8 * 0.5 * obj_scale.y() * Vec3::unit_y(),
+                )),
+                CharacterControllerHeadTag,
+            ))
+            .with_children(|head| {
+                head.spawn(Camera3dComponents {
+                    transform: Transform::new(camera_transform),
+                    ..Default::default()
+                })
+                .with(DebugCameraTag)
+                .with(WorldAxesCameraTag)
+                .with(CharacterControllerCameraTag);
+            });
+        });
 }
 
 fn setup_world(mut commands: Commands) {
-    let eye = Vec3::new(30.0, 75.0, 30.0);
-    let center = Vec3::new(0.0, 60.0, 0.0);
-    let camera_transform = Mat4::face_toward(eye, center, Vec3::unit_y());
-
-    // FIXME: Hacks to sync the FlyCamera with the camera_transform
-    let eye_center = (center - eye).normalize();
-    let pitch = eye_center.y().asin();
-    let yaw = eye_center.z().atan2(eye_center.x());
-
     commands
         .spawn(UiCameraComponents::default())
         .spawn(LightComponents {
             transform: Transform::from_translation(Vec3::new(14.0, 18.0, 14.0)),
             ..Default::default()
-        })
-        .spawn(Camera3dComponents {
-            transform: Transform::new(camera_transform),
-            ..Default::default()
-        })
-        .with(FlyCamera {
-            sensitivity: 10.0f32,
-            speed: 5.0f32,
-            max_speed: 5.0f32,
-            pitch: -pitch.to_degrees(),
-            yaw: yaw.to_degrees() - 180.0f32,
-            key_up: KeyCode::Q,
-            key_down: KeyCode::E,
-            ..Default::default()
-        })
-        .with(DebugCameraTag)
-        .with(GeneratedVoxelsCameraTag)
-        .with(WorldAxesCameraTag);
+        });
 }
 
 fn physics_input(

@@ -1,8 +1,8 @@
+use crate::character_controller::CharacterController;
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
     prelude::*,
 };
-use bevy_fly_camera::FlyCamera;
 
 pub struct Debug {
     pub enabled: bool,
@@ -122,14 +122,17 @@ fn debug_toggle_system(mut commands: Commands, mut debug: ResMut<Debug>) {
 fn debug_system(
     debug: Res<Debug>,
     diagnostics: Res<Diagnostics>,
-    mut camera: Query<With<DebugCameraTag, (&Transform, &FlyCamera)>>,
+    mut query_cc: Query<&CharacterController>,
+    mut camera: Query<With<DebugCameraTag, &Transform>>,
     mut query: Query<&mut Text>,
 ) {
     if !debug.enabled || debug.text_entity.is_none() {
         return;
     }
+    let mut query_cc_iter = query_cc.iter();
+    let options = query_cc_iter.iter().next().unwrap();
     let mut cam_iter = camera.iter();
-    let (cam_transform, fly_cam) = cam_iter.iter().next().unwrap();
+    let cam_transform = cam_iter.iter().next().unwrap();
     for mut text in &mut query.iter() {
         match text.value.get(..3) {
             Some("FT:") => {
@@ -150,7 +153,7 @@ fn debug_system(
                 );
             }
             Some("YP:") => {
-                text.value = format!("YP: ({:>8.2}, {:>8.2})", fly_cam.yaw, fly_cam.pitch);
+                text.value = format!("YP: ({:>8.2}, {:>8.2})", options.yaw, options.pitch);
             }
             _ => {}
         }
