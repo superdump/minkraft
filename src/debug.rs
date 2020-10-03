@@ -34,7 +34,7 @@ impl Plugin for DebugPlugin {
     }
 }
 
-pub struct DebugCameraTag;
+pub struct DebugTransformTag;
 
 fn debug_setup(
     mut debug: ResMut<Debug>,
@@ -123,7 +123,7 @@ fn debug_system(
     debug: Res<Debug>,
     diagnostics: Res<Diagnostics>,
     mut query_cc: Query<&CharacterController>,
-    mut camera: Query<With<DebugCameraTag, &Transform>>,
+    mut camera: Query<With<DebugTransformTag, &Transform>>,
     mut query: Query<&mut Text>,
 ) {
     if !debug.enabled || debug.text_entity.is_none() {

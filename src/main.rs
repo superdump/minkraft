@@ -11,7 +11,7 @@ use bevy_rapier3d::{
 };
 use minkraft::{
     character_controller::*,
-    debug::{Debug, DebugCameraTag, DebugPlugin},
+    debug::{Debug, DebugPlugin, DebugTransformTag},
     generate::*,
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
@@ -70,6 +70,7 @@ fn setup_player(
         .spawn((
             GlobalTransform::identity(),
             Transform::from_translation(spawn_pos),
+            DebugTransformTag,
         ))
         .with(RigidBodyBuilder::new_kinematic().translation(
             spawn_pos.x(),
@@ -108,7 +109,6 @@ fn setup_player(
                     transform: Transform::new(camera_transform),
                     ..Default::default()
                 })
-                .with(DebugCameraTag)
                 .with(WorldAxesCameraTag)
                 .with(CharacterControllerCameraTag);
             });
