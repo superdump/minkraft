@@ -132,7 +132,6 @@ fn movement_axis(input: &Res<Input<KeyCode>>, plus: KeyCode, minus: KeyCode) -> 
 }
 
 fn character_controller_movement(
-    time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<With<CharacterControllerBodyTag, (&mut CharacterController, &Transform)>>,
 ) {
