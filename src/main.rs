@@ -67,7 +67,7 @@ fn setup_player(
     let yaw = eye_center.z().atan2(eye_center.x());
 
     let red = materials.add(Color::hex("DC143C").unwrap().into());
-    let cuboid = meshes.add(Mesh::from(shape::Cube::default()));
+    let cuboid = meshes.add(Mesh::from(shape::Cube { size: 0.5 }));
 
     commands
         .spawn((
@@ -80,9 +80,9 @@ fn setup_player(
             spawn_pos.z(),
         ))
         .with(ColliderBuilder::cuboid(
-            obj_scale.x(),
-            obj_scale.y(),
-            obj_scale.z(),
+            0.5 * obj_scale.x(),
+            0.5 * obj_scale.y(),
+            0.5 * obj_scale.z(),
         ))
         .with(CharacterController {
             pitch: -pitch.to_degrees(),
