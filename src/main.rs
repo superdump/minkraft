@@ -4,7 +4,6 @@ use bevy::{
     input::{keyboard::KeyCode, system::exit_on_esc_system},
     prelude::*,
 };
-use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 use bevy_rapier3d::{
     physics::{RapierPhysicsPlugin, RigidBodyHandleComponent},
     rapier::dynamics::{RigidBodyBuilder, RigidBodySet},
@@ -29,7 +28,6 @@ fn main() {
         .add_resource(Msaa { samples: 4 })
         .add_default_plugins()
         .add_plugin(RapierPhysicsPlugin)
-        .add_plugin(FlyCameraPlugin)
         .add_plugin(DebugPlugin)
         .add_plugin(WorldAxesPlugin)
         .add_plugin(GeneratePlugin)
@@ -38,7 +36,6 @@ fn main() {
         .add_startup_system(setup_player.system())
         .add_system(physics_input.system())
         .add_system(exit_on_esc_system.system())
-        .add_system(enable_fly_camera.system())
         .add_system(toggle_debug_system.system());
 
     #[cfg(feature = "profiler")]
@@ -155,12 +152,6 @@ fn physics_input(
     if keyboard_input.pressed(KeyCode::Space) {
         player.wake_up();
         player.apply_impulse([0.0, 3.0 * force_multiplier, 0.0].into());
-    }
-}
-
-fn enable_fly_camera(keyboard_input: Res<Input<KeyCode>>, mut options: Mut<FlyCamera>) {
-    if keyboard_input.just_pressed(KeyCode::M) {
-        options.enabled = !options.enabled;
     }
 }
 
