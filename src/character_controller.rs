@@ -210,7 +210,7 @@ fn character_controller_look(
             let delta_yaw = -delta.x() * options.mouse_sensitivity * time.delta_seconds;
             options.yaw += delta_yaw;
             options.delta_yaw = delta_yaw;
-            options.pitch += delta.y() * options.mouse_sensitivity * time.delta_seconds;
+            options.pitch -= delta.y() * options.mouse_sensitivity * time.delta_seconds;
 
             if options.pitch > 89.9 {
                 options.pitch = 89.9;
