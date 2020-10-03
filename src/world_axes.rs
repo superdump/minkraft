@@ -11,7 +11,7 @@ impl Plugin for WorldAxesPlugin {
                 bevy::app::stage::PRE_UPDATE,
                 world_axes_toggle_system.system(),
             )
-            .add_system(world_axes_system.system());
+            .add_system_to_stage_front(bevy::app::stage::POST_UPDATE, world_axes_system.system());
     }
 }
 
@@ -152,9 +152,10 @@ fn world_axes_toggle_system(mut commands: Commands, mut world_axes: ResMut<World
     }
 }
 
+// NOTE: This system depends on the tagged camera's GlobalTransform having been updated!
 fn world_axes_system(
     world_axes: Res<WorldAxes>,
-    mut camera_query: Query<With<WorldAxesCameraTag, (&Camera, &Transform)>>,
+    mut camera_query: Query<With<WorldAxesCameraTag, (&Camera, &GlobalTransform)>>,
     mut axes_query: Query<With<WorldAxesTag, (&mut Transform,)>>,
 ) {
     if !world_axes.enabled || world_axes.axes_entity.is_none() {

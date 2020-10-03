@@ -265,6 +265,24 @@ fn character_controller_set_next(
     }
 }
 
+fn character_controller_update_global_transforms(
+    mut query_body: Query<With<CharacterControllerBodyTag, (&Transform, &mut GlobalTransform)>>,
+    mut query_head: Query<With<CharacterControllerHeadTag, (&Transform, &mut GlobalTransform)>>,
+    mut query_camera: Query<With<CharacterControllerCameraTag, (&Transform, &mut GlobalTransform)>>,
+) {
+    let mut body_temp = query_body.iter();
+    let (body_transform, mut global_body_transform) = body_temp.iter().next().unwrap();
+    let mut head_temp = query_head.iter();
+    let (head_transform, mut global_head_transform) = head_temp.iter().next().unwrap();
+    let mut camera_temp = query_camera.iter();
+    let (camera_transform, mut global_camera_transform) = camera_temp.iter().next().unwrap();
+
+    *global_body_transform.value_mut() = *body_transform.value();
+    *global_head_transform.value_mut() = *global_body_transform.value() * *head_transform.value();
+    *global_camera_transform.value_mut() =
+        *global_head_transform.value() * *camera_transform.value();
+}
+
 /**
 Include this plugin to add the systems for the CharacterController bundle.
 
@@ -284,7 +302,8 @@ impl Plugin for CharacterControllerPlugin {
             .add_system(character_controller_toggle.system())
             .add_system(character_controller_movement.system())
             .add_system(character_controller_look.system())
-            .add_system(character_controller_set_next.system());
+            .add_system(character_controller_set_next.system())
+            .add_system(character_controller_update_global_transforms.system());
     }
 }
 // *** END OF COPIED AND MODIFIED CODE ***
