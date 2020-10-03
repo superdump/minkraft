@@ -64,7 +64,7 @@ impl Default for CharacterController {
             jump_velocity: 10.0,
             fall_acceleration_factor: 2.0,
             mouse_sensitivity: 1.0,
-            max_speed: 10.0,
+            max_speed: 20.0,
             key_toggle: KeyCode::M,
             key_forward: KeyCode::W,
             key_backward: KeyCode::S,
