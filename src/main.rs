@@ -51,7 +51,7 @@ fn setup_player(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let spawn_pos = Vec3::new(1.1, 65.0, 1.1);
+    let spawn_pos = Vec3::new(1.1, 90.0, 1.1);
     let obj_scale = Vec3::new(0.465, 1.75, 0.25);
 
     let eye = Vec3::new(0.0, 4.0, 8.0);
