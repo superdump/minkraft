@@ -49,6 +49,7 @@ pub struct CharacterController {
     pub key_up: KeyCode,
     pub key_down: KeyCode,
     pub key_jump: KeyCode,
+    pub accel: Vec3,
     pub velocity: Vec3,
     pub friction: Vec3,
     pub yaw: f32,
@@ -72,6 +73,7 @@ impl Default for CharacterController {
             key_up: KeyCode::E,
             key_down: KeyCode::Q,
             key_jump: KeyCode::Space,
+            accel: Vec3::zero(),
             velocity: Vec3::zero(),
             friction: Vec3::new(10.0, 10.0, 10.0),
             yaw: 0.0,
@@ -156,32 +158,10 @@ fn character_controller_movement(
             + (Vec3::unit_y() * axis_float);
         // FIXME - gravity is unusable until collisions are working
         // - 9.81 * Vec3::unit_y();
-        let accel: Vec3 = if accel.length() != 0.0 {
+        options.accel = if accel.length() != 0.0 {
             accel.normalize() * options.max_speed
         } else {
             Vec3::zero()
-        };
-
-        let friction: Vec3 = if options.velocity.length() != 0.0 {
-            options.velocity.normalize() * -1.0 * options.friction
-        } else {
-            Vec3::zero()
-        };
-
-        options.velocity += accel * time.delta_seconds;
-
-        // clamp within max speed
-        if options.velocity.length() > options.max_speed {
-            options.velocity = options.velocity.normalize() * options.max_speed;
-        }
-
-        let delta_friction = friction * time.delta_seconds;
-
-        options.velocity = if (options.velocity + delta_friction).sign() != options.velocity.sign()
-        {
-            Vec3::zero()
-        } else {
-            options.velocity + delta_friction
         };
     }
 }
@@ -235,18 +215,22 @@ fn character_controller_look(
 }
 
 fn character_controller_set_next(
+    time: Res<Time>,
     mut bodies: ResMut<RigidBodySet>,
     mut query_body: Query<
-        With<CharacterControllerBodyTag, (&CharacterController, &RigidBodyHandleComponent)>,
+        With<CharacterControllerBodyTag, (&mut CharacterController, &RigidBodyHandleComponent)>,
     >,
 ) {
-    for (options, body_handle) in &mut query_body.iter() {
+    let dt = time.delta_seconds;
+    let dt2 = dt * dt;
+    for (mut options, body_handle) in &mut query_body.iter() {
+        let accel = options.accel;
         if let Some(mut body) = bodies.get_mut(body_handle.handle()) {
             let mut isometry = body.position;
             isometry.append_translation_mut(&na::Translation3::new(
-                options.velocity.x(),
-                options.velocity.y(),
-                options.velocity.z(),
+                options.velocity.x() * dt + accel.x() * dt2,
+                options.velocity.y() * dt + accel.y() * dt2,
+                options.velocity.z() * dt + accel.z() * dt2,
             ));
             isometry.append_rotation_wrt_center_mut(&na::UnitQuaternion::from_axis_angle(
                 &na::Vector3::y_axis(),
@@ -254,6 +238,30 @@ fn character_controller_set_next(
             ));
             body.set_next_kinematic_position(isometry);
         }
+
+        // update velocity
+        let friction: Vec3 = if options.velocity.length() != 0.0 {
+            options.velocity.normalize() * -1.0 * options.friction
+        } else {
+            Vec3::zero()
+        };
+        options.velocity += accel * dt;
+
+        // clamp x,z within max speed
+        let xz = options.velocity * Vec3::new(1.0, 0.0, 1.0);
+        if xz.length() > options.max_speed {
+            options.velocity =
+                xz.normalize() * options.max_speed + options.velocity * Vec3::unit_y();
+        }
+
+        let delta_friction = friction * dt;
+
+        options.velocity = if (options.velocity + delta_friction).sign() != options.velocity.sign()
+        {
+            Vec3::zero()
+        } else {
+            options.velocity + delta_friction
+        };
     }
 }
 
