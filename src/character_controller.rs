@@ -46,6 +46,8 @@ pub struct CharacterController {
     pub key_backward: KeyCode,
     pub key_left: KeyCode,
     pub key_right: KeyCode,
+    pub key_up: KeyCode,
+    pub key_down: KeyCode,
     pub key_jump: KeyCode,
     pub velocity: Vec3,
     pub friction: Vec3,
@@ -67,9 +69,11 @@ impl Default for CharacterController {
             key_backward: KeyCode::S,
             key_left: KeyCode::A,
             key_right: KeyCode::D,
+            key_up: KeyCode::E,
+            key_down: KeyCode::Q,
             key_jump: KeyCode::Space,
             velocity: Vec3::zero(),
-            friction: Vec3::new(10.0, 0.0, 10.0),
+            friction: Vec3::new(10.0, 10.0, 10.0),
             yaw: 0.0,
             pitch: 0.0,
             delta_yaw: 0.0,
@@ -135,11 +139,12 @@ fn character_controller_movement(
             (
                 movement_axis(&keyboard_input, options.key_right, options.key_left),
                 movement_axis(&keyboard_input, options.key_backward, options.key_forward),
-                if keyboard_input.pressed(options.key_jump) {
-                    1.0
-                } else {
-                    0.0
-                },
+                movement_axis(&keyboard_input, options.key_up, options.key_down),
+                // if keyboard_input.pressed(options.key_jump) {
+                //     1.0
+                // } else {
+                //     0.0
+                // },
             )
         } else {
             (0.0, 0.0, 0.0)
@@ -149,6 +154,7 @@ fn character_controller_movement(
         let accel: Vec3 = (strafe_vector(&rotation) * axis_h)
             + (forward_walk_vector(&rotation) * axis_v)
             + (Vec3::unit_y() * axis_float);
+        // FIXME - gravity is unusable until collisions are working
         // - 9.81 * Vec3::unit_y();
         let accel: Vec3 = if accel.length() != 0.0 {
             accel.normalize() * options.max_speed
