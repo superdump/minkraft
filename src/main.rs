@@ -36,7 +36,7 @@ fn main() {
         .add_startup_system(setup_player.system())
         .add_system(physics_input.system())
         .add_system(exit_on_esc_system.system())
-        .add_system(toggle_debug_system.system());
+        .add_system_to_stage(bevy::app::stage::PRE_UPDATE, toggle_debug_system.system());
 
     #[cfg(feature = "profiler")]
     app_builder.add_plugin(PrintDiagnosticsPlugin::default());
