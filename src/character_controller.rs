@@ -208,7 +208,7 @@ fn character_controller_look(
 
         head_transform.set_rotation(Quat::from_rotation_ypr(
             0.0,
-            options.pitch.to_radians(),
+            -options.pitch.to_radians(),
             0.0,
         ));
     }
