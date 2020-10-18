@@ -1,8 +1,8 @@
-use crate::character_controller::CharacterController;
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
     prelude::*,
 };
+use bevy_prototype_character_controller::look::MouseSettings;
 
 pub struct Debug {
     pub enabled: bool,
@@ -14,7 +14,7 @@ pub struct Debug {
 impl Default for Debug {
     fn default() -> Self {
         Debug {
-            enabled: true,
+            enabled: false,
             font_handle: None,
             text_entity: None,
             transparent_material: None,
@@ -122,15 +122,13 @@ fn debug_toggle_system(mut commands: Commands, mut debug: ResMut<Debug>) {
 fn debug_system(
     debug: Res<Debug>,
     diagnostics: Res<Diagnostics>,
-    mut query_cc: Query<&CharacterController>,
+    settings: Res<MouseSettings>,
     mut camera: Query<With<DebugTransformTag, &Transform>>,
     mut query: Query<&mut Text>,
 ) {
     if !debug.enabled || debug.text_entity.is_none() {
         return;
     }
-    let mut query_cc_iter = query_cc.iter();
-    let options = query_cc_iter.iter().next().unwrap();
     let mut cam_iter = camera.iter();
     let cam_transform = cam_iter.iter().next().unwrap();
     for mut text in &mut query.iter() {
@@ -153,7 +151,11 @@ fn debug_system(
                 );
             }
             Some("YP:") => {
-                text.value = format!("YP: ({:>8.2}, {:>8.2})", options.yaw, options.pitch);
+                text.value = format!(
+                    "YP: ({:>8.2}, {:>8.2})",
+                    settings.yaw_pitch_roll.x(),
+                    settings.yaw_pitch_roll.y()
+                );
             }
             _ => {}
         }
