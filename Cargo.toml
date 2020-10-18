@@ -6,18 +6,23 @@ edition = "2018"
 license = "MIT"
 
 [dependencies]
-bevy = "0.2.1"
+# bevy = "0.2.1"
+bevy = { path = "../bevy" }
 bevy_prototype_character_controller = { git = "https://github.com/superdump/bevy_prototype_character_controller", branch = "main", features = [ "use_rapier" ] }
 bevy_rapier3d = { git = "https://github.com/superdump/bevy_rapier", branch = "predict-for-render", features = [ "parallel", "simd-stable" ] }
-env_logger = "0.8.1"
 ilattice3 = { git = "https://github.com/bonsairobo/ilattice3", rev = "9586551f" }
 ilattice3-mesh = { git = "https://github.com/bonsairobo/ilattice3-mesh", rev = "15101c65e" }
-log = "0.4.11"
 noise = "0.6.0"
+tracing = { version = "0.1.21", optional = true }
+tracing-subscriber = { version = "0.2.13", optional = true }
+
+[patch.crates-io]
+bevy = { path = "../bevy" }
 
 [features]
-default = []
+default = [ "trace" ]
 profiler = [ "bevy/profiler" ]
+trace = [ "tracing", "tracing-subscriber", "bevy/trace" ]
 
 [profile.dev]
 opt-level = 3
