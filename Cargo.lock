@@ -460,7 +460,7 @@ dependencies = [
 [[package]]
 name = "bevy_rapier3d"
 version = "0.3.1"
-source = "git+https://github.com/superdump/bevy_rapier?branch=predict-for-render#ea45c89055feda3f8f29c95acc8d9393a249b255"
+source = "git+https://github.com/superdump/bevy_rapier?branch=predict-for-render#bc7bb6a27033b3cbb905099c6d64df886d3e67e9"
 dependencies = [
  "bevy",
  "concurrent-queue",
