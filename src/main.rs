@@ -6,7 +6,7 @@ use bevy::{
 };
 use bevy_prototype_character_controller::{
     controller::{BodyTag, CameraTag, CharacterController, HeadTag, YawTag},
-    look::LookDirection,
+    look::{LookDirection, LookEntity},
     rapier::RapierDynamicImpulseCharacterControllerPlugin,
 };
 use bevy_rapier3d::{
@@ -71,7 +71,9 @@ fn setup_player(
     let red = materials.add(Color::hex("DC143C").unwrap().into());
     let cuboid = meshes.add(Mesh::from(shape::Cube { size: 0.5 }));
 
-    commands
+    let head_scale = 0.3;
+
+    let body = commands
         .spawn((
             GlobalTransform::identity(),
             Transform::from_translation(spawn_pos),
@@ -93,41 +95,58 @@ fn setup_player(
             GeneratedVoxelsTag,
             DebugTransformTag,
         ))
-        .with_children(|body| {
-            body.spawn((GlobalTransform::identity(), Transform::identity(), YawTag))
-                .with_children(|yaw| {
-                    yaw.spawn(PbrComponents {
-                        material: red,
-                        mesh: cuboid,
-                        transform: Transform::new(Mat4::from_scale(obj_scale)),
-                        ..Default::default()
-                    })
-                    .spawn((
-                        GlobalTransform::identity(),
-                        Transform::new(Mat4::from_translation(
-                            0.8 * 0.5 * obj_scale.y() * Vec3::unit_y(),
-                        )),
-                        HeadTag,
-                    ))
-                    .with_children(|head| {
-                        head.spawn(PbrComponents {
-                            material: red,
-                            mesh: cuboid,
-                            transform: Transform::from_scale(0.3),
-                            ..Default::default()
-                        })
-                        .spawn(Camera3dComponents {
-                            transform: Transform::new(camera_transform),
-                            ..Default::default()
-                        })
-                        .with_bundle((
-                            LookDirection::default(),
-                            CameraTag,
-                            WorldAxesCameraTag,
-                        ));
-                    });
-                });
-        });
+        .current_entity()
+        .expect("Failed to spawn body");
+    let yaw = commands
+        .spawn((GlobalTransform::identity(), Transform::identity(), YawTag))
+        .current_entity()
+        .expect("Failed to spawn yaw");
+    let body_model = commands
+        .spawn(PbrComponents {
+            material: red,
+            mesh: cuboid,
+            transform: Transform::new(Mat4::from_scale_rotation_translation(
+                obj_scale - head_scale * Vec3::unit_y(),
+                Quat::identity(),
+                -0.5 * head_scale * Vec3::unit_y(),
+            )),
+            ..Default::default()
+        })
+        .current_entity()
+        .expect("Failed to spawn body_model");
+    let head = commands
+        .spawn((
+            GlobalTransform::identity(),
+            Transform::new(Mat4::from_translation(
+                0.8 * 0.5 * obj_scale.y() * Vec3::unit_y(),
+            )),
+            HeadTag,
+        ))
+        .current_entity()
+        .expect("Failed to spawn head");
+
+    let head_model = commands
+        .spawn(PbrComponents {
+            material: red,
+            mesh: cuboid,
+            transform: Transform::from_scale(head_scale),
+            ..Default::default()
+        })
+        .current_entity()
+        .expect("Failed to spawn head_model");
+    let camera = commands
+        .spawn(Camera3dComponents {
+            transform: Transform::new(camera_transform),
+            ..Default::default()
+        })
+        .with_bundle((LookDirection::default(), CameraTag, WorldAxesCameraTag))
+        .current_entity()
+        .expect("Failed to spawn camera");
+    commands
+        .insert_one(body, LookEntity(camera))
+        .push_children(body, &[yaw])
+        .push_children(yaw, &[body_model, head])
+        .push_children(head, &[head_model, camera]);
 }
 
 fn setup_world(mut commands: Commands) {

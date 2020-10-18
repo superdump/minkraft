@@ -451,7 +451,7 @@ dependencies = [
 [[package]]
 name = "bevy_prototype_character_controller"
 version = "0.1.0"
-source = "git+https://github.com/superdump/bevy_prototype_character_controller?branch=main#49f43d3bbcf09d775e65f6219453332cf821d0fc"
+source = "git+https://github.com/superdump/bevy_prototype_character_controller?branch=main#7621a794391c0a5685d2f0e9163299c3067218fa"
 dependencies = [
  "bevy",
  "bevy_rapier3d",
