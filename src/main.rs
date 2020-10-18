@@ -20,10 +20,12 @@ use minkraft::{
     generate::{GeneratePlugin, GeneratedVoxelsTag},
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
-use tracing_subscriber;
+#[cfg(feature = "trace")]
+use minkraft::trace::setup_global_subscriber;
 
 fn main() {
-    tracing_subscriber::fmt::init();
+    #[cfg(feature = "trace")]
+    let _guard = setup_global_subscriber();
 
     let mut app_builder = App::build();
     app_builder
