@@ -20,9 +20,10 @@ use minkraft::{
     generate::{GeneratePlugin, GeneratedVoxelsTag},
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
+use tracing_subscriber;
 
 fn main() {
-    env_logger::builder().format_timestamp_micros().init();
+    tracing_subscriber::fmt::init();
 
     let mut app_builder = App::build();
     app_builder
