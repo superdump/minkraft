@@ -39,7 +39,7 @@ struct GeneratedVoxelResource {
 
 impl Default for GeneratedVoxelResource {
     fn default() -> Self {
-        let chunk_size = 16;
+        let chunk_size = 64;
         GeneratedVoxelResource {
             noise: RidgedMulti::new()
                 .set_seed(1234)
