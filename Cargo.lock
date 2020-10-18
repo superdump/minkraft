@@ -449,10 +449,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_prototype_character_controller"
+version = "0.1.0"
+source = "git+https://github.com/superdump/bevy_prototype_character_controller?branch=main#49f43d3bbcf09d775e65f6219453332cf821d0fc"
+dependencies = [
+ "bevy",
+ "bevy_rapier3d",
+]
+
+[[package]]
 name = "bevy_rapier3d"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e394964bc10d4bf2a42cfd5921b8feb9175a6d6ea8cc01cd857398f49bbb06b"
+version = "0.3.1"
+source = "git+https://github.com/superdump/bevy_rapier?branch=predict-for-render#ea45c89055feda3f8f29c95acc8d9393a249b255"
 dependencies = [
  "bevy",
  "concurrent-queue",
@@ -1247,9 +1255,9 @@ dependencies = [
 
 [[package]]
 name = "env_logger"
-version = "0.7.1"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44533bbbb3bb3c1fa17d9f2e4e38bbbaf8396ba82193c4cb1b6445d711445d36"
+checksum = "54532e3223c5af90a6a757c90b5c5521564b07e5e7a958681bcd2afad421cdcd"
 dependencies = [
  "atty",
  "humantime",
@@ -1550,9 +1558,9 @@ dependencies = [
 
 [[package]]
 name = "gfx-backend-dx11"
-version = "0.6.4"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c7fd31dcf0f8496fc94fe44b285a0bfeeb33b5a8ec0f59ea5f8fa64428071b4"
+checksum = "fad85fb4be3051ef7ba763b722c079b3bc3acb5067f44b7ed6a0ed4c0e2e1755"
 dependencies = [
  "bitflags",
  "gfx-auxil",
@@ -1816,12 +1824,9 @@ dependencies = [
 
 [[package]]
 name = "humantime"
-version = "1.3.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df004cfca50ef23c36850aaaa59ad52cc70d0e90243c3c7737a4dd32dc7a3c4f"
-dependencies = [
- "quick-error",
-]
+checksum = "3c1ad908cc71012b7bea4d0c53ba96a8cba9962f048fa68d143376143d863b7a"
 
 [[package]]
 name = "ilattice3"
@@ -2255,6 +2260,7 @@ name = "minkraft"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_prototype_character_controller",
  "bevy_rapier3d",
  "env_logger",
  "ilattice3",
@@ -2861,12 +2867,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "quick-error"
-version = "1.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
-
-[[package]]
 name = "quote"
 version = "0.6.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2970,9 +2970,9 @@ checksum = "a871f1e45a3a3f0c73fb60343c811238bb5143a81642e27c2ac7aac27ff01a63"
 
 [[package]]
 name = "rapier3d"
-version = "0.1.5"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3412d5851335e7540d738cc7a9b6538dd2d2138dc589a141cc37402d91c5eac8"
+checksum = "8b877824e076f6f9ab18760107201781789ed25a7585c36e800313522e07e83b"
 dependencies = [
  "approx",
  "arrayvec",

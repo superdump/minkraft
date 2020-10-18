@@ -4,15 +4,19 @@ use bevy::{
     input::{keyboard::KeyCode, system::exit_on_esc_system},
     prelude::*,
 };
+use bevy_prototype_character_controller::{
+    controller::{BodyTag, CameraTag, CharacterController, HeadTag, YawTag},
+    look::LookDirection,
+    rapier::RapierDynamicImpulseCharacterControllerPlugin,
+};
 use bevy_rapier3d::{
-    physics::{RapierPhysicsPlugin, RigidBodyHandleComponent},
-    rapier::dynamics::{RigidBodyBuilder, RigidBodySet},
+    physics::{PhysicsInterpolationComponent, RapierPhysicsPlugin},
+    rapier::dynamics::RigidBodyBuilder,
     rapier::geometry::ColliderBuilder,
 };
 use minkraft::{
-    character_controller::*,
     debug::{Debug, DebugPlugin, DebugTransformTag},
-    generate::*,
+    generate::{GeneratePlugin, GeneratedVoxelsTag},
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
 
@@ -21,22 +25,28 @@ fn main() {
 
     let mut app_builder = App::build();
     app_builder
+        // Generic
         .add_resource(WindowDescriptor {
             title: env!("CARGO_PKG_NAME").to_string(),
             ..Default::default()
         })
+        .add_resource(ClearColor(Color::BLACK))
         .add_resource(Msaa { samples: 4 })
         .add_default_plugins()
-        .add_plugin(RapierPhysicsPlugin)
-        .add_plugin(DebugPlugin)
-        .add_plugin(GeneratePlugin)
-        .add_plugin(CharacterControllerPlugin)
-        .add_plugin(WorldAxesPlugin)
-        .add_startup_system(setup_world.system())
-        .add_startup_system(setup_player.system())
-        .add_system(physics_input.system())
         .add_system(exit_on_esc_system.system())
-        .add_system_to_stage(bevy::app::stage::PRE_UPDATE, toggle_debug_system.system());
+        // Debug
+        .add_plugin(DebugPlugin)
+        .add_system_to_stage(bevy::app::stage::PRE_UPDATE, toggle_debug_system.system())
+        .add_plugin(WorldAxesPlugin)
+        // Physics - Rapier
+        .add_plugin(RapierPhysicsPlugin)
+        // Character Controller
+        .add_plugin(RapierDynamicImpulseCharacterControllerPlugin)
+        // Terrain
+        .add_plugin(GeneratePlugin)
+        // Minkraft
+        .add_startup_system(setup_world.system())
+        .add_startup_system(setup_player.system());
 
     #[cfg(feature = "profiler")]
     app_builder.add_plugin(PrintDiagnosticsPlugin::default());
@@ -58,11 +68,6 @@ fn setup_player(
     let center = Vec3::zero();
     let camera_transform = Mat4::face_toward(eye, center, Vec3::unit_y());
 
-    // FIXME: Hacks to sync the FlyCamera with the camera_transform
-    let eye_center = (center - eye).normalize();
-    let pitch = eye_center.y().asin();
-    let yaw = eye_center.z().atan2(eye_center.x());
-
     let red = materials.add(Color::hex("DC143C").unwrap().into());
     let cuboid = meshes.add(Mesh::from(shape::Cube { size: 0.5 }));
 
@@ -70,48 +75,58 @@ fn setup_player(
         .spawn((
             GlobalTransform::identity(),
             Transform::from_translation(spawn_pos),
+            RigidBodyBuilder::new_dynamic().translation(
+                spawn_pos.x(),
+                spawn_pos.y(),
+                spawn_pos.z(),
+            ),
+            ColliderBuilder::cuboid(
+                0.5 * obj_scale.x(),
+                0.5 * obj_scale.y(),
+                0.5 * obj_scale.z(),
+            )
+            .density(200.0),
+            PhysicsInterpolationComponent::new(spawn_pos, Quat::identity()),
+            CharacterController::default(),
+            BodyTag,
+            PlayerTag,
+            GeneratedVoxelsTag,
             DebugTransformTag,
         ))
-        .with(RigidBodyBuilder::new_kinematic().translation(
-            spawn_pos.x(),
-            spawn_pos.y(),
-            spawn_pos.z(),
-        ))
-        .with(ColliderBuilder::cuboid(
-            0.5 * obj_scale.x(),
-            0.5 * obj_scale.y(),
-            0.5 * obj_scale.z(),
-        ))
-        .with(CharacterController {
-            pitch: -pitch.to_degrees(),
-            yaw: yaw.to_degrees() - 180.0f32,
-            ..Default::default()
-        })
-        .with(PlayerTag)
-        .with(GeneratedVoxelsTag)
-        .with(CharacterControllerBodyTag)
         .with_children(|body| {
-            body.spawn(PbrComponents {
-                material: red,
-                mesh: cuboid,
-                transform: Transform::new(Mat4::from_scale(obj_scale)),
-                ..Default::default()
-            })
-            .spawn((
-                GlobalTransform::identity(),
-                Transform::new(Mat4::from_translation(
-                    0.8 * 0.5 * obj_scale.y() * Vec3::unit_y(),
-                )),
-                CharacterControllerHeadTag,
-            ))
-            .with_children(|head| {
-                head.spawn(Camera3dComponents {
-                    transform: Transform::new(camera_transform),
-                    ..Default::default()
-                })
-                .with(WorldAxesCameraTag)
-                .with(CharacterControllerCameraTag);
-            });
+            body.spawn((GlobalTransform::identity(), Transform::identity(), YawTag))
+                .with_children(|yaw| {
+                    yaw.spawn(PbrComponents {
+                        material: red,
+                        mesh: cuboid,
+                        transform: Transform::new(Mat4::from_scale(obj_scale)),
+                        ..Default::default()
+                    })
+                    .spawn((
+                        GlobalTransform::identity(),
+                        Transform::new(Mat4::from_translation(
+                            0.8 * 0.5 * obj_scale.y() * Vec3::unit_y(),
+                        )),
+                        HeadTag,
+                    ))
+                    .with_children(|head| {
+                        head.spawn(PbrComponents {
+                            material: red,
+                            mesh: cuboid,
+                            transform: Transform::from_scale(0.3),
+                            ..Default::default()
+                        })
+                        .spawn(Camera3dComponents {
+                            transform: Transform::new(camera_transform),
+                            ..Default::default()
+                        })
+                        .with_bundle((
+                            LookDirection::default(),
+                            CameraTag,
+                            WorldAxesCameraTag,
+                        ));
+                    });
+                });
         });
 }
 
@@ -122,37 +137,6 @@ fn setup_world(mut commands: Commands) {
             transform: Transform::from_translation(Vec3::new(14.0, 18.0, 14.0)),
             ..Default::default()
         });
-}
-
-fn physics_input(
-    keyboard_input: Res<Input<KeyCode>>,
-    mut rigid_bodies: ResMut<RigidBodySet>,
-    mut player_query: Query<(&PlayerTag, &RigidBodyHandleComponent)>,
-) {
-    let mut player_temp = player_query.iter();
-    let (_, player_index) = player_temp.iter().next().unwrap();
-    let mut player = rigid_bodies.get_mut(player_index.handle()).unwrap();
-    let force_multiplier = 2.0;
-    if keyboard_input.pressed(KeyCode::Up) {
-        player.wake_up();
-        player.apply_impulse([0.0, 0.0, force_multiplier].into());
-    }
-    if keyboard_input.pressed(KeyCode::Down) {
-        player.wake_up();
-        player.apply_impulse([0.0, 0.0, -force_multiplier].into());
-    }
-    if keyboard_input.pressed(KeyCode::Right) {
-        player.wake_up();
-        player.apply_impulse([force_multiplier, 0.0, 0.0].into());
-    }
-    if keyboard_input.pressed(KeyCode::Left) {
-        player.wake_up();
-        player.apply_impulse([-force_multiplier, 0.0, 0.0].into());
-    }
-    if keyboard_input.pressed(KeyCode::Space) {
-        player.wake_up();
-        player.apply_impulse([0.0, 3.0 * force_multiplier, 0.0].into());
-    }
 }
 
 fn toggle_debug_system(

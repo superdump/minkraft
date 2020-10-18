@@ -7,8 +7,9 @@ license = "MIT"
 
 [dependencies]
 bevy = "0.2.1"
-bevy_rapier3d = { version = "0.2.0", features = [ "parallel", "simd-stable" ] }
-env_logger = "0.7.1"
+bevy_prototype_character_controller = { git = "https://github.com/superdump/bevy_prototype_character_controller", branch = "main", features = [ "use_rapier" ] }
+bevy_rapier3d = { git = "https://github.com/superdump/bevy_rapier", branch = "predict-for-render", features = [ "parallel", "simd-stable" ] }
+env_logger = "0.8.1"
 ilattice3 = { git = "https://github.com/bonsairobo/ilattice3", rev = "9586551f" }
 ilattice3-mesh = { git = "https://github.com/bonsairobo/ilattice3-mesh", rev = "15101c65e" }
 log = "0.4.11"
@@ -16,7 +17,7 @@ noise = "0.6.0"
 
 [features]
 default = []
-profiler = ["bevy/profiler"]
+profiler = [ "bevy/profiler" ]
 
 [profile.dev]
 opt-level = 3

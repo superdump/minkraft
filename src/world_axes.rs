@@ -11,7 +11,7 @@ impl Plugin for WorldAxesPlugin {
                 bevy::app::stage::PRE_UPDATE,
                 world_axes_toggle_system.system(),
             )
-            .add_system_to_stage_front(bevy::app::stage::POST_UPDATE, world_axes_system.system());
+            .add_system_to_stage(bevy::app::stage::POST_UPDATE, world_axes_system.system());
     }
 }
 
