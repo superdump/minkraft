@@ -1,5 +1,5 @@
 use tracing_flame::FlameLayer;
-use tracing_subscriber::{EnvFilter, registry::Registry, prelude::*, fmt};
+use tracing_subscriber::{fmt, prelude::*, registry::Registry, EnvFilter};
 
 pub fn setup_global_subscriber() -> impl Drop {
     let fmt_layer = fmt::Layer::default();

@@ -21,7 +21,9 @@ use building_blocks::mesh::{
 };
 use building_blocks::storage::{prelude::*, IsEmpty};
 use noise::{MultiFractal, NoiseFn, RidgedMulti, Seedable};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+#[cfg(feature = "trace")]
+use tracing::{debug_span, trace_span};
 
 const SEA_LEVEL: f64 = 64.0;
 const TERRAIN_Y_SCALE: f64 = 0.2;
@@ -155,11 +157,19 @@ fn height_to_material(y: i32) -> VoxelMaterial {
 }
 
 fn generate_chunk(extent: Extent3i) -> Array3<Voxel> {
+    #[cfg(feature = "trace")]
+    let generate_chunk_span = debug_span!("generate_chunk");
+    #[cfg(feature = "trace")]
+    let _generate_chunk_guard = generate_chunk_span.enter();
     let yoffset = SEA_LEVEL;
     let yscale = TERRAIN_Y_SCALE * yoffset;
     let min = extent.minimum;
     let max = extent.least_upper_bound();
 
+    #[cfg(feature = "trace")]
+    let sample_noise_span = trace_span!("sample_noise");
+    #[cfg(feature = "trace")]
+    let _sample_noise_guard = sample_noise_span.enter();
     let noise = NoiseType::new()
         .set_seed(1234)
         .set_frequency(0.008)
@@ -171,6 +181,8 @@ fn generate_chunk(extent: Extent3i) -> Array3<Voxel> {
                 .collect()
         })
         .collect();
+    drop(_sample_noise_guard);
+    drop(sample_noise_span);
 
     Array3::fill_with(extent, |p| {
         let height = heightmap[(p.x() - min.x()) as usize][(p.z() - min.z()) as usize];
@@ -190,6 +202,11 @@ fn generate_voxels(
     _cam: &GeneratedVoxelsTag,
     cam_transform: &Transform,
 ) {
+    #[cfg(feature = "trace")]
+    let generate_voxels_span = debug_span!("generate_voxels");
+    #[cfg(feature = "trace")]
+    let _generate_voxels_guard = generate_voxels_span.enter();
+
     let cam_pos = cam_transform.translation;
     let cam_pos = PointN([cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32]);
 
@@ -273,6 +290,11 @@ fn extent_modulo_expand(extent: Extent3i, modulo: i32) -> Extent3i {
 }
 
 fn generate_mesh(voxel_map: &VoxelMap, extent: Extent3i) -> fnv::FnvHashMap<u8, PosNormTexMesh> {
+    #[cfg(feature = "trace")]
+    let generate_mesh_span = debug_span!("generate_mesh");
+    #[cfg(feature = "trace")]
+    let _generate_mesh_guard = generate_mesh_span.enter();
+
     let padded_extent = extent.padded(1);
 
     let mut map = Array3::fill(padded_extent, Voxel(0));
@@ -296,6 +318,11 @@ fn spawn_meshes(
     materials: &[Handle<StandardMaterial>],
     pos_norm_tex_ind: &fnv::FnvHashMap<u8, PosNormTexMesh>,
 ) -> Vec<(Entity, Handle<Mesh>, RigidBodyHandle)> {
+    #[cfg(feature = "trace")]
+    let spawn_mesh_span = debug_span!("spawn_mesh");
+    #[cfg(feature = "trace")]
+    let _spawn_mesh_guard = spawn_mesh_span.enter();
+
     let mut entities = Vec::with_capacity(pos_norm_tex_ind.len());
     for (i, pos_norm_tex_ind) in pos_norm_tex_ind {
         let indices: Vec<u32> = pos_norm_tex_ind.indices.iter().map(|i| *i as u32).collect();
@@ -358,6 +385,11 @@ fn generate_meshes(
     _cam: &GeneratedVoxelsTag,
     cam_transform: &Transform,
 ) {
+    #[cfg(feature = "trace")]
+    let generate_meshes_span = debug_span!("generate_meshes");
+    #[cfg(feature = "trace")]
+    let _generate_meshes_guard = generate_meshes_span.enter();
+
     let cam_pos = cam_transform.translation;
     let cam_pos = PointN([cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32]);
 
@@ -400,6 +432,11 @@ fn generate_meshes(
     let mut mesh_count = 0;
     for (p, mesh, to_remove) in &new_meshes {
         if let Some(p) = to_remove {
+            #[cfg(feature = "trace")]
+            let despawn_old_span = debug_span!("despawn_old");
+            #[cfg(feature = "trace")]
+            let _despawn_old_guard = despawn_old_span.enter();
+
             if let Some(entities) = voxel_meshes.generated_map.remove(p) {
                 for (entity, mesh, body) in entities {
                     commands.despawn(entity);
