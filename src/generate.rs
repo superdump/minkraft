@@ -7,6 +7,8 @@ use ilattice3::{prelude::*, ChunkedLatticeMap, ChunkedLatticeMapReader, YLevelsI
 use ilattice3_mesh::{greedy_quads, make_pos_norm_tang_tex_mesh_from_quads, GreedyQuadsVoxel};
 use noise::*;
 use std::collections::{HashMap, HashSet};
+#[cfg(feature = "trace")]
+use tracing::{debug_span, trace_span};
 
 const SEA_LEVEL: f64 = 64.0;
 const TERRAIN_Y_SCALE: f64 = 0.2;
@@ -122,11 +124,26 @@ fn height_to_material(y: i32) -> VoxelMaterial {
 }
 
 fn generate_chunk(res: &mut ResMut<GeneratedVoxelResource>, min: Point, max: Point) {
+    #[cfg(feature = "trace")]
+    let generate_chunk_span = debug_span!("generate_chunk");
+    #[cfg(feature = "trace")]
+    let _generate_chunk_guard = generate_chunk_span.enter();
+
     let yoffset = SEA_LEVEL;
     let yscale = TERRAIN_Y_SCALE * yoffset;
     for z in min.z..max.z {
         for x in min.x..max.x {
-            let max_y = (res.noise.get([x as f64, z as f64]) * yscale + yoffset).round() as i32;
+            let max_y = {
+                #[cfg(feature = "trace")]
+                let sample_noise_span = trace_span!("sample_noise");
+                #[cfg(feature = "trace")]
+                let _sample_noise_guard = sample_noise_span.enter();
+                (res.noise.get([x as f64, z as f64]) * yscale + yoffset).round() as i32
+            };
+            #[cfg(feature = "trace")]
+            let fill_column_span = trace_span!("fill_column");
+            #[cfg(feature = "trace")]
+            let _fill_column_guard = fill_column_span.enter();
             for y in 0..(max_y + 1) {
                 let (_p, v) = res
                     .map
@@ -143,6 +160,11 @@ fn generate_voxels(
     _cam: &GeneratedVoxelsTag,
     cam_transform: &Transform,
 ) {
+    #[cfg(feature = "trace")]
+    let generate_voxels_span = debug_span!("generate_voxels");
+    #[cfg(feature = "trace")]
+    let _generate_voxels_guard = generate_voxels_span.enter();
+
     let cam_pos = cam_transform.translation();
     let cam_pos = Point::new(cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32);
 
@@ -211,11 +233,28 @@ fn spawn_mesh(
     voxel_map: &VoxelMap,
     extent: Extent,
 ) -> Vec<(Entity, Handle<Mesh>)> {
+    #[cfg(feature = "trace")]
+    let spawn_mesh_span = debug_span!("spawn_mesh");
+    #[cfg(feature = "trace")]
+    let _spawn_mesh_guard = spawn_mesh_span.enter();
+
     let reader = ChunkedLatticeMapReader::new(voxel_map);
-    let map = reader
-        .map
-        .copy_extent_into_new_map(extent, &reader.local_cache);
-    let quads = greedy_quads(&map, *map.get_extent());
+    let map = {
+        #[cfg(feature = "trace")]
+        let copy_extent_span = debug_span!("copy_extent");
+        #[cfg(feature = "trace")]
+        let _copy_extent_guard = copy_extent_span.enter();
+        reader
+            .map
+            .copy_extent_into_new_map(extent, &reader.local_cache)
+    };
+    let quads = {
+        #[cfg(feature = "trace")]
+        let greedy_quads_span = debug_span!("greedy_quads");
+        #[cfg(feature = "trace")]
+        let _greedy_quads_guard = greedy_quads_span.enter();
+        greedy_quads(&map, *map.get_extent())
+    };
     let pos_norm_tang_tex_ind = make_pos_norm_tang_tex_mesh_from_quads(&quads);
 
     let mut entities = Vec::with_capacity(pos_norm_tang_tex_ind.len());
@@ -262,6 +301,11 @@ fn generate_meshes(
     _cam: &GeneratedVoxelsTag,
     cam_transform: &Transform,
 ) {
+    #[cfg(feature = "trace")]
+    let generate_meshes_span = debug_span!("generate_meshes");
+    #[cfg(feature = "trace")]
+    let _generate_meshes_guard = generate_meshes_span.enter();
+
     let cam_pos = cam_transform.translation();
     let cam_pos = Point::new(cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32);
 
@@ -299,6 +343,10 @@ fn generate_meshes(
             voxel_meshes.generated_map.insert(p, entity_mesh);
         }
     }
+    #[cfg(feature = "trace")]
+    let despawn_old_span = debug_span!("despawn_old");
+    #[cfg(feature = "trace")]
+    let _despawn_old_guard = despawn_old_span.enter();
     for p in &to_remove {
         if let Some(entities) = voxel_meshes.generated_map.remove(p) {
             for (entity, mesh) in entities {

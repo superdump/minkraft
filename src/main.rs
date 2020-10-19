@@ -14,17 +14,24 @@ use bevy_rapier3d::{
     rapier::dynamics::RigidBodyBuilder,
     rapier::geometry::ColliderBuilder,
 };
+#[cfg(feature = "trace")]
+use minkraft::trace::setup_global_subscriber;
 use minkraft::{
     debug::{Debug, DebugPlugin, DebugTransformTag},
     generate::{GeneratePlugin, GeneratedVoxelsTag},
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
 #[cfg(feature = "trace")]
-use minkraft::trace::setup_global_subscriber;
+use tracing::{info, trace_span};
 
 fn main() {
     #[cfg(feature = "trace")]
     let _guard = setup_global_subscriber();
+
+    #[cfg(feature = "trace")]
+    let minkraft_span = trace_span!("minkraft");
+    #[cfg(feature = "trace")]
+    let _minkraft_guard = minkraft_span.enter();
 
     let mut app_builder = App::build();
     app_builder
@@ -54,6 +61,7 @@ fn main() {
     #[cfg(feature = "profiler")]
     app_builder.add_plugin(PrintDiagnosticsPlugin::default());
 
+    info!("Running {}!", env!("CARGO_PKG_NAME").to_string());
     app_builder.run();
 }
 
