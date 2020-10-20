@@ -3,7 +3,7 @@ use bevy::{
     render::{mesh::VertexAttribute, pipeline::PrimitiveTopology},
 };
 use bevy_rapier3d::rapier::{dynamics::RigidBodyBuilder, geometry::ColliderBuilder};
-use ilattice3::{ChunkedLatticeMap, ChunkedLatticeMapReader, FnLatticeMap, VecLatticeMap, YLevelsIndexer, algos::find_surface_voxels, prelude::*,lattice_map::GetWorld,};
+use ilattice3::{ChunkedLatticeMap, ChunkedLatticeMapReader, normal::DirectionIndex, FnLatticeMap, VecLatticeMap, YLevelsIndexer, algos::find_surface_voxels, lattice_map::GetWorld, prelude::*};
 use ilattice3_mesh::{greedy_quads, make_pos_norm_tang_tex_mesh_from_quads, GreedyQuadsVoxel};
 use noise::*;
 use std::collections::{HashMap, HashSet};
@@ -216,7 +216,7 @@ fn spawn_mesh(
         .map
         .copy_extent_into_new_map(extent.padded(1), &reader.local_cache);
     let surface_voxels = find_surface_voxels(&map
-        ,&extent);
+        ,&extent.padded(1));
     let only_surface_voxels  = |point: &Point| {
         if surface_voxels.contains(point) {
         map.get_world(point)
