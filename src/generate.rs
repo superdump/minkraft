@@ -3,7 +3,7 @@ use bevy::{
     render::{mesh::VertexAttribute, pipeline::PrimitiveTopology},
 };
 use bevy_rapier3d::rapier::{dynamics::RigidBodyBuilder, geometry::ColliderBuilder};
-use ilattice3::{prelude::*, ChunkedLatticeMap, ChunkedLatticeMapReader, YLevelsIndexer};
+use ilattice3::{ChunkedLatticeMap, ChunkedLatticeMapReader, FnLatticeMap, VecLatticeMap, YLevelsIndexer, algos::find_surface_voxels, prelude::*,lattice_map::GetWorld,};
 use ilattice3_mesh::{greedy_quads, make_pos_norm_tang_tex_mesh_from_quads, GreedyQuadsVoxel};
 use noise::*;
 use std::collections::{HashMap, HashSet};
@@ -214,7 +214,17 @@ fn spawn_mesh(
     let reader = ChunkedLatticeMapReader::new(voxel_map);
     let map = reader
         .map
-        .copy_extent_into_new_map(extent, &reader.local_cache);
+        .copy_extent_into_new_map(extent.padded(1), &reader.local_cache);
+    let surface_voxels = find_surface_voxels(&map
+        ,&extent);
+    let only_surface_voxels  = |point: &Point| {
+        if surface_voxels.contains(point) {
+        map.get_world(point)
+    } else {
+        Voxel::default()
+    }
+};
+    let map = VecLatticeMap::<Voxel,YLevelsIndexer>::copy_from_map(&FnLatticeMap::new(only_surface_voxels), &extent);
     let quads = greedy_quads(&map, *map.get_extent());
     let pos_norm_tang_tex_ind = make_pos_norm_tang_tex_mesh_from_quads(&quads);
 
