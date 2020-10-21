@@ -214,9 +214,9 @@ fn spawn_mesh(
     let reader = ChunkedLatticeMapReader::new(voxel_map);
     let map = reader
         .map
-        .copy_extent_into_new_map(extent.padded(1), &reader.local_cache);
+        .copy_extent_into_new_map(extent, &reader.local_cache);
     let surface_voxels = find_surface_voxels(&map
-        ,&extent.padded(1));
+        ,&extent);
     let only_surface_voxels  = |point: &Point| {
         if surface_voxels.contains(point) {
         map.get_world(point)
