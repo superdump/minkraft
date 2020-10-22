@@ -3,7 +3,10 @@ use bevy::{
     render::{mesh::VertexAttribute, pipeline::PrimitiveTopology},
 };
 use bevy_rapier3d::rapier::{dynamics::RigidBodyBuilder, geometry::ColliderBuilder};
-use ilattice3::{ChunkedLatticeMap, ChunkedLatticeMapReader, normal::DirectionIndex, FnLatticeMap, VecLatticeMap, YLevelsIndexer, algos::find_surface_voxels, lattice_map::GetWorld, prelude::*};
+use ilattice3::{
+    algos::find_surface_voxels, lattice_map::GetWorld, point::FACE_ADJACENT_OFFSETS, prelude::*,
+    ChunkedLatticeMap, ChunkedLatticeMapReader, FnLatticeMap, VecLatticeMap, YLevelsIndexer,
+};
 use ilattice3_mesh::{greedy_quads, make_pos_norm_tang_tex_mesh_from_quads, GreedyQuadsVoxel};
 use noise::*;
 use std::collections::{HashMap, HashSet};
@@ -214,18 +217,45 @@ fn spawn_mesh(
     let reader = ChunkedLatticeMapReader::new(voxel_map);
     let map = reader
         .map
-        .copy_extent_into_new_map(extent, &reader.local_cache);
-    let surface_voxels = find_surface_voxels(&map
-        ,&extent);
-    let only_surface_voxels  = |point: &Point| {
-        if surface_voxels.contains(point) {
-        map.get_world(point)
-    } else {
-        Voxel::default()
+        .copy_extent_into_new_map(extent.padded(1), &reader.local_cache);
+    fn surface_voxels<V, I>(voxels: &V, extent: &Extent) -> Vec<Voxel>
+    where
+        V: GetLinearRef<Data = Voxel> + HasIndexer<Indexer = I>,
+        I: Indexer,
+    {
+        let min = extent.get_minimum();
+        let sup = extent.get_local_supremum();
+
+        // Precompute the offsets for adjacency checks. Some of these usize values will be considered
+        // "negative," although they have wrapped around.
+        let mut linear_offsets = [0; 6];
+        I::linear_strides(sup, &FACE_ADJACENT_OFFSETS, &mut linear_offsets);
+
+        let mut surface_voxels = vec![Voxel::default(); extent.volume()];
+        let iter_extent = extent.with_minimum([0, 0, 0].into()).radial_grow(-1);
+        for p in iter_extent {
+            let p_linear = I::index_from_local_point(sup, &p);
+            if voxels.get_linear_ref(p_linear).is_empty() {
+                continue;
+            }
+            for linear_offset in linear_offsets.iter() {
+                let p_linear_offset = p_linear.wrapping_add(*linear_offset);
+                let is_empty = voxels.get_linear_ref(p_linear_offset).is_empty();
+                if is_empty {
+                    surface_voxels[I::index_from_local_point(sup, &p)] =
+                        *voxels.get_linear_ref(p_linear);
+                    break;
+                }
+            }
+        }
+        surface_voxels
     }
-};
-    let map = VecLatticeMap::<Voxel,YLevelsIndexer>::copy_from_map(&FnLatticeMap::new(only_surface_voxels), &extent);
-    let quads = greedy_quads(&map, *map.get_extent());
+    let map = VecLatticeMap::<Voxel, YLevelsIndexer>::new(
+        *map.get_extent(),
+        surface_voxels(&map, map.get_extent()),
+    );
+    let map = VecLatticeMap::<Voxel, YLevelsIndexer>::new(extent, map.linearize_extent(&extent));
+    let quads = greedy_quads(&map, extent);
     let pos_norm_tang_tex_ind = make_pos_norm_tang_tex_mesh_from_quads(&quads);
 
     let mut entities = Vec::with_capacity(pos_norm_tang_tex_ind.len());
