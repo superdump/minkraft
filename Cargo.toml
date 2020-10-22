@@ -14,16 +14,19 @@ ilattice3 = { git = "https://github.com/bonsairobo/ilattice3", rev = "9586551f" 
 ilattice3-mesh = { git = "https://github.com/bonsairobo/ilattice3-mesh", rev = "15101c65e" }
 noise = "0.6.0"
 tracing = { version = "0.1.21", optional = true }
-tracing-flame = { version = "0.1.0", optional = true }
+# tracing-tracy = { version = "0.3.0", optional = true }
+tracing-tracy = { path = "../rust_tracy_client/tracing-tracy", optional = true }
 tracing-subscriber = { version = "0.2.13", optional = true }
 
 [patch.crates-io]
 bevy = { path = "../bevy" }
+# tracy-client = { path = "../rust_tracy_client/tracy-client", optional = true }
+tracy-client-sys = { path = "../rust_tracy_client/tracy-client-sys", optional = true }
 
 [features]
 default = [ "trace" ]
 profiler = [ "bevy/profiler" ]
-trace = [ "tracing", "tracing-flame", "tracing-subscriber", "bevy/trace" ]
+trace = [ "tracing", "tracing-tracy", "tracing-tracy/enable", "tracing-subscriber", "bevy/trace" ]
 
 [profile.dev]
 opt-level = 3
