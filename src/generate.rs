@@ -2,7 +2,13 @@ use bevy::{
     prelude::*,
     render::{mesh::VertexAttribute, pipeline::PrimitiveTopology},
 };
-use bevy_rapier3d::rapier::{dynamics::RigidBodyBuilder, geometry::ColliderBuilder};
+use bevy_rapier3d::{
+    physics::{ColliderHandleComponent, RigidBodyHandleComponent},
+    rapier::{
+        dynamics::{JointSet, RigidBodyBuilder, RigidBodyHandle, RigidBodySet},
+        geometry::{ColliderBuilder, ColliderSet},
+    },
+};
 use ilattice3::{prelude::*, ChunkedLatticeMap, ChunkedLatticeMapReader, YLevelsIndexer};
 use ilattice3_mesh::{greedy_quads, make_pos_norm_tang_tex_mesh_from_quads, GreedyQuadsVoxel};
 use noise::*;
@@ -17,7 +23,7 @@ type VoxelMaterial = u8;
 pub struct GeneratedVoxelsTag;
 
 struct GeneratedMeshesResource {
-    pub generated_map: HashMap<Point, Vec<(Entity, Handle<Mesh>)>>,
+    pub generated_map: HashMap<Point, Vec<(Entity, Handle<Mesh>, RigidBodyHandle)>>,
 }
 
 impl Default for GeneratedMeshesResource {
@@ -207,10 +213,12 @@ fn extent_modulo_expand(extent: Extent, modulo: i32) -> Extent {
 fn spawn_mesh(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
+    mut bodies: &mut ResMut<RigidBodySet>,
+    colliders: &mut ResMut<ColliderSet>,
     materials: &[Handle<StandardMaterial>],
     voxel_map: &VoxelMap,
     extent: Extent,
-) -> Vec<(Entity, Handle<Mesh>)> {
+) -> Vec<(Entity, Handle<Mesh>, RigidBodyHandle)> {
     let reader = ChunkedLatticeMapReader::new(voxel_map);
     let map = reader
         .map
@@ -239,17 +247,27 @@ fn spawn_mesh(
             .chunks(3)
             .map(|i| bevy_rapier3d::rapier::na::Point3::<u32>::from_slice(i))
             .collect();
+
+        let body_handle = bodies.insert(RigidBodyBuilder::new_static().build());
+        let collider_handle = colliders.insert(
+            ColliderBuilder::trimesh(vertices, indices).build(),
+            body_handle,
+            &mut bodies,
+        );
+
         let entity = commands
             .spawn(PbrComponents {
                 mesh,
                 material: materials[i as usize],
                 ..Default::default()
             })
-            .with(RigidBodyBuilder::new_static())
-            .with(ColliderBuilder::trimesh(vertices, indices))
+            .with_bundle((
+                RigidBodyHandleComponent::from(body_handle),
+                ColliderHandleComponent::from(collider_handle),
+            ))
             .current_entity()
             .unwrap();
-        entities.push((entity, mesh));
+        entities.push((entity, mesh, body_handle));
     }
     entities
 }
@@ -257,6 +275,9 @@ fn spawn_mesh(
 fn generate_meshes(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut bodies: ResMut<RigidBodySet>,
+    mut colliders: ResMut<ColliderSet>,
+    mut joints: ResMut<JointSet>,
     voxels: ChangedRes<GeneratedVoxelResource>,
     mut voxel_meshes: ResMut<GeneratedMeshesResource>,
     _cam: &GeneratedVoxelsTag,
@@ -289,6 +310,8 @@ fn generate_meshes(
             let entity_mesh = spawn_mesh(
                 &mut commands,
                 &mut meshes,
+                &mut bodies,
+                &mut colliders,
                 &voxels.materials,
                 &voxels.map,
                 Extent::from_minimum_and_local_max(
@@ -301,9 +324,12 @@ fn generate_meshes(
     }
     for p in &to_remove {
         if let Some(entities) = voxel_meshes.generated_map.remove(p) {
-            for (entity, mesh) in entities {
+            for (entity, mesh, body) in entities {
                 commands.despawn(entity);
                 meshes.remove(&mesh);
+                // NOTE: This removes the body, as well as its colliders and
+                // joints from the simulation so it's the only thing we need to call
+                bodies.remove(body, &mut *colliders, &mut *joints);
             }
         }
     }
