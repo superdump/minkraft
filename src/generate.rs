@@ -1,4 +1,5 @@
 use bevy::{
+    diagnostic::{Diagnostic, DiagnosticId, Diagnostics},
     prelude::*,
     render::{mesh::VertexAttribute, pipeline::PrimitiveTopology},
 };
@@ -19,6 +20,29 @@ use std::collections::{HashMap, HashSet};
 
 const SEA_LEVEL: f64 = 64.0;
 const TERRAIN_Y_SCALE: f64 = 0.2;
+
+pub const CHUNK_GENERATION_DURATION: DiagnosticId =
+    DiagnosticId::from_u128(231527775571401697783537491377266602078);
+pub const MESH_GENERATION_DURATION: DiagnosticId =
+    DiagnosticId::from_u128(81564243874222570218257378919410104882);
+pub const MESH_INDEX_COUNT: DiagnosticId =
+    DiagnosticId::from_u128(118084277781716293979909451698540294716);
+
+fn setup_diagnostic_system(mut diagnostics: ResMut<Diagnostics>) {
+    // Diagnostics must be initialized before measurements can be added.
+    // In general it's a good idea to set them up in a "startup system".
+    diagnostics.add(Diagnostic::new(
+        CHUNK_GENERATION_DURATION,
+        "chunk_generation_duration",
+        0,
+    ));
+    diagnostics.add(Diagnostic::new(
+        MESH_GENERATION_DURATION,
+        "mesh_generation_duration",
+        0,
+    ));
+    diagnostics.add(Diagnostic::new(MESH_INDEX_COUNT, "mesh_index_count", 0));
+}
 
 type VoxelMap = ChunkMap3<Voxel, ()>;
 type VoxelMaterial = u8;
@@ -48,7 +72,7 @@ struct GeneratedVoxelResource {
 
 impl Default for GeneratedVoxelResource {
     fn default() -> Self {
-        let chunk_size = 64;
+        let chunk_size = 32;
         GeneratedVoxelResource {
             noise: RidgedMulti::new()
                 .set_seed(1234)
@@ -70,6 +94,7 @@ impl Plugin for GeneratePlugin {
         app.add_resource::<GeneratedVoxelResource>(GeneratedVoxelResource::default())
             .add_resource::<GeneratedMeshesResource>(GeneratedMeshesResource::default())
             .add_startup_system(init_generation.system())
+            .add_startup_system(setup_diagnostic_system.system())
             .add_system(generate_voxels.system())
             .add_system(generate_meshes.system());
     }
@@ -144,6 +169,7 @@ fn generate_chunk(res: &mut ResMut<GeneratedVoxelResource>, min: Point3i, max: P
 
 fn generate_voxels(
     mut voxels: ResMut<GeneratedVoxelResource>,
+    mut diagnostics: ResMut<Diagnostics>,
     voxel_meshes: Res<GeneratedMeshesResource>,
     _cam: &GeneratedVoxelsTag,
     cam_transform: &Transform,
@@ -166,11 +192,17 @@ fn generate_voxels(
             if voxel_meshes.generated_map.get(&p).is_some() || d.dot(&d) > vd2 {
                 continue;
             }
+
+            let start = std::time::Instant::now();
+
             generate_chunk(
                 &mut voxels,
                 PointN([x, 0, z]),
                 PointN([x + chunk_size, max_height, z + chunk_size]),
             );
+
+            let dur = std::time::Instant::now() - start;
+            diagnostics.add_measurement(CHUNK_GENERATION_DURATION, dur.as_secs_f64() * 1000.0);
         }
     }
 }
@@ -209,6 +241,7 @@ fn extent_modulo_expand(extent: Extent3i, modulo: i32) -> Extent3i {
 
 fn spawn_mesh(
     commands: &mut Commands,
+    diagnostics: &mut ResMut<Diagnostics>,
     meshes: &mut ResMut<Assets<Mesh>>,
     mut bodies: &mut ResMut<RigidBodySet>,
     colliders: &mut ResMut<ColliderSet>,
@@ -237,6 +270,9 @@ fn spawn_mesh(
             ],
             indices: Some(indices.clone()),
         });
+
+        diagnostics.add_measurement(MESH_INDEX_COUNT, indices.len() as f64);
+
         let vertices = pos_norm_tex_ind
             .positions
             .iter()
@@ -273,6 +309,7 @@ fn spawn_mesh(
 
 fn generate_meshes(
     mut commands: Commands,
+    mut diagnostics: ResMut<Diagnostics>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut bodies: ResMut<RigidBodySet>,
     mut colliders: ResMut<ColliderSet>,
@@ -306,8 +343,12 @@ fn generate_meshes(
             if voxel_meshes.generated_map.get(&p).is_some() {
                 continue;
             }
+
+            let start = std::time::Instant::now();
+
             let entity_mesh = spawn_mesh(
                 &mut commands,
+                &mut diagnostics,
                 &mut meshes,
                 &mut bodies,
                 &mut colliders,
@@ -315,6 +356,10 @@ fn generate_meshes(
                 &voxels.map,
                 Extent3i::from_min_and_shape(p, PointN([chunk_size, max_height, chunk_size])),
             );
+
+            let dur = std::time::Instant::now() - start;
+            diagnostics.add_measurement(MESH_GENERATION_DURATION, dur.as_secs_f64() * 1000.0);
+
             voxel_meshes.generated_map.insert(p, entity_mesh);
         }
     }

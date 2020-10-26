@@ -1,6 +1,7 @@
 #[cfg(feature = "profiler")]
 use bevy::diagnostic::PrintDiagnosticsPlugin;
 use bevy::{
+    diagnostic::{FrameTimeDiagnosticsPlugin, PrintDiagnosticsPlugin},
     input::{keyboard::KeyCode, system::exit_on_esc_system},
     prelude::*,
 };
@@ -35,9 +36,16 @@ fn main() {
         .add_default_plugins()
         .add_system(exit_on_esc_system.system())
         // Debug
-        .add_plugin(DebugPlugin)
-        .add_system_to_stage(bevy::app::stage::PRE_UPDATE, toggle_debug_system.system())
-        .add_plugin(WorldAxesPlugin)
+        // .add_plugin(DebugPlugin)
+        // Adds frame time diagnostics
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        // Adds a system that prints diagnostics to the console
+        .add_plugin(PrintDiagnosticsPlugin::default())
+        // Any plugin can register diagnostics
+        // Uncomment this to add some render resource diagnostics:
+        .add_plugin(bevy::wgpu::diagnostic::WgpuResourceDiagnosticsPlugin::default())
+        // .add_system_to_stage(bevy::app::stage::PRE_UPDATE, toggle_debug_system.system())
+        // .add_plugin(WorldAxesPlugin)
         // Physics - Rapier
         .add_plugin(RapierPhysicsPlugin)
         // Character Controller
