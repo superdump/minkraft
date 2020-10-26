@@ -9,9 +9,8 @@ license = "MIT"
 bevy = "0.2.1"
 bevy_prototype_character_controller = { git = "https://github.com/superdump/bevy_prototype_character_controller", branch = "main", features = [ "use_rapier" ] }
 bevy_rapier3d = { git = "https://github.com/superdump/bevy_rapier", branch = "predict-for-render", features = [ "parallel", "simd-stable" ] }
+building-blocks = { git = "https://github.com/bonsairobo/building-blocks", rev = "3562ad10188d67841c88fc1d9c6fecdb342873a0" }
 env_logger = "0.8.1"
-ilattice3 = { git = "https://github.com/bonsairobo/ilattice3", rev = "9586551f" }
-ilattice3-mesh = { git = "https://github.com/bonsairobo/ilattice3-mesh", rev = "15101c65e" }
 log = "0.4.11"
 noise = "0.6.0"
 

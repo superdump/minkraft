@@ -9,21 +9,24 @@ use bevy_rapier3d::{
         geometry::{ColliderBuilder, ColliderSet},
     },
 };
-use ilattice3::{prelude::*, ChunkedLatticeMap, ChunkedLatticeMapReader, YLevelsIndexer};
-use ilattice3_mesh::{greedy_quads, make_pos_norm_tang_tex_mesh_from_quads, GreedyQuadsVoxel};
-use noise::*;
+use building_blocks::core::prelude::*;
+use building_blocks::mesh::{
+    greedy_quads, pos_norm_tex_meshes_from_material_quads, GreedyQuadsBuffer, MaterialVoxel,
+};
+use building_blocks::storage::{prelude::*, IsEmpty};
+use noise::{MultiFractal, NoiseFn, RidgedMulti, Seedable};
 use std::collections::{HashMap, HashSet};
 
 const SEA_LEVEL: f64 = 64.0;
 const TERRAIN_Y_SCALE: f64 = 0.2;
 
-type VoxelMap = ChunkedLatticeMap<Voxel, (), YLevelsIndexer>;
+type VoxelMap = ChunkMap3<Voxel, ()>;
 type VoxelMaterial = u8;
 
 pub struct GeneratedVoxelsTag;
 
 struct GeneratedMeshesResource {
-    pub generated_map: HashMap<Point, Vec<(Entity, Handle<Mesh>, RigidBodyHandle)>>,
+    pub generated_map: HashMap<Point3i, Vec<(Entity, Handle<Mesh>, RigidBodyHandle)>>,
 }
 
 impl Default for GeneratedMeshesResource {
@@ -52,9 +55,7 @@ impl Default for GeneratedVoxelResource {
                 .set_frequency(0.008)
                 .set_octaves(5),
             chunk_size,
-            map: ChunkedLatticeMap::<_, (), YLevelsIndexer>::new(
-                [chunk_size, chunk_size, chunk_size].into(),
-            ),
+            map: ChunkMap3::new(PointN([chunk_size; 3]), Voxel(0), (), FastLz4 { level: 10 }),
             max_height: 256,
             view_distance: 256,
             materials: Vec::new(),
@@ -108,7 +109,7 @@ impl IsEmpty for Voxel {
     }
 }
 
-impl GreedyQuadsVoxel for Voxel {
+impl MaterialVoxel for Voxel {
     type Material = VoxelMaterial;
 
     fn material(&self) -> Self::Material {
@@ -127,16 +128,14 @@ fn height_to_material(y: i32) -> VoxelMaterial {
     }
 }
 
-fn generate_chunk(res: &mut ResMut<GeneratedVoxelResource>, min: Point, max: Point) {
+fn generate_chunk(res: &mut ResMut<GeneratedVoxelResource>, min: Point3i, max: Point3i) {
     let yoffset = SEA_LEVEL;
     let yscale = TERRAIN_Y_SCALE * yoffset;
-    for z in min.z..max.z {
-        for x in min.x..max.x {
+    for z in min.z()..max.z() {
+        for x in min.x()..max.x() {
             let max_y = (res.noise.get([x as f64, z as f64]) * yscale + yoffset).round() as i32;
             for y in 0..(max_y + 1) {
-                let (_p, v) = res
-                    .map
-                    .get_mut_or_default(&Point::new(x, y, z), (), Voxel(0));
+                let (_p, v) = res.map.get_mut_and_key(&PointN([x, y, z]));
                 *v = Voxel(height_to_material(y));
             }
         }
@@ -150,36 +149,36 @@ fn generate_voxels(
     cam_transform: &Transform,
 ) {
     let cam_pos = cam_transform.translation();
-    let cam_pos = Point::new(cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32);
+    let cam_pos = PointN([cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32]);
 
     let extent = transform_to_extent(cam_pos, voxels.view_distance);
     let extent = extent_modulo_expand(extent, voxels.chunk_size);
-    let min = extent.get_minimum();
-    let max = extent.get_world_supremum();
+    let min = extent.minimum;
+    let max = extent.least_upper_bound();
 
     let chunk_size = voxels.chunk_size;
     let max_height = voxels.max_height;
     let vd2 = voxels.view_distance * voxels.view_distance;
-    for z in (min.z..max.z).step_by(voxels.chunk_size as usize) {
-        for x in (min.x..max.x).step_by(voxels.chunk_size as usize) {
-            let p = Point::new(x, 0, z);
+    for z in (min.z()..max.z()).step_by(voxels.chunk_size as usize) {
+        for x in (min.x()..max.x()).step_by(voxels.chunk_size as usize) {
+            let p = PointN([x, 0, z]);
             let d = p - cam_pos;
             if voxel_meshes.generated_map.get(&p).is_some() || d.dot(&d) > vd2 {
                 continue;
             }
             generate_chunk(
                 &mut voxels,
-                Point::new(x, 0, z),
-                Point::new(x + chunk_size, max_height, z + chunk_size),
+                PointN([x, 0, z]),
+                PointN([x + chunk_size, max_height, z + chunk_size]),
             );
         }
     }
 }
 
-fn transform_to_extent(cam_pos: Point, view_distance: i32) -> Extent {
-    Extent::from_min_and_world_max(
-        [cam_pos.x - view_distance, 0, cam_pos.z - view_distance].into(),
-        [cam_pos.x + view_distance, 0, cam_pos.z + view_distance].into(),
+fn transform_to_extent(cam_pos: Point3i, view_distance: i32) -> Extent3i {
+    Extent3i::from_min_and_lub(
+        PointN([cam_pos.x() - view_distance, 0, cam_pos.z() - view_distance]),
+        PointN([cam_pos.x() + view_distance, 0, cam_pos.z() + view_distance]),
     )
 }
 
@@ -191,22 +190,20 @@ fn modulo_up(v: i32, modulo: i32) -> i32 {
     ((v / modulo) + 1) * modulo
 }
 
-fn extent_modulo_expand(extent: Extent, modulo: i32) -> Extent {
-    let min = extent.get_minimum();
-    let max = extent.get_world_supremum();
-    Extent::from_min_and_world_supremum(
-        [
-            modulo_down(min.x, modulo),
-            min.y,
-            modulo_down(min.z, modulo),
-        ]
-        .into(),
-        [
-            modulo_up(max.x, modulo) + 1,
-            max.y + 1,
-            modulo_up(max.z, modulo) + 1,
-        ]
-        .into(),
+fn extent_modulo_expand(extent: Extent3i, modulo: i32) -> Extent3i {
+    let min = extent.minimum;
+    let max = extent.least_upper_bound();
+    Extent3i::from_min_and_lub(
+        PointN([
+            modulo_down(min.x(), modulo),
+            min.y(),
+            modulo_down(min.z(), modulo),
+        ]),
+        PointN([
+            modulo_up(max.x(), modulo) + 1,
+            max.y() + 1,
+            modulo_up(max.z(), modulo) + 1,
+        ]),
     )
 }
 
@@ -217,17 +214,19 @@ fn spawn_mesh(
     colliders: &mut ResMut<ColliderSet>,
     materials: &[Handle<StandardMaterial>],
     voxel_map: &VoxelMap,
-    extent: Extent,
+    extent: Extent3i,
 ) -> Vec<(Entity, Handle<Mesh>, RigidBodyHandle)> {
-    let reader = ChunkedLatticeMapReader::new(voxel_map);
-    let map = reader
-        .map
-        .copy_extent_into_new_map(extent, &reader.local_cache);
-    let quads = greedy_quads(&map, *map.get_extent());
-    let pos_norm_tang_tex_ind = make_pos_norm_tang_tex_mesh_from_quads(&quads);
+    let local_cache = LocalChunkCache::new();
+    let reader = ChunkMapReader3::new(voxel_map, &local_cache);
+    let extent_padded = extent.padded(1);
+    let mut map = Array3::fill(extent_padded, Voxel(0));
+    copy_extent(&extent_padded, &reader, &mut map);
+    let mut quads = GreedyQuadsBuffer::new(extent_padded);
+    greedy_quads(&map, &extent_padded, &mut quads);
+    let pos_norm_tex_ind = pos_norm_tex_meshes_from_material_quads(&quads.quad_groups);
 
-    let mut entities = Vec::with_capacity(pos_norm_tang_tex_ind.len());
-    for (i, pos_norm_tex_ind) in pos_norm_tang_tex_ind {
+    let mut entities = Vec::with_capacity(pos_norm_tex_ind.len());
+    for (i, pos_norm_tex_ind) in pos_norm_tex_ind {
         let indices: Vec<u32> = pos_norm_tex_ind.indices.iter().map(|i| *i as u32).collect();
         let mesh = meshes.add(Mesh {
             primitive_topology: PrimitiveTopology::TriangleList,
@@ -284,21 +283,21 @@ fn generate_meshes(
     cam_transform: &Transform,
 ) {
     let cam_pos = cam_transform.translation();
-    let cam_pos = Point::new(cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32);
+    let cam_pos = PointN([cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32]);
 
     let view_distance = voxels.view_distance;
     let chunk_size = voxels.chunk_size;
     let extent = transform_to_extent(cam_pos, view_distance);
     let extent = extent_modulo_expand(extent, chunk_size);
-    let min = extent.get_minimum();
-    let max = extent.get_world_supremum();
+    let min = extent.minimum;
+    let max = extent.least_upper_bound();
 
     let max_height = voxels.max_height;
     let vd2 = view_distance * view_distance;
-    let mut to_remove: HashSet<Point> = voxel_meshes.generated_map.keys().cloned().collect();
-    for z in (min.z..max.z).step_by(chunk_size as usize) {
-        for x in (min.x..max.x).step_by(chunk_size as usize) {
-            let p = Point::new(x, 0, z);
+    let mut to_remove: HashSet<Point3i> = voxel_meshes.generated_map.keys().cloned().collect();
+    for z in (min.z()..max.z()).step_by(chunk_size as usize) {
+        for x in (min.x()..max.x()).step_by(chunk_size as usize) {
+            let p = PointN([x, 0, z]);
             let d = p - cam_pos;
             if d.dot(&d) > vd2 {
                 continue;
@@ -314,10 +313,7 @@ fn generate_meshes(
                 &mut colliders,
                 &voxels.materials,
                 &voxels.map,
-                Extent::from_minimum_and_local_max(
-                    p,
-                    Point::new(chunk_size, max_height, chunk_size),
-                ),
+                Extent3i::from_min_and_shape(p, PointN([chunk_size, max_height, chunk_size])),
             );
             voxel_meshes.generated_map.insert(p, entity_mesh);
         }

@@ -746,6 +746,73 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
 
 [[package]]
+name = "building-blocks"
+version = "0.1.0"
+source = "git+https://github.com/bonsairobo/building-blocks?rev=3562ad10188d67841c88fc1d9c6fecdb342873a0#3562ad10188d67841c88fc1d9c6fecdb342873a0"
+dependencies = [
+ "building_blocks_core",
+ "building_blocks_mesh",
+ "building_blocks_procgen",
+ "building_blocks_search",
+ "building_blocks_storage",
+]
+
+[[package]]
+name = "building_blocks_core"
+version = "0.1.0"
+source = "git+https://github.com/bonsairobo/building-blocks?rev=3562ad10188d67841c88fc1d9c6fecdb342873a0#3562ad10188d67841c88fc1d9c6fecdb342873a0"
+dependencies = [
+ "itertools",
+ "num",
+ "serde",
+]
+
+[[package]]
+name = "building_blocks_mesh"
+version = "0.1.0"
+source = "git+https://github.com/bonsairobo/building-blocks?rev=3562ad10188d67841c88fc1d9c6fecdb342873a0#3562ad10188d67841c88fc1d9c6fecdb342873a0"
+dependencies = [
+ "building_blocks_core",
+ "building_blocks_storage",
+ "fnv",
+]
+
+[[package]]
+name = "building_blocks_procgen"
+version = "0.1.0"
+source = "git+https://github.com/bonsairobo/building-blocks?rev=3562ad10188d67841c88fc1d9c6fecdb342873a0#3562ad10188d67841c88fc1d9c6fecdb342873a0"
+dependencies = [
+ "building_blocks_core",
+ "building_blocks_storage",
+]
+
+[[package]]
+name = "building_blocks_search"
+version = "0.1.0"
+source = "git+https://github.com/bonsairobo/building-blocks?rev=3562ad10188d67841c88fc1d9c6fecdb342873a0#3562ad10188d67841c88fc1d9c6fecdb342873a0"
+dependencies = [
+ "building_blocks_core",
+ "building_blocks_storage",
+ "indexmap",
+ "itertools",
+]
+
+[[package]]
+name = "building_blocks_storage"
+version = "0.1.0"
+source = "git+https://github.com/bonsairobo/building-blocks?rev=3562ad10188d67841c88fc1d9c6fecdb342873a0#3562ad10188d67841c88fc1d9c6fecdb342873a0"
+dependencies = [
+ "building_blocks_core",
+ "compressible-map",
+ "either",
+ "fnv",
+ "itertools",
+ "lz4",
+ "num",
+ "serde",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1232,17 +1299,6 @@ name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
-
-[[package]]
-name = "enum-primitive-derive"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f52288f9a7ebb08959188872b58e7eaa12af9cb47da8e94158e16da7e143340"
-dependencies = [
- "num-traits 0.2.12",
- "quote 1.0.7",
- "syn",
-]
 
 [[package]]
 name = "enum_primitive"
@@ -1829,31 +1885,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c1ad908cc71012b7bea4d0c53ba96a8cba9962f048fa68d143376143d863b7a"
 
 [[package]]
-name = "ilattice3"
-version = "0.1.0"
-source = "git+https://github.com/bonsairobo/ilattice3?rev=9586551f#9586551fc62d55108d38b5fda9aeb658485a9af1"
-dependencies = [
- "compressible-map",
- "enum-primitive-derive",
- "fnv",
- "indexmap",
- "itertools",
- "lz4",
- "num",
- "num-traits 0.2.12",
- "serde",
-]
-
-[[package]]
-name = "ilattice3-mesh"
-version = "0.1.0"
-source = "git+https://github.com/bonsairobo/ilattice3-mesh?rev=15101c65e#15101c65e809ed656429614e692ae175c7773758"
-dependencies = [
- "ilattice3",
- "rayon",
-]
-
-[[package]]
 name = "image"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2262,9 +2293,8 @@ dependencies = [
  "bevy",
  "bevy_prototype_character_controller",
  "bevy_rapier3d",
+ "building-blocks",
  "env_logger",
- "ilattice3",
- "ilattice3-mesh",
  "log",
  "noise",
 ]
