@@ -2295,6 +2295,7 @@ dependencies = [
  "bevy_rapier3d",
  "building-blocks",
  "env_logger",
+ "fnv",
  "log",
  "noise",
 ]

@@ -11,6 +11,7 @@ bevy_prototype_character_controller = { git = "https://github.com/superdump/bevy
 bevy_rapier3d = { git = "https://github.com/superdump/bevy_rapier", branch = "predict-for-render", features = [ "parallel", "simd-stable" ] }
 building-blocks = { git = "https://github.com/bonsairobo/building-blocks", rev = "3562ad10188d67841c88fc1d9c6fecdb342873a0" }
 env_logger = "0.8.1"
+fnv = "1.0.7"
 log = "0.4.11"
 noise = "0.6.0"
 

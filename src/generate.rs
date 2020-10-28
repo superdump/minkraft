@@ -2,6 +2,7 @@ use bevy::{
     diagnostic::{Diagnostic, DiagnosticId, Diagnostics},
     prelude::*,
     render::{mesh::VertexAttribute, pipeline::PrimitiveTopology},
+    tasks::ComputeTaskPool,
 };
 use bevy_rapier3d::{
     physics::{ColliderHandleComponent, RigidBodyHandleComponent},
@@ -13,10 +14,14 @@ use bevy_rapier3d::{
 use building_blocks::core::prelude::*;
 use building_blocks::mesh::{
     greedy_quads, pos_norm_tex_meshes_from_material_quads, GreedyQuadsBuffer, MaterialVoxel,
+    PosNormTexMesh,
 };
 use building_blocks::storage::{prelude::*, IsEmpty};
 use noise::{MultiFractal, NoiseFn, RidgedMulti, Seedable};
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::BuildHasherDefault,
+};
 
 const SEA_LEVEL: f64 = 64.0;
 const TERRAIN_Y_SCALE: f64 = 0.2;
@@ -44,6 +49,7 @@ fn setup_diagnostic_system(mut diagnostics: ResMut<Diagnostics>) {
     diagnostics.add(Diagnostic::new(MESH_INDEX_COUNT, "mesh_index_count", 0));
 }
 
+type NoiseType = RidgedMulti;
 type VoxelMap = ChunkMap3<Voxel, ()>;
 type VoxelMaterial = u8;
 
@@ -62,7 +68,6 @@ impl Default for GeneratedMeshesResource {
 }
 
 struct GeneratedVoxelResource {
-    pub noise: RidgedMulti,
     pub chunk_size: i32,
     pub map: VoxelMap,
     pub max_height: i32,
@@ -74,10 +79,6 @@ impl Default for GeneratedVoxelResource {
     fn default() -> Self {
         let chunk_size = 32;
         GeneratedVoxelResource {
-            noise: RidgedMulti::new()
-                .set_seed(1234)
-                .set_frequency(0.008)
-                .set_octaves(5),
             chunk_size,
             map: ChunkMap3::new(PointN([chunk_size; 3]), Voxel(0), (), FastLz4 { level: 10 }),
             max_height: 256,
@@ -153,24 +154,39 @@ fn height_to_material(y: i32) -> VoxelMaterial {
     }
 }
 
-fn generate_chunk(res: &mut ResMut<GeneratedVoxelResource>, min: Point3i, max: Point3i) {
+fn generate_chunk(extent: Extent3i) -> Array3<Voxel> {
     let yoffset = SEA_LEVEL;
     let yscale = TERRAIN_Y_SCALE * yoffset;
-    for z in min.z()..max.z() {
-        for x in min.x()..max.x() {
-            let max_y = (res.noise.get([x as f64, z as f64]) * yscale + yoffset).round() as i32;
-            for y in 0..(max_y + 1) {
-                let (_p, v) = res.map.get_mut_and_key(&PointN([x, y, z]));
-                *v = Voxel(height_to_material(y));
-            }
+    let min = extent.minimum;
+    let max = extent.least_upper_bound();
+
+    let noise = NoiseType::new()
+        .set_seed(1234)
+        .set_frequency(0.008)
+        .set_octaves(5);
+    let heightmap: Vec<Vec<i32>> = (min.x()..max.x())
+        .map(|x| {
+            (min.z()..max.z())
+                .map(|z| (noise.get([x as f64, z as f64]) * yscale + yoffset).round() as i32)
+                .collect()
+        })
+        .collect();
+
+    Array3::fill_with(extent, |p| {
+        let height = heightmap[(p.x() - min.x()) as usize][(p.z() - min.z()) as usize];
+        if p.y() <= height {
+            Voxel(height_to_material(height))
+        } else {
+            Voxel(0)
         }
-    }
+    })
 }
 
 fn generate_voxels(
+    voxel_meshes: Res<GeneratedMeshesResource>,
+    task_pool: Res<ComputeTaskPool>,
     mut voxels: ResMut<GeneratedVoxelResource>,
     mut diagnostics: ResMut<Diagnostics>,
-    voxel_meshes: Res<GeneratedMeshesResource>,
     _cam: &GeneratedVoxelsTag,
     cam_transform: &Transform,
 ) {
@@ -185,25 +201,38 @@ fn generate_voxels(
     let chunk_size = voxels.chunk_size;
     let max_height = voxels.max_height;
     let vd2 = voxels.view_distance * voxels.view_distance;
-    for z in (min.z()..max.z()).step_by(voxels.chunk_size as usize) {
-        for x in (min.x()..max.x()).step_by(voxels.chunk_size as usize) {
-            let p = PointN([x, 0, z]);
-            let d = p - cam_pos;
-            if voxel_meshes.generated_map.get(&p).is_some() || d.dot(&d) > vd2 {
-                continue;
+
+    let start = std::time::Instant::now();
+
+    let chunks = task_pool.scope(|s| {
+        for z in (min.z()..max.z()).step_by(chunk_size as usize) {
+            for x in (min.x()..max.x()).step_by(chunk_size as usize) {
+                let p = PointN([x, 0, z]);
+                let d = p - cam_pos;
+                if voxel_meshes.generated_map.get(&p).is_some() || d.dot(&d) > vd2 {
+                    continue;
+                }
+
+                s.spawn(async move {
+                    generate_chunk(Extent3i::from_min_and_shape(
+                        PointN([x, 0, z]),
+                        PointN([chunk_size, max_height, chunk_size]),
+                    ))
+                })
             }
-
-            let start = std::time::Instant::now();
-
-            generate_chunk(
-                &mut voxels,
-                PointN([x, 0, z]),
-                PointN([x + chunk_size, max_height, z + chunk_size]),
-            );
-
-            let dur = std::time::Instant::now() - start;
-            diagnostics.add_measurement(CHUNK_GENERATION_DURATION, dur.as_secs_f64() * 1000.0);
         }
+    });
+
+    for chunk in &chunks {
+        copy_extent(chunk.extent(), chunk, &mut voxels.map);
+    }
+
+    if chunks.len() > 0 {
+        let dur = std::time::Instant::now() - start;
+        diagnostics.add_measurement(
+            CHUNK_GENERATION_DURATION,
+            dur.as_secs_f64() * 1000.0 / chunks.len() as f64,
+        );
     }
 }
 
@@ -239,16 +268,10 @@ fn extent_modulo_expand(extent: Extent3i, modulo: i32) -> Extent3i {
     )
 }
 
-fn spawn_mesh(
-    commands: &mut Commands,
-    diagnostics: &mut ResMut<Diagnostics>,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    mut bodies: &mut ResMut<RigidBodySet>,
-    colliders: &mut ResMut<ColliderSet>,
-    materials: &[Handle<StandardMaterial>],
+fn generate_mesh(
     voxel_map: &VoxelMap,
     extent: Extent3i,
-) -> Vec<(Entity, Handle<Mesh>, RigidBodyHandle)> {
+) -> HashMap<u8, PosNormTexMesh, BuildHasherDefault<fnv::FnvHasher>> {
     let local_cache = LocalChunkCache::new();
     let reader = ChunkMapReader3::new(voxel_map, &local_cache);
     let extent_padded = extent.padded(1);
@@ -256,8 +279,18 @@ fn spawn_mesh(
     copy_extent(&extent_padded, &reader, &mut map);
     let mut quads = GreedyQuadsBuffer::new(extent_padded);
     greedy_quads(&map, &extent_padded, &mut quads);
-    let pos_norm_tex_ind = pos_norm_tex_meshes_from_material_quads(&quads.quad_groups);
+    pos_norm_tex_meshes_from_material_quads(&quads.quad_groups)
+}
 
+fn spawn_meshes(
+    commands: &mut Commands,
+    diagnostics: &mut ResMut<Diagnostics>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    mut bodies: &mut ResMut<RigidBodySet>,
+    colliders: &mut ResMut<ColliderSet>,
+    materials: &[Handle<StandardMaterial>],
+    pos_norm_tex_ind: &HashMap<u8, PosNormTexMesh, BuildHasherDefault<fnv::FnvHasher>>,
+) -> Vec<(Entity, Handle<Mesh>, RigidBodyHandle)> {
     let mut entities = Vec::with_capacity(pos_norm_tex_ind.len());
     for (i, pos_norm_tex_ind) in pos_norm_tex_ind {
         let indices: Vec<u32> = pos_norm_tex_ind.indices.iter().map(|i| *i as u32).collect();
@@ -293,7 +326,7 @@ fn spawn_mesh(
         let entity = commands
             .spawn(PbrComponents {
                 mesh,
-                material: materials[i as usize],
+                material: materials[*i as usize],
                 ..Default::default()
             })
             .with_bundle((
@@ -309,12 +342,13 @@ fn spawn_mesh(
 
 fn generate_meshes(
     mut commands: Commands,
+    voxels: ChangedRes<GeneratedVoxelResource>,
+    task_pool: Res<ComputeTaskPool>,
     mut diagnostics: ResMut<Diagnostics>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut bodies: ResMut<RigidBodySet>,
     mut colliders: ResMut<ColliderSet>,
     mut joints: ResMut<JointSet>,
-    voxels: ChangedRes<GeneratedVoxelResource>,
     mut voxel_meshes: ResMut<GeneratedMeshesResource>,
     _cam: &GeneratedVoxelsTag,
     cam_transform: &Transform,
@@ -331,47 +365,73 @@ fn generate_meshes(
 
     let max_height = voxels.max_height;
     let vd2 = view_distance * view_distance;
-    let mut to_remove: HashSet<Point3i> = voxel_meshes.generated_map.keys().cloned().collect();
-    for z in (min.z()..max.z()).step_by(chunk_size as usize) {
-        for x in (min.x()..max.x()).step_by(chunk_size as usize) {
-            let p = PointN([x, 0, z]);
-            let d = p - cam_pos;
-            if d.dot(&d) > vd2 {
-                continue;
+
+    let start = std::time::Instant::now();
+
+    let new_meshes = task_pool.scope(|s| {
+        let map = &voxels.map;
+        let generated_map = &voxel_meshes.generated_map;
+        for z in (min.z()..max.z()).step_by(chunk_size as usize) {
+            for x in (min.x()..max.x()).step_by(chunk_size as usize) {
+                s.spawn(async move {
+                    let p = PointN([x, 0, z]);
+                    let d = p - cam_pos;
+                    if d.dot(&d) > vd2 {
+                        return (None, None, Some(p));
+                    }
+                    if generated_map.get(&p).is_some() {
+                        return (None, None, None);
+                    }
+
+                    (
+                        Some(p),
+                        Some(generate_mesh(
+                            map,
+                            Extent3i::from_min_and_shape(
+                                p,
+                                PointN([chunk_size, max_height, chunk_size]),
+                            ),
+                        )),
+                        None,
+                    )
+                })
             }
-            to_remove.remove(&p);
-            if voxel_meshes.generated_map.get(&p).is_some() {
-                continue;
+        }
+    });
+
+    for (p, mesh, to_remove) in &new_meshes {
+        if let Some(p) = to_remove {
+            if let Some(entities) = voxel_meshes.generated_map.remove(p) {
+                for (entity, mesh, body) in entities {
+                    commands.despawn(entity);
+                    meshes.remove(&mesh);
+                    // NOTE: This removes the body, as well as its colliders and
+                    // joints from the simulation so it's the only thing we need to call
+                    bodies.remove(body, &mut *colliders, &mut *joints);
+                }
             }
-
-            let start = std::time::Instant::now();
-
-            let entity_mesh = spawn_mesh(
-                &mut commands,
-                &mut diagnostics,
-                &mut meshes,
-                &mut bodies,
-                &mut colliders,
-                &voxels.materials,
-                &voxels.map,
-                Extent3i::from_min_and_shape(p, PointN([chunk_size, max_height, chunk_size])),
-            );
-
-            let dur = std::time::Instant::now() - start;
-            diagnostics.add_measurement(MESH_GENERATION_DURATION, dur.as_secs_f64() * 1000.0);
-
-            voxel_meshes.generated_map.insert(p, entity_mesh);
+        }
+        if let Some(p) = p {
+            if let Some(mesh) = mesh {
+                let mesh_entities = spawn_meshes(
+                    &mut commands,
+                    &mut diagnostics,
+                    &mut meshes,
+                    &mut bodies,
+                    &mut colliders,
+                    &voxels.materials,
+                    mesh,
+                );
+                voxel_meshes.generated_map.insert(*p, mesh_entities);
+            }
         }
     }
-    for p in &to_remove {
-        if let Some(entities) = voxel_meshes.generated_map.remove(p) {
-            for (entity, mesh, body) in entities {
-                commands.despawn(entity);
-                meshes.remove(&mesh);
-                // NOTE: This removes the body, as well as its colliders and
-                // joints from the simulation so it's the only thing we need to call
-                bodies.remove(body, &mut *colliders, &mut *joints);
-            }
-        }
+
+    if new_meshes.len() > 0 {
+        let dur = std::time::Instant::now() - start;
+        diagnostics.add_measurement(
+            MESH_GENERATION_DURATION,
+            dur.as_secs_f64() * 1000.0 / new_meshes.len() as f64,
+        );
     }
 }
