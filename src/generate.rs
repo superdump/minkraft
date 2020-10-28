@@ -18,10 +18,7 @@ use building_blocks::mesh::{
 };
 use building_blocks::storage::{prelude::*, IsEmpty};
 use noise::{MultiFractal, NoiseFn, RidgedMulti, Seedable};
-use std::{
-    collections::{HashMap, HashSet},
-    hash::BuildHasherDefault,
-};
+use std::collections::HashMap;
 
 const SEA_LEVEL: f64 = 64.0;
 const TERRAIN_Y_SCALE: f64 = 0.2;
@@ -77,7 +74,7 @@ struct GeneratedVoxelResource {
 
 impl Default for GeneratedVoxelResource {
     fn default() -> Self {
-        let chunk_size = 32;
+        let chunk_size = 16;
         GeneratedVoxelResource {
             chunk_size,
             map: ChunkMap3::new(PointN([chunk_size; 3]), Voxel(0), (), FastLz4 { level: 10 }),
@@ -193,13 +190,13 @@ fn generate_voxels(
     let cam_pos = cam_transform.translation();
     let cam_pos = PointN([cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32]);
 
-    let extent = transform_to_extent(cam_pos, voxels.view_distance);
+    let max_height = voxels.max_height;
+    let extent = transform_to_extent(cam_pos, voxels.view_distance, max_height);
     let extent = extent_modulo_expand(extent, voxels.chunk_size);
     let min = extent.minimum;
     let max = extent.least_upper_bound();
 
     let chunk_size = voxels.chunk_size;
-    let max_height = voxels.max_height;
     let vd2 = voxels.view_distance * voxels.view_distance;
 
     let start = std::time::Instant::now();
@@ -207,7 +204,7 @@ fn generate_voxels(
     let chunks = task_pool.scope(|s| {
         for z in (min.z()..max.z()).step_by(chunk_size as usize) {
             for x in (min.x()..max.x()).step_by(chunk_size as usize) {
-                let p = PointN([x, 0, z]);
+                let p = PointN([x, min.y(), z]);
                 let d = p - cam_pos;
                 if voxel_meshes.generated_map.get(&p).is_some() || d.dot(&d) > vd2 {
                     continue;
@@ -215,8 +212,8 @@ fn generate_voxels(
 
                 s.spawn(async move {
                     generate_chunk(Extent3i::from_min_and_shape(
-                        PointN([x, 0, z]),
-                        PointN([chunk_size, max_height, chunk_size]),
+                        PointN([x, min.y(), z]),
+                        PointN([chunk_size, max.y(), chunk_size]),
                     ))
                 })
             }
@@ -236,10 +233,14 @@ fn generate_voxels(
     }
 }
 
-fn transform_to_extent(cam_pos: Point3i, view_distance: i32) -> Extent3i {
+fn transform_to_extent(cam_pos: Point3i, view_distance: i32, max_height: i32) -> Extent3i {
     Extent3i::from_min_and_lub(
         PointN([cam_pos.x() - view_distance, 0, cam_pos.z() - view_distance]),
-        PointN([cam_pos.x() + view_distance, 0, cam_pos.z() + view_distance]),
+        PointN([
+            cam_pos.x() + view_distance,
+            max_height,
+            cam_pos.z() + view_distance,
+        ]),
     )
 }
 
@@ -268,17 +269,18 @@ fn extent_modulo_expand(extent: Extent3i, modulo: i32) -> Extent3i {
     )
 }
 
-fn generate_mesh(
-    voxel_map: &VoxelMap,
-    extent: Extent3i,
-) -> HashMap<u8, PosNormTexMesh, BuildHasherDefault<fnv::FnvHasher>> {
+fn generate_mesh(voxel_map: &VoxelMap, extent: Extent3i) -> fnv::FnvHashMap<u8, PosNormTexMesh> {
+    let padded_extent = extent.padded(1);
+
+    let mut map = Array3::fill(padded_extent, Voxel(0));
+
     let local_cache = LocalChunkCache::new();
     let reader = ChunkMapReader3::new(voxel_map, &local_cache);
-    let extent_padded = extent.padded(1);
-    let mut map = Array3::fill(extent_padded, Voxel(0));
-    copy_extent(&extent_padded, &reader, &mut map);
-    let mut quads = GreedyQuadsBuffer::new(extent_padded);
-    greedy_quads(&map, &extent_padded, &mut quads);
+    copy_extent(&padded_extent, &reader, &mut map);
+
+    let mut quads = GreedyQuadsBuffer::new(padded_extent);
+    greedy_quads(&map, &padded_extent, &mut quads);
+
     pos_norm_tex_meshes_from_material_quads(&quads.quad_groups)
 }
 
@@ -289,7 +291,7 @@ fn spawn_meshes(
     mut bodies: &mut ResMut<RigidBodySet>,
     colliders: &mut ResMut<ColliderSet>,
     materials: &[Handle<StandardMaterial>],
-    pos_norm_tex_ind: &HashMap<u8, PosNormTexMesh, BuildHasherDefault<fnv::FnvHasher>>,
+    pos_norm_tex_ind: &fnv::FnvHashMap<u8, PosNormTexMesh>,
 ) -> Vec<(Entity, Handle<Mesh>, RigidBodyHandle)> {
     let mut entities = Vec::with_capacity(pos_norm_tex_ind.len());
     for (i, pos_norm_tex_ind) in pos_norm_tex_ind {
@@ -358,12 +360,10 @@ fn generate_meshes(
 
     let view_distance = voxels.view_distance;
     let chunk_size = voxels.chunk_size;
-    let extent = transform_to_extent(cam_pos, view_distance);
-    let extent = extent_modulo_expand(extent, chunk_size);
-    let min = extent.minimum;
-    let max = extent.least_upper_bound();
-
     let max_height = voxels.max_height;
+    let extent = transform_to_extent(cam_pos, view_distance, max_height);
+    let extent = extent_modulo_expand(extent, chunk_size);
+
     let vd2 = view_distance * view_distance;
 
     let start = std::time::Instant::now();
@@ -371,34 +371,30 @@ fn generate_meshes(
     let new_meshes = task_pool.scope(|s| {
         let map = &voxels.map;
         let generated_map = &voxel_meshes.generated_map;
-        for z in (min.z()..max.z()).step_by(chunk_size as usize) {
-            for x in (min.x()..max.x()).step_by(chunk_size as usize) {
-                s.spawn(async move {
-                    let p = PointN([x, 0, z]);
-                    let d = p - cam_pos;
-                    if d.dot(&d) > vd2 {
-                        return (None, None, Some(p));
-                    }
-                    if generated_map.get(&p).is_some() {
-                        return (None, None, None);
-                    }
+        for chunk in map.chunk_keys_for_extent(&extent) {
+            s.spawn(async move {
+                let p = PointN([chunk.x(), 0, chunk.z()]);
+                let d = p - cam_pos;
+                if d.dot(&d) > vd2 {
+                    // Outside view distance so remove
+                    return (None, None, Some(chunk));
+                }
+                if generated_map.get(&chunk).is_some() {
+                    // Already exists so skip
+                    return (None, None, None);
+                }
 
-                    (
-                        Some(p),
-                        Some(generate_mesh(
-                            map,
-                            Extent3i::from_min_and_shape(
-                                p,
-                                PointN([chunk_size, max_height, chunk_size]),
-                            ),
-                        )),
-                        None,
-                    )
-                })
-            }
+                // Generate the new chunk
+                (
+                    Some(chunk),
+                    Some(generate_mesh(map, map.extent_for_chunk_at_key(&chunk))),
+                    None,
+                )
+            })
         }
     });
 
+    let mut mesh_count = 0;
     for (p, mesh, to_remove) in &new_meshes {
         if let Some(p) = to_remove {
             if let Some(entities) = voxel_meshes.generated_map.remove(p) {
@@ -422,16 +418,17 @@ fn generate_meshes(
                     &voxels.materials,
                     mesh,
                 );
+                mesh_count += mesh_entities.len();
                 voxel_meshes.generated_map.insert(*p, mesh_entities);
             }
         }
     }
 
-    if new_meshes.len() > 0 {
+    if mesh_count > 0 {
         let dur = std::time::Instant::now() - start;
         diagnostics.add_measurement(
             MESH_GENERATION_DURATION,
-            dur.as_secs_f64() * 1000.0 / new_meshes.len() as f64,
+            dur.as_secs_f64() * 1000.0 / mesh_count as f64,
         );
     }
 }
