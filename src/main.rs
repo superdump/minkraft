@@ -111,9 +111,9 @@ fn setup_player(
         .expect("Failed to spawn yaw");
     let body_model = commands
         .spawn(PbrComponents {
-            material: red,
-            mesh: cuboid,
-            transform: Transform::new(Mat4::from_scale_rotation_translation(
+            material: red.clone(),
+            mesh: cuboid.clone(),
+            transform: Transform::from_matrix(Mat4::from_scale_rotation_translation(
                 obj_scale - head_scale * Vec3::unit_y(),
                 Quat::identity(),
                 -0.5 * head_scale * Vec3::unit_y(),
@@ -125,9 +125,7 @@ fn setup_player(
     let head = commands
         .spawn((
             GlobalTransform::identity(),
-            Transform::new(Mat4::from_translation(
-                0.8 * 0.5 * obj_scale.y() * Vec3::unit_y(),
-            )),
+            Transform::from_translation(0.8 * 0.5 * obj_scale.y() * Vec3::unit_y()),
             HeadTag,
         ))
         .current_entity()
@@ -137,14 +135,14 @@ fn setup_player(
         .spawn(PbrComponents {
             material: red,
             mesh: cuboid,
-            transform: Transform::from_scale(head_scale),
+            transform: Transform::from_scale(Vec3::splat(head_scale)),
             ..Default::default()
         })
         .current_entity()
         .expect("Failed to spawn head_model");
     let camera = commands
         .spawn(Camera3dComponents {
-            transform: Transform::new(camera_transform),
+            transform: Transform::from_matrix(camera_transform),
             ..Default::default()
         })
         .with_bundle((LookDirection::default(), CameraTag, WorldAxesCameraTag))

@@ -1,7 +1,10 @@
 use bevy::{
     diagnostic::{Diagnostic, DiagnosticId, Diagnostics},
     prelude::*,
-    render::{mesh::VertexAttribute, pipeline::PrimitiveTopology},
+    render::{
+        mesh::{Indices, VertexAttribute},
+        pipeline::PrimitiveTopology,
+    },
     tasks::ComputeTaskPool,
 };
 use bevy_rapier3d::{
@@ -187,7 +190,7 @@ fn generate_voxels(
     _cam: &GeneratedVoxelsTag,
     cam_transform: &Transform,
 ) {
-    let cam_pos = cam_transform.translation();
+    let cam_pos = cam_transform.translation;
     let cam_pos = PointN([cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32]);
 
     let max_height = voxels.max_height;
@@ -303,7 +306,7 @@ fn spawn_meshes(
                 VertexAttribute::normal(pos_norm_tex_ind.normals.clone()),
                 VertexAttribute::uv(pos_norm_tex_ind.tex_coords.clone()),
             ],
-            indices: Some(indices.clone()),
+            indices: Some(Indices::U32(indices.clone())),
         });
 
         diagnostics.add_measurement(MESH_INDEX_COUNT, indices.len() as f64);
@@ -327,8 +330,8 @@ fn spawn_meshes(
 
         let entity = commands
             .spawn(PbrComponents {
-                mesh,
-                material: materials[*i as usize],
+                mesh: mesh.clone(),
+                material: materials[*i as usize].clone(),
                 ..Default::default()
             })
             .with_bundle((
@@ -355,7 +358,7 @@ fn generate_meshes(
     _cam: &GeneratedVoxelsTag,
     cam_transform: &Transform,
 ) {
-    let cam_pos = cam_transform.translation();
+    let cam_pos = cam_transform.translation;
     let cam_pos = PointN([cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32]);
 
     let view_distance = voxels.view_distance;

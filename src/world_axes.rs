@@ -65,17 +65,17 @@ fn world_axes_setup_system(
 }
 
 fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>) {
-    let red = world_axes.standard_materials[0];
-    let green = world_axes.standard_materials[1];
-    let blue = world_axes.standard_materials[2];
+    let red = &world_axes.standard_materials[0];
+    let green = &world_axes.standard_materials[1];
+    let blue = &world_axes.standard_materials[2];
 
-    let cylinder_mesh = world_axes.meshes[0];
-    let cone_mesh = world_axes.meshes[1];
+    let cylinder_mesh = &world_axes.meshes[0];
+    let cone_mesh = &world_axes.meshes[1];
 
     world_axes.axes_entity = commands
         .spawn((
             GlobalTransform::identity(),
-            Transform::from_scale(0.1f32),
+            Transform::from_scale(Vec3::splat(0.1f32)),
             WorldAxesTag,
         ))
         .with_children(|axes_root| {
@@ -87,16 +87,16 @@ fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>)
                 .with_children(|axis_root| {
                     axis_root
                         .spawn(PbrComponents {
-                            material: red,
-                            mesh: cone_mesh,
+                            material: red.clone(),
+                            mesh: cone_mesh.clone(),
                             transform: Transform::from_translation(Vec3::new(
                                 0.0f32, 0.85f32, 0.0f32,
                             )),
                             ..Default::default()
                         })
                         .spawn(PbrComponents {
-                            material: red,
-                            mesh: cylinder_mesh,
+                            material: red.clone(),
+                            mesh: cylinder_mesh.clone(),
                             ..Default::default()
                         });
                 })
@@ -104,16 +104,16 @@ fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>)
                 .with_children(|axis_root| {
                     axis_root
                         .spawn(PbrComponents {
-                            material: green,
-                            mesh: cone_mesh,
+                            material: green.clone(),
+                            mesh: cone_mesh.clone(),
                             transform: Transform::from_translation(Vec3::new(
                                 0.0f32, 0.85f32, 0.0f32,
                             )),
                             ..Default::default()
                         })
                         .spawn(PbrComponents {
-                            material: green,
-                            mesh: cylinder_mesh,
+                            material: green.clone(),
+                            mesh: cylinder_mesh.clone(),
                             ..Default::default()
                         });
                 })
@@ -124,16 +124,16 @@ fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>)
                 .with_children(|axis_root| {
                     axis_root
                         .spawn(PbrComponents {
-                            material: blue,
-                            mesh: cone_mesh,
+                            material: blue.clone(),
+                            mesh: cone_mesh.clone(),
                             transform: Transform::from_translation(Vec3::new(
                                 0.0f32, 0.85f32, 0.0f32,
                             )),
                             ..Default::default()
                         })
                         .spawn(PbrComponents {
-                            material: blue,
-                            mesh: cylinder_mesh,
+                            material: blue.clone(),
+                            mesh: cylinder_mesh.clone(),
                             ..Default::default()
                         });
                 });
@@ -166,11 +166,11 @@ fn world_axes_system(
     let mut axes_temp = axes_query.iter();
     let (mut axes_transform,) = axes_temp.iter().next().unwrap();
 
-    let view_matrix = camera_transform.value();
+    let view_matrix = camera_transform.compute_matrix();
     let projection_matrix = camera.projection_matrix;
     let world_pos: Vec4 =
-        (*view_matrix * projection_matrix.inverse()).mul_vec4(world_axes.position.extend(1.0));
+        (view_matrix * projection_matrix.inverse()).mul_vec4(world_axes.position.extend(1.0));
     let position: Vec3 = (world_pos / world_pos.w()).truncate().into();
 
-    axes_transform.set_translation(position);
+    axes_transform.translation = position;
 }

@@ -41,11 +41,7 @@ fn debug_setup(
     asset_server: Res<AssetServer>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    debug.font_handle = Some(
-        asset_server
-            .load("assets/fonts/FiraMono-Medium.ttf")
-            .unwrap(),
-    );
+    debug.font_handle = Some(asset_server.load("assets/fonts/FiraMono-Medium.ttf"));
     debug.transparent_material = Some(color_materials.add(ColorMaterial::color(Color::NONE)));
 }
 
@@ -61,7 +57,7 @@ fn debug_toggle_system(mut commands: Commands, mut debug: ResMut<Debug>) {
                         padding: Rect::all(Val::Px(16.0f32)),
                         ..Default::default()
                     },
-                    material: debug.transparent_material.unwrap(),
+                    material: debug.transparent_material.as_ref().unwrap().clone(),
                     ..Default::default()
                 })
                 .with_children(|p| {
@@ -72,7 +68,7 @@ fn debug_toggle_system(mut commands: Commands, mut debug: ResMut<Debug>) {
                         },
                         text: Text {
                             value: "FT:".to_string(),
-                            font: debug.font_handle.unwrap(),
+                            font: debug.font_handle.as_ref().unwrap().clone(),
                             style: TextStyle {
                                 font_size: 24.0,
                                 color: Color::WHITE,
@@ -87,7 +83,7 @@ fn debug_toggle_system(mut commands: Commands, mut debug: ResMut<Debug>) {
                         },
                         text: Text {
                             value: "XYZ:".to_string(),
-                            font: debug.font_handle.unwrap(),
+                            font: debug.font_handle.as_ref().unwrap().clone(),
                             style: TextStyle {
                                 font_size: 24.0,
                                 color: Color::WHITE,
@@ -102,7 +98,7 @@ fn debug_toggle_system(mut commands: Commands, mut debug: ResMut<Debug>) {
                         },
                         text: Text {
                             value: "YP:".to_string(),
-                            font: debug.font_handle.unwrap(),
+                            font: debug.font_handle.as_ref().unwrap().clone(),
                             style: TextStyle {
                                 font_size: 24.0,
                                 color: Color::WHITE,
@@ -142,7 +138,7 @@ fn debug_system(
                 }
             }
             Some("XYZ") => {
-                let cam_pos = cam_transform.translation();
+                let cam_pos = cam_transform.translation;
                 text.value = format!(
                     "XYZ: ({:>8.2}, {:>8.2}, {:>8.2})",
                     cam_pos.x(),

@@ -1,7 +1,7 @@
 use bevy::{
     prelude::*,
     render::{
-        mesh::{Mesh, VertexAttribute},
+        mesh::{Indices, Mesh, VertexAttribute},
         pipeline::PrimitiveTopology,
     },
 };
@@ -76,7 +76,7 @@ impl From<Cone> for Mesh {
                 VertexAttribute::normal(normals),
                 VertexAttribute::uv(uvs),
             ],
-            indices: Some(indices),
+            indices: Some(Indices::U32(indices)),
         }
     }
 }
@@ -176,7 +176,7 @@ impl From<Cylinder> for Mesh {
                 VertexAttribute::normal(normals),
                 VertexAttribute::uv(uvs),
             ],
-            indices: Some(indices),
+            indices: Some(Indices::U32(indices)),
         }
     }
 }
