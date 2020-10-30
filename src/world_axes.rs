@@ -26,7 +26,7 @@ pub struct WorldAxes {
 impl Default for WorldAxes {
     fn default() -> Self {
         WorldAxes {
-            enabled: false,
+            enabled: true,
             position: Vec3::new(0.85, -0.75, 0.3),
             axes_entity: None,
             meshes: Vec::with_capacity(2),
