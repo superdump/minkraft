@@ -21,7 +21,7 @@ use building_blocks::mesh::{
 };
 use building_blocks::storage::{prelude::*, IsEmpty};
 use noise::{MultiFractal, NoiseFn, RidgedMulti, Seedable};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 #[cfg(feature = "trace")]
 use tracing::{debug_span, trace_span};
 
