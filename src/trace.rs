@@ -1,4 +1,4 @@
-use tracing_flame::FlameLayer;
+use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::{fmt, prelude::*, registry::Registry, EnvFilter};
 
 pub fn setup_global_subscriber() -> impl Drop {
@@ -7,12 +7,12 @@ pub fn setup_global_subscriber() -> impl Drop {
         .or_else(|_| EnvFilter::try_new("info,wgpu=warn"))
         .unwrap();
 
-    let (flame_layer, _guard) = FlameLayer::with_file("./tracing.folded").unwrap();
+    let (chrome_layer, _guard) = ChromeLayerBuilder::new().build();
 
     let subscriber = Registry::default()
         .with(filter_layer)
         .with(fmt_layer)
-        .with(flame_layer);
+        .with(chrome_layer);
 
     tracing::subscriber::set_global_default(subscriber).expect("Could not set global default");
     _guard
