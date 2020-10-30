@@ -119,15 +119,14 @@ fn debug_system(
     debug: Res<Debug>,
     diagnostics: Res<Diagnostics>,
     settings: Res<MouseSettings>,
-    mut camera: Query<With<DebugTransformTag, &Transform>>,
+    camera: Query<With<DebugTransformTag, &Transform>>,
     mut query: Query<&mut Text>,
 ) {
     if !debug.enabled || debug.text_entity.is_none() {
         return;
     }
-    let mut cam_iter = camera.iter();
-    let cam_transform = cam_iter.iter().next().unwrap();
-    for mut text in &mut query.iter() {
+    let cam_transform = camera.iter().next().unwrap();
+    for mut text in query.iter_mut() {
         match text.value.get(..3) {
             Some("FT:") => {
                 if let Some(frame_time) = diagnostics.get(FrameTimeDiagnosticsPlugin::FRAME_TIME) {
