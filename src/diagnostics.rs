@@ -1,4 +1,9 @@
-use bevy::{prelude::*, wgpu::diagnostic::WgpuResourceDiagnosticsPlugin};
+use bevy::{
+    app::PluginGroupBuilder,
+    diagnostic::{FrameTimeDiagnosticsPlugin, PrintDiagnosticsPlugin},
+    prelude::*,
+    wgpu::diagnostic::WgpuResourceDiagnosticsPlugin,
+};
 
 pub struct DiagnosticPlugins;
 
@@ -7,6 +12,6 @@ impl PluginGroup for DiagnosticPlugins {
         group
             .add(FrameTimeDiagnosticsPlugin)
             .add(WgpuResourceDiagnosticsPlugin)
-            .add(PrintDiagnosticsPlugin);
+            .add(PrintDiagnosticsPlugin::default());
     }
 }
