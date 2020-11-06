@@ -1,10 +1,7 @@
 use bevy::{
     diagnostic::{Diagnostic, DiagnosticId, Diagnostics},
     prelude::*,
-    render::{
-        mesh::{Indices, VertexAttribute},
-        pipeline::PrimitiveTopology,
-    },
+    render::{mesh::Indices, pipeline::PrimitiveTopology},
     tasks::ComputeTaskPool,
 };
 use bevy_rapier3d::{
@@ -14,14 +11,16 @@ use bevy_rapier3d::{
         geometry::{ColliderBuilder, ColliderSet},
     },
 };
-use building_blocks::core::prelude::*;
-use building_blocks::mesh::{
-    greedy_quads, pos_norm_tex_meshes_from_material_quads, GreedyQuadsBuffer, MaterialVoxel,
-    PosNormTexMesh,
+use building_blocks::{
+    core::prelude::*,
+    mesh::{
+        greedy_quads::{greedy_quads, QuadGroup},
+        GreedyQuadsBuffer, MaterialVoxel, PosNormTexMesh,
+    },
+    storage::{prelude::*, IsEmpty},
 };
-use building_blocks::storage::{prelude::*, IsEmpty};
 use noise::{MultiFractal, NoiseFn, RidgedMulti, Seedable};
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 #[cfg(feature = "trace")]
 use tracing::{debug_span, trace_span};
 
@@ -289,7 +288,25 @@ fn extent_modulo_expand(extent: Extent3i, modulo: i32) -> Extent3i {
     )
 }
 
-fn generate_mesh(voxel_map: &VoxelMap, extent: Extent3i) -> fnv::FnvHashMap<u8, PosNormTexMesh> {
+pub fn pos_norm_tex_meshes_from_material_quads<M>(
+    quad_groups: &[QuadGroup<M>],
+) -> HashMap<M, PosNormTexMesh>
+where
+    M: Copy + Eq + Hash,
+{
+    let mut meshes: HashMap<M, PosNormTexMesh> = HashMap::default();
+
+    for QuadGroup { quads, meta } in quad_groups.iter() {
+        for (quad, material) in quads.iter() {
+            let mesh = meshes.entry(*material).or_default();
+            meta.add_quad_to_pos_norm_tex_mesh(quad, mesh);
+        }
+    }
+
+    meshes
+}
+
+fn generate_mesh(voxel_map: &VoxelMap, extent: Extent3i) -> HashMap<u8, PosNormTexMesh> {
     #[cfg(feature = "trace")]
     let generate_mesh_span = debug_span!("generate_mesh");
     #[cfg(feature = "trace")]
@@ -299,7 +316,7 @@ fn generate_mesh(voxel_map: &VoxelMap, extent: Extent3i) -> fnv::FnvHashMap<u8, 
 
     let mut map = Array3::fill(padded_extent, Voxel(0));
 
-    let local_cache = LocalChunkCache::new();
+    let local_cache = LocalChunkCache3::new();
     let reader = ChunkMapReader3::new(voxel_map, &local_cache);
     copy_extent(&padded_extent, &reader, &mut map);
 
@@ -316,7 +333,7 @@ fn spawn_meshes(
     mut bodies: &mut ResMut<RigidBodySet>,
     colliders: &mut ResMut<ColliderSet>,
     materials: &[Handle<StandardMaterial>],
-    pos_norm_tex_ind: &fnv::FnvHashMap<u8, PosNormTexMesh>,
+    pos_norm_tex_ind: HashMap<u8, PosNormTexMesh>,
 ) -> Vec<(Entity, Handle<Mesh>, RigidBodyHandle)> {
     #[cfg(feature = "trace")]
     let spawn_mesh_span = debug_span!("spawn_mesh");
@@ -326,17 +343,18 @@ fn spawn_meshes(
     let mut entities = Vec::with_capacity(pos_norm_tex_ind.len());
     for (i, pos_norm_tex_ind) in pos_norm_tex_ind {
         let indices: Vec<u32> = pos_norm_tex_ind.indices.iter().map(|i| *i as u32).collect();
-        let mesh = meshes.add(Mesh {
-            primitive_topology: PrimitiveTopology::TriangleList,
-            attributes: vec![
-                VertexAttribute::position(pos_norm_tex_ind.positions.clone()),
-                VertexAttribute::normal(pos_norm_tex_ind.normals.clone()),
-                VertexAttribute::uv(pos_norm_tex_ind.tex_coords.clone()),
-            ],
-            indices: Some(Indices::U32(indices.clone())),
-        });
 
         diagnostics.add_measurement(MESH_INDEX_COUNT, indices.len() as f64);
+
+        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+        mesh.set_attribute(
+            Mesh::ATTRIBUTE_POSITION,
+            pos_norm_tex_ind.positions.clone().into(),
+        );
+        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, pos_norm_tex_ind.normals.into());
+        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, pos_norm_tex_ind.tex_coords.into());
+        mesh.set_indices(Some(Indices::U32(indices.clone())));
+        let mesh = meshes.add(mesh);
 
         let vertices = pos_norm_tex_ind
             .positions
@@ -358,7 +376,7 @@ fn spawn_meshes(
         let entity = commands
             .spawn(PbrComponents {
                 mesh: mesh.clone(),
-                material: materials[*i as usize].clone(),
+                material: materials[i as usize].clone(),
                 ..Default::default()
             })
             .with_bundle((
@@ -430,14 +448,14 @@ fn generate_meshes(
     });
 
     let mut mesh_count = 0;
-    for (p, mesh, to_remove) in &new_meshes {
+    for (p, mesh, to_remove) in new_meshes {
         if let Some(p) = to_remove {
             #[cfg(feature = "trace")]
             let despawn_old_span = debug_span!("despawn_old");
             #[cfg(feature = "trace")]
             let _despawn_old_guard = despawn_old_span.enter();
 
-            if let Some(entities) = voxel_meshes.generated_map.remove(p) {
+            if let Some(entities) = voxel_meshes.generated_map.remove(&p) {
                 for (entity, mesh, body) in entities {
                     commands.despawn(entity);
                     meshes.remove(&mesh);
@@ -459,7 +477,7 @@ fn generate_meshes(
                     mesh,
                 );
                 mesh_count += mesh_entities.len();
-                voxel_meshes.generated_map.insert(*p, mesh_entities);
+                voxel_meshes.generated_map.insert(p, mesh_entities);
             }
         }
     }

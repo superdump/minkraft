@@ -1,7 +1,4 @@
-#[cfg(feature = "profiler")]
-use bevy::diagnostic::PrintDiagnosticsPlugin;
 use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, PrintDiagnosticsPlugin},
     input::{keyboard::KeyCode, system::exit_on_esc_system},
     prelude::*,
 };
@@ -12,9 +9,11 @@ use bevy_prototype_character_controller::{
 };
 use bevy_rapier3d::{
     physics::{PhysicsInterpolationComponent, RapierPhysicsPlugin},
-    rapier::dynamics::RigidBodyBuilder,
+    rapier::dynamics::{MassProperties, RigidBodyBuilder},
     rapier::geometry::ColliderBuilder,
 };
+#[cfg(feature = "profiler")]
+use minkraft::diagnostics::DiagnosticPlugins;
 #[cfg(feature = "trace")]
 use minkraft::trace::setup_global_subscriber;
 use minkraft::{
@@ -43,17 +42,10 @@ fn main() {
         })
         .add_resource(ClearColor(Color::BLACK))
         .add_resource(Msaa { samples: 4 })
-        .add_default_plugins()
+        .add_plugins(DefaultPlugins)
         .add_system(exit_on_esc_system.system())
-        // Debug
+        // Debug HUD
         // .add_plugin(DebugPlugin)
-        // Adds frame time diagnostics
-        .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        // Adds a system that prints diagnostics to the console
-        .add_plugin(PrintDiagnosticsPlugin::default())
-        // Any plugin can register diagnostics
-        // Uncomment this to add some render resource diagnostics:
-        .add_plugin(bevy::wgpu::diagnostic::WgpuResourceDiagnosticsPlugin::default())
         // .add_system_to_stage(bevy::app::stage::PRE_UPDATE, toggle_debug_system.system())
         // .add_plugin(WorldAxesPlugin)
         // Physics - Rapier
@@ -67,7 +59,7 @@ fn main() {
         .add_startup_system(setup_player.system());
 
     #[cfg(feature = "profiler")]
-    app_builder.add_plugin(PrintDiagnosticsPlugin::default());
+    app_builder.add_plugins(DiagnosticPlugins);
 
     info!("Running {}!", env!("CARGO_PKG_NAME").to_string());
     app_builder.run();

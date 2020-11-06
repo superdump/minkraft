@@ -1,7 +1,7 @@
 use bevy::{
     prelude::*,
     render::{
-        mesh::{Indices, Mesh, VertexAttribute},
+        mesh::{Indices, Mesh},
         pipeline::PrimitiveTopology,
     },
 };
@@ -69,15 +69,12 @@ impl From<Cone> for Mesh {
             ]);
         }
 
-        Mesh {
-            primitive_topology: PrimitiveTopology::TriangleList,
-            attributes: vec![
-                VertexAttribute::position(positions),
-                VertexAttribute::normal(normals),
-                VertexAttribute::uv(uvs),
-            ],
-            indices: Some(Indices::U32(indices)),
-        }
+        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+        mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions.into());
+        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals.into());
+        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs.into());
+        mesh.set_indices(Some(Indices::U32(indices.clone())));
+        mesh
     }
 }
 
@@ -169,14 +166,11 @@ impl From<Cylinder> for Mesh {
             ]);
         }
 
-        Mesh {
-            primitive_topology: PrimitiveTopology::TriangleList,
-            attributes: vec![
-                VertexAttribute::position(positions),
-                VertexAttribute::normal(normals),
-                VertexAttribute::uv(uvs),
-            ],
-            indices: Some(Indices::U32(indices)),
-        }
+        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+        mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions.into());
+        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals.into());
+        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs.into());
+        mesh.set_indices(Some(Indices::U32(indices.clone())));
+        mesh
     }
 }

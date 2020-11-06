@@ -161,14 +161,15 @@ fn world_axes_system(
     if !world_axes.enabled || world_axes.axes_entity.is_none() {
         return;
     }
-    let (camera, camera_transform) = camera_query.iter().next().unwrap();
-    let mut axes_transform = axes_query.iter_mut().next().unwrap();
+    if let Some((camera, camera_transform)) = camera_query.iter().next() {
+        if let Some(mut axes_transform) = axes_query.iter_mut().next() {
+            let view_matrix = camera_transform.compute_matrix();
+            let projection_matrix = camera.projection_matrix;
+            let world_pos: Vec4 = (view_matrix * projection_matrix.inverse())
+                .mul_vec4(world_axes.position.extend(1.0));
+            let position: Vec3 = (world_pos / world_pos.w()).truncate().into();
 
-    let view_matrix = camera_transform.compute_matrix();
-    let projection_matrix = camera.projection_matrix;
-    let world_pos: Vec4 =
-        (view_matrix * projection_matrix.inverse()).mul_vec4(world_axes.position.extend(1.0));
-    let position: Vec3 = (world_pos / world_pos.w()).truncate().into();
-
-    axes_transform.translation = position;
+            axes_transform.translation = position;
+        }
+    }
 }
