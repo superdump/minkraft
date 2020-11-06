@@ -239,7 +239,10 @@ fn setup(
         .unwrap();
 
     // render_graph.add_system_node("voxel_map", RenderResourcesNode::<VoxelMap>::new(true));
-    render_graph.add_system_node("voxel_map", AssetRenderResourcesNode::<VoxelMap>::new(true));
+    render_graph.add_system_node(
+        "voxel_map",
+        AssetRenderResourcesNode::<VoxelMap>::new(false),
+    );
     render_graph
         .add_node_edge("voxel_map", base::node::MAIN_PASS)
         .unwrap();
