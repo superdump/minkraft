@@ -19,7 +19,10 @@ use bevy_prototype_character_controller::{
 };
 use bevy_rapier3d::{
     physics::{PhysicsInterpolationComponent, RapierPhysicsPlugin},
-    rapier::{dynamics::RigidBodyBuilder, geometry::ColliderBuilder},
+    rapier::{
+        dynamics::{RigidBodyBuilder, RigidBodyHandle, RigidBodySet},
+        geometry::{ColliderBuilder, ColliderHandle, ColliderSet},
+    },
 };
 use noise::{MultiFractal, NoiseFn, RidgedMulti, Seedable};
 
@@ -149,6 +152,11 @@ pub struct VoxelMap {
 
 unsafe impl Byteable for VoxelMap {}
 
+pub struct VoxelPhysics {
+    pub body_handle: RigidBodyHandle,
+    pub collider_handles: Vec<ColliderHandle>,
+}
+
 const CUBE_BACKFACE_OPTIMIZATION: bool = true;
 const NUM_CUBE_INDICES: usize = if CUBE_BACKFACE_OPTIMIZATION {
     3 * 3 * 2
@@ -215,6 +223,8 @@ fn setup(
     mut render_graph: ResMut<RenderGraph>,
     mut voxel_ubos: ResMut<Assets<VoxelUBO>>,
     mut voxel_maps: ResMut<Assets<VoxelMap>>,
+    mut bodies: ResMut<RigidBodySet>,
+    mut colliders: ResMut<ColliderSet>,
     materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Create a new shader pipeline
@@ -268,11 +278,24 @@ fn setup(
         Vec4::new(0.502, 0.502, 0.502, 1.0), // Grey
         Vec4::new(1.0, 0.98, 0.98, 1.0),     // White
     ];
+
+    let body_handle = bodies.insert(RigidBodyBuilder::new_static().build());
+    let mut collider_handles = Vec::with_capacity(NUM_CUBES);
     for z in 0..NUM_CUBES_PER_ROW {
         for x in 0..NUM_CUBES_PER_ROW {
             let y = noise.get([x as f64, z as f64]);
+            let position = Vec4::new(x as f32, 20.0 * y as f32, z as f32, 1.0) - voxel_displacement;
+            collider_handles.push(
+                colliders.insert(
+                    ColliderBuilder::cuboid(0.5, 0.5, 0.5)
+                        .translation(position.x(), position.y(), position.z())
+                        .build(),
+                    body_handle,
+                    &mut bodies,
+                ),
+            );
             voxels.push(VoxelData {
-                position: Vec4::new(x as f32, 20.0 * y as f32, z as f32, 1.0) - voxel_displacement,
+                position,
                 color: colors[match y {
                     y if y < -0.5 => 0, // Blue
                     y if y < -0.4 => 1, // Yellow
@@ -284,6 +307,11 @@ fn setup(
             });
         }
     }
+
+    commands.insert_resource(VoxelPhysics {
+        body_handle,
+        collider_handles,
+    });
 
     let voxel_map = voxel_maps.add(VoxelMap { voxels });
     // let voxel_map = VoxelMap { voxels };
