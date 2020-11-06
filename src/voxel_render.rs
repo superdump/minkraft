@@ -6,13 +6,12 @@ use bevy::{
     render::{
         mesh::Indices,
         pipeline::{PipelineDescriptor, PipelineSpecialization, PrimitiveTopology, RenderPipeline},
-        render_graph::{base, RenderGraph, RenderResourcesNode},
+        render_graph::{base, RenderGraph},
         renderer::{RenderResource, RenderResources},
         shader::{ShaderStage, ShaderStages},
     },
     type_registry::TypeUuid,
 };
-
 use bevy_prototype_character_controller::{
     controller::{BodyTag, CameraTag, CharacterController, HeadTag, YawTag},
     look::{LookDirection, LookEntity},
@@ -120,7 +119,6 @@ pub fn voxel_ubo_update_camera_position(
         if name == "Camera3d" {
             let voxel_ubo = voxel_ubos.get_mut(voxel_ubo_handle).unwrap();
             voxel_ubo.camera_position = transform.translation.extend(1.0);
-            println!("Camera {} at {:?}", name, voxel_ubo.camera_position);
         }
     }
 }
@@ -187,7 +185,8 @@ fn generate_index_buffer_data(num_cubes: usize) -> Vec<u32> {
 fn main() {
     env_logger::init();
 
-    App::build()
+    let mut app_builder = App::build();
+    app_builder
         .add_plugins(DefaultPlugins)
         .add_asset::<VoxelUBO>()
         .add_asset::<VoxelMap>()
@@ -200,8 +199,12 @@ fn main() {
             bevy::app::stage::POST_UPDATE,
             voxel_ubo_update_camera_position.system(),
         )
-        .add_system(exit_on_esc_system.system())
-        .run();
+        .add_system(exit_on_esc_system.system());
+
+    #[cfg(feature = "profiler")]
+    app_builder.add_plugins(minkraft::diagnostics::DiagnosticPlugins);
+
+    app_builder.run();
 }
 
 fn setup(
@@ -210,9 +213,9 @@ fn setup(
     mut shaders: ResMut<Assets<Shader>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut render_graph: ResMut<RenderGraph>,
-    materials: ResMut<Assets<StandardMaterial>>,
     mut voxel_ubos: ResMut<Assets<VoxelUBO>>,
     mut voxel_maps: ResMut<Assets<VoxelMap>>,
+    materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Create a new shader pipeline
     let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
