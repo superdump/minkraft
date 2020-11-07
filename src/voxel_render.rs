@@ -96,6 +96,7 @@ void main() {
 
 #[derive(Debug, RenderResources, RenderResource, TypeUuid)]
 #[uuid = "c63fd9ae-3847-4c7e-a33d-29f2dea49501"]
+#[render_resources(from_self)]
 pub struct VoxelUBO {
     camera_position: Vec4,
     center_to_edge: Vec4,
