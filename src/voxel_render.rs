@@ -234,7 +234,10 @@ fn setup(
         fragment: Some(shaders.add(Shader::from_glsl(ShaderStage::Fragment, FRAGMENT_SHADER))),
     }));
 
-    render_graph.add_system_node("voxel_ubo", AssetRenderResourcesNode::<VoxelUBO>::new(true));
+    render_graph.add_system_node(
+        "voxel_ubo",
+        AssetRenderResourcesNode::<VoxelUBO>::new(false),
+    );
     render_graph
         .add_node_edge("voxel_ubo", base::node::MAIN_PASS)
         .unwrap();
