@@ -226,12 +226,6 @@ fn setup(
     mut colliders: ResMut<ColliderSet>,
     materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    // Create a new shader pipeline
-    let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
-        vertex: shaders.add(Shader::from_glsl(ShaderStage::Vertex, VERTEX_SHADER)),
-        fragment: Some(shaders.add(Shader::from_glsl(ShaderStage::Fragment, FRAGMENT_SHADER))),
-    }));
-
     render_graph.add_system_node(
         "voxel_ubo",
         AssetRenderResourcesNode::<VoxelUBO>::new(false),
@@ -250,12 +244,6 @@ fn setup(
 
     // Create a mesh of only indices
     let indices = generate_index_buffer_data(NUM_CUBES as usize);
-    println!(
-        "Num indices: {}, num instances: {} {}",
-        indices.len(),
-        indices.len() / NUM_CUBE_INDICES,
-        NUM_CUBES,
-    );
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
     mesh.set_indices(Some(Indices::U32(indices)));
 
@@ -315,6 +303,13 @@ fn setup(
     });
 
     let voxel_map = VoxelMap { voxels };
+
+    // Create a new shader pipeline
+    let mut pipeline = PipelineDescriptor::default_config(ShaderStages {
+        vertex: shaders.add(Shader::from_glsl(ShaderStage::Vertex, VERTEX_SHADER)),
+        fragment: Some(shaders.add(Shader::from_glsl(ShaderStage::Fragment, FRAGMENT_SHADER))),
+    });
+    let pipeline_handle = pipelines.add(pipeline);
 
     // Setup our world
     commands
