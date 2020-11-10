@@ -317,6 +317,10 @@ fn setup(
         vertex: shaders.add(Shader::from_glsl(ShaderStage::Vertex, VERTEX_SHADER)),
         fragment: Some(shaders.add(Shader::from_glsl(ShaderStage::Fragment, FRAGMENT_SHADER))),
     });
+    pipeline
+        .rasterization_state
+        .as_mut()
+        .map(|state| state.cull_mode = bevy::render::pipeline::CullMode::None);
     let pipeline_handle = pipelines.add(pipeline);
 
     // Setup our world
