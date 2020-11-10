@@ -2,11 +2,11 @@ use bevy::{
     core::Byteable,
     input::system::exit_on_esc_system,
     prelude::*,
-    render::{camera::Camera, render_graph::AssetRenderResourcesNode},
     render::{
+        camera::Camera,
         mesh::Indices,
         pipeline::{PipelineDescriptor, PipelineSpecialization, PrimitiveTopology, RenderPipeline},
-        render_graph::{base, RenderGraph},
+        render_graph::{base, AssetRenderResourcesNode, RenderGraph, RenderResourcesNode},
         renderer::{RenderResource, RenderResources},
         shader::{ShaderStage, ShaderStages},
     },
@@ -198,7 +198,6 @@ fn main() {
     app_builder
         .add_plugins(DefaultPlugins)
         .add_asset::<VoxelUBO>()
-        .add_asset::<VoxelMap>()
         .add_startup_system(setup.system())
         // Physics - Rapier
         .add_plugin(RapierPhysicsPlugin)
@@ -223,7 +222,6 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut render_graph: ResMut<RenderGraph>,
     mut voxel_ubos: ResMut<Assets<VoxelUBO>>,
-    mut voxel_maps: ResMut<Assets<VoxelMap>>,
     mut bodies: ResMut<RigidBodySet>,
     mut colliders: ResMut<ColliderSet>,
     materials: ResMut<Assets<StandardMaterial>>,
@@ -242,11 +240,7 @@ fn setup(
         .add_node_edge("voxel_ubo", base::node::MAIN_PASS)
         .unwrap();
 
-    // render_graph.add_system_node("voxel_map", RenderResourcesNode::<VoxelMap>::new(true));
-    render_graph.add_system_node(
-        "voxel_map",
-        AssetRenderResourcesNode::<VoxelMap>::new(false),
-    );
+    render_graph.add_system_node("voxel_map", RenderResourcesNode::<VoxelMap>::new(false));
     render_graph
         .add_node_edge("voxel_map", base::node::MAIN_PASS)
         .unwrap();
@@ -320,12 +314,10 @@ fn setup(
         collider_handles,
     });
 
-    let voxel_map = voxel_maps.add(VoxelMap { voxels });
-    // let voxel_map = VoxelMap { voxels };
+    let voxel_map = VoxelMap { voxels };
 
     // Setup our world
     commands
-        // cube
         .spawn(MeshComponents {
             mesh: meshes.add(mesh), // use our mesh
             render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::specialized(
