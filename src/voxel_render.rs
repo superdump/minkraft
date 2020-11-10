@@ -348,7 +348,7 @@ fn setup_player(
     mut materials: ResMut<Assets<StandardMaterial>>,
     voxel_ubo: Handle<VoxelUBO>,
 ) {
-    let spawn_pos = Vec3::new(1.1, 200.0, 1.1);
+    let spawn_pos = Vec3::new(1.1, 50.0, 1.1);
     let obj_scale = Vec3::new(0.465, 1.75, 0.25);
 
     let eye = Vec3::new(0.0, 4.0, 8.0);
