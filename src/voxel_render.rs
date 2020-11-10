@@ -269,20 +269,28 @@ fn setup(
     ];
 
     let body_handle = bodies.insert(RigidBodyBuilder::new_static().build());
-    let mut collider_handles = Vec::with_capacity(NUM_CUBES);
+    let mut collider_handles = Vec::with_capacity(NUM_COLLIDERS);
+    let colliders_lower_bound = NUM_CUBES_PER_ROW / 2 - NUM_COLLIDERS_PER_ROW / 2;
+    let colliders_upper_bound = colliders_lower_bound + NUM_COLLIDERS_PER_ROW;
     for z in 0..NUM_CUBES_PER_ROW {
         for x in 0..NUM_CUBES_PER_ROW {
             let y = noise.get([x as f64, z as f64]);
             let position = Vec4::new(x as f32, 20.0 * y as f32, z as f32, 1.0) - voxel_displacement;
-            collider_handles.push(
-                colliders.insert(
-                    ColliderBuilder::cuboid(0.5, 0.5, 0.5)
-                        .translation(position.x(), position.y(), position.z())
-                        .build(),
-                    body_handle,
-                    &mut bodies,
-                ),
-            );
+            if colliders_lower_bound <= x
+                && x < colliders_upper_bound
+                && colliders_lower_bound <= z
+                && z < colliders_upper_bound
+            {
+                collider_handles.push(
+                    colliders.insert(
+                        ColliderBuilder::cuboid(0.5, 0.5, 0.5)
+                            .translation(position.x(), position.y(), position.z())
+                            .build(),
+                        body_handle,
+                        &mut bodies,
+                    ),
+                );
+            }
             voxels.push(VoxelData {
                 position,
                 color: colors[match y {
