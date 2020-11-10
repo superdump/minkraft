@@ -59,14 +59,11 @@ void main() {
     vec3 instance_pos = voxels[instance].position.xyz;
     local_camera_pos = VoxelUBO_camera_position.xyz - instance_pos;
 
-    uvec3 xyz = uvec3(vx & 0x1, (vx & 0x4) >> 2, (vx & 0x2) >> 1);
+    uvec3 xyz = uvec3(vx & 0x1, (vx & 0x2) >> 1, (vx & 0x4) >> 2);
 
-    // if (local_camera_pos.x > 0)
-    xyz.x = 1 - xyz.x;
-    // if (local_camera_pos.y > 0)
-    xyz.y = 1 - xyz.y;
-    // if (local_camera_pos.z > 0)
-    xyz.z = 1 - xyz.z;
+    if (local_camera_pos.x > 0) xyz.x = 1 - xyz.x;
+    if (local_camera_pos.y > 0) xyz.y = 1 - xyz.y;
+    if (local_camera_pos.z > 0) xyz.z = 1 - xyz.z;
 
     uvw = vec3(xyz);
     vec3 pos = uvw * 2.0 - 1.0;
@@ -165,18 +162,21 @@ const NUM_CUBE_INDICES: usize = if CUBE_BACKFACE_OPTIMIZATION {
     3 * 6 * 2
 };
 const NUM_CUBE_VERTICES: usize = 8;
-const NUM_CUBES_PER_ROW: usize = 100;
+const NUM_CUBES_PER_ROW: usize = 1000;
 const NUM_CUBES: usize = NUM_CUBES_PER_ROW * NUM_CUBES_PER_ROW;
+const NUM_COLLIDERS_PER_ROW: usize = 200;
+const NUM_COLLIDERS: usize = NUM_COLLIDERS_PER_ROW * NUM_COLLIDERS_PER_ROW;
 
 fn generate_index_buffer_data(num_cubes: usize) -> Vec<u32> {
     #[rustfmt::skip]
     let cube_indices = [
-        0u32, 2, 1, 2, 3, 1,
-        5, 4, 1, 1, 4, 0,
-        0, 4, 6, 0, 6, 2,
-        6, 5, 7, 6, 4, 5,
-        2, 6, 3, 6, 7, 3,
-        7, 1, 3, 7, 5, 1,
+        // from x+, y+, z+
+        1u32, 0, 2, 2, 3, 1, // back
+        0, 1, 5, 5, 4, 0, // bottom
+        0, 4, 6, 6, 2, 0, // left
+        6, 4, 5, 5, 7, 6, // front; if not CUBE_BACKFACE_OPTIMIZATION
+        7, 3, 2, 2, 6, 7, // top; if not CUBE_BACKFACE_OPTIMIZATION
+        7, 5, 1, 1, 3, 7, // right; if not CUBE_BACKFACE_OPTIMIZATION
     ];
 
     let num_indices = num_cubes * NUM_CUBE_INDICES;
