@@ -14,8 +14,7 @@ use bevy_rapier3d::{
 use building_blocks::{
     core::prelude::*,
     mesh::{
-        greedy_quads::{greedy_quads, QuadGroup},
-        GreedyQuadsBuffer, MaterialVoxel, PosNormTexMesh,
+        greedy_quads::greedy_quads, GreedyQuadsBuffer, MaterialVoxel, PosNormTexMesh, QuadGroup,
     },
     storage::{prelude::*, IsEmpty},
 };
@@ -296,10 +295,10 @@ where
 {
     let mut meshes: HashMap<M, PosNormTexMesh> = HashMap::default();
 
-    for QuadGroup { quads, meta } in quad_groups.iter() {
+    for QuadGroup { quads, face, .. } in quad_groups.iter() {
         for (quad, material) in quads.iter() {
             let mesh = meshes.entry(*material).or_default();
-            meta.add_quad_to_pos_norm_tex_mesh(quad, mesh);
+            face.add_quad_to_pos_norm_tex_mesh(quad, mesh);
         }
     }
 
