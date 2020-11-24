@@ -70,9 +70,9 @@ impl From<Cone> for Mesh {
         }
 
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-        mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions.into());
-        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals.into());
-        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs.into());
+        mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
         mesh.set_indices(Some(Indices::U32(indices.clone())));
         mesh
     }
@@ -167,9 +167,9 @@ impl From<Cylinder> for Mesh {
         }
 
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-        mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions.into());
-        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals.into());
-        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs.into());
+        mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
         mesh.set_indices(Some(Indices::U32(indices.clone())));
         mesh
     }

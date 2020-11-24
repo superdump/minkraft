@@ -112,14 +112,14 @@ impl Default for VoxelUBO {
 
 pub fn voxel_ubo_update_camera_position(
     mut voxel_ubos: ResMut<Assets<VoxelUBO>>,
-    camera: &Camera,
-    transform: &GlobalTransform,
-    voxel_ubo_handle: &Handle<VoxelUBO>,
+    query: Query<(&Camera, &GlobalTransform, &Handle<VoxelUBO>)>,
 ) {
-    if let Some(name) = camera.name.as_ref() {
-        if name == "Camera3d" {
-            let voxel_ubo = voxel_ubos.get_mut(voxel_ubo_handle).unwrap();
-            voxel_ubo.camera_position = transform.translation.extend(1.0);
+    for (camera, transform, voxel_ubo_handle) in query.iter() {
+        if let Some(name) = camera.name.as_ref() {
+            if name == "Camera3d" {
+                let voxel_ubo = voxel_ubos.get_mut(voxel_ubo_handle).unwrap();
+                voxel_ubo.camera_position = transform.translation.extend(1.0);
+            }
         }
     }
 }
@@ -216,7 +216,7 @@ fn main() {
 }
 
 fn setup(
-    mut commands: Commands,
+    commands: &mut Commands,
     mut pipelines: ResMut<Assets<PipelineDescriptor>>,
     mut shaders: ResMut<Assets<Shader>>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -284,7 +284,7 @@ fn setup(
                 collider_handles.push(
                     colliders.insert(
                         ColliderBuilder::cuboid(0.5, 0.5, 0.5)
-                            .translation(position.x(), position.y(), position.z())
+                            .translation(position.x, position.y, position.z)
                             .build(),
                         body_handle,
                         &mut bodies,
@@ -325,7 +325,7 @@ fn setup(
 
     // Setup our world
     commands
-        .spawn(MeshComponents {
+        .spawn(MeshBundle {
             mesh: meshes.add(mesh), // use our mesh
             render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::specialized(
                 pipeline_handle,
@@ -343,7 +343,7 @@ fn setup(
 pub struct PlayerTag;
 
 fn setup_player(
-    mut commands: Commands,
+    commands: &mut Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     voxel_ubo: Handle<VoxelUBO>,
@@ -364,12 +364,8 @@ fn setup_player(
         .spawn((
             GlobalTransform::identity(),
             Transform::from_translation(spawn_pos),
-            RigidBodyBuilder::new_dynamic().translation(
-                spawn_pos.x(),
-                spawn_pos.y(),
-                spawn_pos.z(),
-            ),
-            ColliderBuilder::capsule_y(0.5 * obj_scale.y(), 0.5 * obj_scale.x().max(obj_scale.z()))
+            RigidBodyBuilder::new_dynamic().translation(spawn_pos.x, spawn_pos.y, spawn_pos.z),
+            ColliderBuilder::capsule_y(0.5 * obj_scale.y, 0.5 * obj_scale.x.max(obj_scale.z))
                 .density(200.0),
             PhysicsInterpolationComponent::new(spawn_pos, Quat::identity()),
             CharacterController::default(),
@@ -383,7 +379,7 @@ fn setup_player(
         .current_entity()
         .expect("Failed to spawn yaw");
     let body_model = commands
-        .spawn(PbrComponents {
+        .spawn(PbrBundle {
             material: red.clone(),
             mesh: cuboid.clone(),
             transform: Transform::from_matrix(Mat4::from_scale_rotation_translation(
@@ -398,14 +394,14 @@ fn setup_player(
     let head = commands
         .spawn((
             GlobalTransform::identity(),
-            Transform::from_translation(0.8 * 0.5 * obj_scale.y() * Vec3::unit_y()),
+            Transform::from_translation(0.8 * 0.5 * obj_scale.y * Vec3::unit_y()),
             HeadTag,
         ))
         .current_entity()
         .expect("Failed to spawn head");
 
     let head_model = commands
-        .spawn(PbrComponents {
+        .spawn(PbrBundle {
             material: red,
             mesh: cuboid,
             transform: Transform::from_scale(Vec3::splat(head_scale)),
@@ -414,7 +410,7 @@ fn setup_player(
         .current_entity()
         .expect("Failed to spawn head_model");
     let camera = commands
-        .spawn(Camera3dComponents {
+        .spawn(Camera3dBundle {
             transform: Transform::from_matrix(camera_transform),
             ..Default::default()
         })

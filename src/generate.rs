@@ -198,16 +198,16 @@ fn generate_voxels(
     task_pool: Res<ComputeTaskPool>,
     mut voxels: ResMut<GeneratedVoxelResource>,
     mut diagnostics: ResMut<Diagnostics>,
-    _cam: &GeneratedVoxelsTag,
-    cam_transform: &Transform,
+    query: Query<&Transform, With<GeneratedVoxelsTag>>,
 ) {
     #[cfg(feature = "trace")]
     let generate_voxels_span = debug_span!("generate_voxels");
     #[cfg(feature = "trace")]
     let _generate_voxels_guard = generate_voxels_span.enter();
 
+    let cam_transform = query.iter().next().expect("Failed to get camera transform");
     let cam_pos = cam_transform.translation;
-    let cam_pos = PointN([cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32]);
+    let cam_pos = PointN([cam_pos.x.round() as i32, 0i32, cam_pos.z.round() as i32]);
 
     let max_height = voxels.max_height;
     let extent = transform_to_extent(cam_pos, voxels.view_distance, max_height);
@@ -347,12 +347,9 @@ fn spawn_meshes(
         diagnostics.add_measurement(MESH_INDEX_COUNT, indices.len() as f64);
 
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-        mesh.set_attribute(
-            Mesh::ATTRIBUTE_POSITION,
-            pos_norm_tex_ind.positions.clone().into(),
-        );
-        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, pos_norm_tex_ind.normals.into());
-        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, pos_norm_tex_ind.tex_coords.into());
+        mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, pos_norm_tex_ind.positions.clone());
+        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, pos_norm_tex_ind.normals);
+        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, pos_norm_tex_ind.tex_coords);
         mesh.set_indices(Some(Indices::U32(indices.clone())));
         let mesh = meshes.add(mesh);
 
@@ -374,7 +371,7 @@ fn spawn_meshes(
         );
 
         let entity = commands
-            .spawn(PbrComponents {
+            .spawn(PbrBundle {
                 mesh: mesh.clone(),
                 material: materials[i as usize].clone(),
                 ..Default::default()
@@ -391,7 +388,7 @@ fn spawn_meshes(
 }
 
 fn generate_meshes(
-    mut commands: Commands,
+    commands: &mut Commands,
     voxels: ChangedRes<GeneratedVoxelResource>,
     task_pool: Res<ComputeTaskPool>,
     mut diagnostics: ResMut<Diagnostics>,
@@ -400,16 +397,16 @@ fn generate_meshes(
     mut colliders: ResMut<ColliderSet>,
     mut joints: ResMut<JointSet>,
     mut voxel_meshes: ResMut<GeneratedMeshesResource>,
-    _cam: &GeneratedVoxelsTag,
-    cam_transform: &Transform,
+    query: Query<&Transform, With<GeneratedVoxelsTag>>,
 ) {
     #[cfg(feature = "trace")]
     let generate_meshes_span = debug_span!("generate_meshes");
     #[cfg(feature = "trace")]
     let _generate_meshes_guard = generate_meshes_span.enter();
 
+    let cam_transform = query.iter().next().expect("Failed to get camera transform");
     let cam_pos = cam_transform.translation;
-    let cam_pos = PointN([cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32]);
+    let cam_pos = PointN([cam_pos.x.round() as i32, 0i32, cam_pos.z.round() as i32]);
 
     let view_distance = voxels.view_distance;
     let chunk_size = voxels.chunk_size;
@@ -421,9 +418,9 @@ fn generate_meshes(
 
     let start = std::time::Instant::now();
 
+    let generated_map = &voxel_meshes.generated_map;
     let new_meshes = task_pool.scope(|s| {
         let map = &voxels.map;
-        let generated_map = &voxel_meshes.generated_map;
         for chunk in map.chunk_keys_for_extent(&extent) {
             s.spawn(async move {
                 let p = PointN([chunk.x(), 0, chunk.z()]);
@@ -468,7 +465,7 @@ fn generate_meshes(
         if let Some(p) = p {
             if let Some(mesh) = mesh {
                 let mesh_entities = spawn_meshes(
-                    &mut commands,
+                    commands,
                     &mut diagnostics,
                     &mut meshes,
                     &mut bodies,
