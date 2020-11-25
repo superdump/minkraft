@@ -39,3 +39,7 @@ codegen-units = 1
 [[example]]
 name = "voxel_render"
 path = "src/voxel_render.rs"
+
+[[example]]
+name = "svo_render"
+path = "src/svo_render.rs"
