@@ -1,6 +1,6 @@
 use bevy::{
     prelude::*,
-    render::pipeline::PrimitiveTopology,
+    render::{mesh::Indices, pipeline::PrimitiveTopology},
 };
 use bevy_rapier3d::{
     physics::{ColliderHandleComponent, RigidBodyHandleComponent},
@@ -9,18 +9,18 @@ use bevy_rapier3d::{
         geometry::{ColliderBuilder, ColliderSet},
     },
 };
-use building_blocks::core::prelude::*;
-use building_blocks::mesh::{
-    greedy_quads, pos_norm_tex_meshes_from_material_quads, GreedyQuadsBuffer, MaterialVoxel,
+use building_blocks::{
+    core::prelude::*,
+    mesh::{greedy_quads, GreedyQuadsBuffer, MaterialVoxel},
+    storage::{prelude::*, IsEmpty},
 };
-use building_blocks::storage::{prelude::*, IsEmpty};
 use noise::{MultiFractal, NoiseFn, RidgedMulti, Seedable};
 use std::collections::{HashMap, HashSet};
 
 const SEA_LEVEL: f64 = 64.0;
 const TERRAIN_Y_SCALE: f64 = 0.2;
 
-type VoxelMap = ChunkMap3<Voxel, ()>;
+type VoxelMap = ChunkHashMap3<Voxel>;
 type VoxelMaterial = u8;
 
 pub struct GeneratedVoxelsTag;
@@ -55,7 +55,12 @@ impl Default for GeneratedVoxelResource {
                 .set_frequency(0.008)
                 .set_octaves(5),
             chunk_size,
-            map: ChunkMap3::new(PointN([chunk_size; 3]), Voxel(0), (), FastLz4 { level: 10 }),
+            map: ChunkMapBuilder3 {
+                chunk_shape: PointN([chunk_size; 3]),
+                ambient_value: Voxel(0),
+                default_chunk_metadata: (),
+            }
+            .build_with_hash_map_storage(),
             max_height: 256,
             view_distance: 256,
             materials: Vec::new(),
@@ -135,8 +140,7 @@ fn generate_chunk(res: &mut ResMut<GeneratedVoxelResource>, min: Point3i, max: P
         for x in min.x()..max.x() {
             let max_y = (res.noise.get([x as f64, z as f64]) * yscale + yoffset).round() as i32;
             for y in 0..(max_y + 1) {
-                let (_p, v) = res.map.get_mut_and_key(&PointN([x, y, z]));
-                *v = Voxel(height_to_material(y));
+                *res.map.get_mut(&PointN([x, y, z])) = Voxel(height_to_material(y));
             }
         }
     }
@@ -145,32 +149,33 @@ fn generate_chunk(res: &mut ResMut<GeneratedVoxelResource>, min: Point3i, max: P
 fn generate_voxels(
     mut voxels: ResMut<GeneratedVoxelResource>,
     voxel_meshes: Res<GeneratedMeshesResource>,
-    _cam: &GeneratedVoxelsTag,
-    cam_transform: &Transform,
+    query: Query<&Transform, With<GeneratedVoxelsTag>>,
 ) {
-    let cam_pos = cam_transform.translation();
-    let cam_pos = PointN([cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32]);
+    for cam_transform in query.iter() {
+        let cam_pos = cam_transform.translation;
+        let cam_pos = PointN([cam_pos.x.round() as i32, 0i32, cam_pos.z.round() as i32]);
 
-    let extent = transform_to_extent(cam_pos, voxels.view_distance);
-    let extent = extent_modulo_expand(extent, voxels.chunk_size);
-    let min = extent.minimum;
-    let max = extent.least_upper_bound();
+        let extent = transform_to_extent(cam_pos, voxels.view_distance);
+        let extent = extent_modulo_expand(extent, voxels.chunk_size);
+        let min = extent.minimum;
+        let max = extent.least_upper_bound();
 
-    let chunk_size = voxels.chunk_size;
-    let max_height = voxels.max_height;
-    let vd2 = voxels.view_distance * voxels.view_distance;
-    for z in (min.z()..max.z()).step_by(voxels.chunk_size as usize) {
-        for x in (min.x()..max.x()).step_by(voxels.chunk_size as usize) {
-            let p = PointN([x, 0, z]);
-            let d = p - cam_pos;
-            if voxel_meshes.generated_map.get(&p).is_some() || d.dot(&d) > vd2 {
-                continue;
+        let chunk_size = voxels.chunk_size;
+        let max_height = voxels.max_height;
+        let vd2 = voxels.view_distance * voxels.view_distance;
+        for z in (min.z()..max.z()).step_by(voxels.chunk_size as usize) {
+            for x in (min.x()..max.x()).step_by(voxels.chunk_size as usize) {
+                let p = PointN([x, 0, z]);
+                let d = p - cam_pos;
+                if voxel_meshes.generated_map.get(&p).is_some() || d.dot(&d) > vd2 {
+                    continue;
+                }
+                generate_chunk(
+                    &mut voxels,
+                    PointN([x, 0, z]),
+                    PointN([x + chunk_size, max_height, z + chunk_size]),
+                );
             }
-            generate_chunk(
-                &mut voxels,
-                PointN([x, 0, z]),
-                PointN([x + chunk_size, max_height, z + chunk_size]),
-            );
         }
     }
 }
@@ -216,45 +221,54 @@ fn spawn_mesh(
     voxel_map: &VoxelMap,
     extent: Extent3i,
 ) -> Vec<(Entity, Handle<Mesh>, RigidBodyHandle)> {
-    let local_cache = LocalChunkCache::new();
-    let reader = ChunkMapReader3::new(voxel_map, &local_cache);
-    let extent_padded = extent.padded(1);
-    let mut map = Array3::fill(extent_padded, Voxel(0));
-    copy_extent(&extent_padded, &reader, &mut map);
-    let mut quads = GreedyQuadsBuffer::new(extent_padded);
-    greedy_quads(&map, &extent_padded, &mut quads);
-    let pos_norm_tex_ind = pos_norm_tex_meshes_from_material_quads(&quads.quad_groups);
+    let padded_chunk_extent = extent.padded(1);
+    let mut padded_chunk = Array3::fill(padded_chunk_extent, Voxel(0));
+    copy_extent(&padded_chunk_extent, voxel_map, &mut padded_chunk);
+    let mut buffer = GreedyQuadsBuffer::new(padded_chunk_extent);
+    greedy_quads(&padded_chunk, &padded_chunk_extent, &mut buffer);
 
-    let mut entities = Vec::with_capacity(pos_norm_tex_ind.len());
-    for (i, pos_norm_tex_ind) in pos_norm_tex_ind {
+    let mut pos_norm_tex_inds = HashMap::new();
+    for group in buffer.quad_groups.iter() {
+        for (quad, material) in group.quads.iter() {
+            group.face.add_quad_to_pos_norm_tex_mesh(
+                quad,
+                pos_norm_tex_inds.entry(*material).or_default(),
+            );
+        }
+    }
+
+    let mut entities = Vec::with_capacity(meshes.len());
+    for (material, pos_norm_tex_ind) in pos_norm_tex_inds {
         let indices: Vec<u32> = pos_norm_tex_ind.indices.iter().map(|i| *i as u32).collect();
-        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-        mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, pos_norm_tex_ind.positions.clone());
-        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, pos_norm_tex_ind.normals.clone());
-        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, pos_norm_tex_ind.uvs.clone());
-        mesh.set_indices(Some(indices));
-        let mesh_handle = meshes.add(mesh);
-        let vertices = pos_norm_tex_ind
+
+        let collider_vertices = pos_norm_tex_ind
             .positions
             .iter()
             .map(|p| bevy_rapier3d::rapier::math::Point::from_slice(p))
             .collect();
-        let indices = indices
+        let collider_indices = indices
             .chunks(3)
             .map(|i| bevy_rapier3d::rapier::na::Point3::<u32>::from_slice(i))
             .collect();
 
+        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+        mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, pos_norm_tex_ind.positions.clone());
+        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, pos_norm_tex_ind.normals.clone());
+        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, pos_norm_tex_ind.tex_coords.clone());
+        mesh.set_indices(Some(Indices::U32(indices)));
+        let mesh_handle = meshes.add(mesh);
+
         let body_handle = bodies.insert(RigidBodyBuilder::new_static().build());
         let collider_handle = colliders.insert(
-            ColliderBuilder::trimesh(vertices, indices).build(),
+            ColliderBuilder::trimesh(collider_vertices, collider_indices).build(),
             body_handle,
             &mut bodies,
         );
 
         let entity = commands
             .spawn(PbrBundle {
-                mesh: mesh_handle,
-                material: materials[i as usize],
+                mesh: mesh_handle.clone(),
+                material: materials[material as usize].clone(),
                 ..Default::default()
             })
             .with_bundle((
@@ -276,53 +290,54 @@ fn generate_meshes(
     mut joints: ResMut<JointSet>,
     voxels: ChangedRes<GeneratedVoxelResource>,
     mut voxel_meshes: ResMut<GeneratedMeshesResource>,
-    _cam: &GeneratedVoxelsTag,
-    cam_transform: &Transform,
+    query: Query<&Transform, With<GeneratedVoxelsTag>>,
 ) {
-    let cam_pos = cam_transform.translation();
-    let cam_pos = PointN([cam_pos.x().round() as i32, 0i32, cam_pos.z().round() as i32]);
+    for cam_transform in query.iter() {
+        let cam_pos = cam_transform.translation;
+        let cam_pos = PointN([cam_pos.x.round() as i32, 0i32, cam_pos.z.round() as i32]);
 
-    let view_distance = voxels.view_distance;
-    let chunk_size = voxels.chunk_size;
-    let extent = transform_to_extent(cam_pos, view_distance);
-    let extent = extent_modulo_expand(extent, chunk_size);
-    let min = extent.minimum;
-    let max = extent.least_upper_bound();
+        let view_distance = voxels.view_distance;
+        let chunk_size = voxels.chunk_size;
+        let extent = transform_to_extent(cam_pos, view_distance);
+        let extent = extent_modulo_expand(extent, chunk_size);
+        let min = extent.minimum;
+        let max = extent.least_upper_bound();
 
-    let max_height = voxels.max_height;
-    let vd2 = view_distance * view_distance;
-    let mut to_remove: HashSet<Point3i> = voxel_meshes.generated_map.keys().cloned().collect();
-    for z in (min.z()..max.z()).step_by(chunk_size as usize) {
-        for x in (min.x()..max.x()).step_by(chunk_size as usize) {
-            let p = PointN([x, 0, z]);
-            let d = p - cam_pos;
-            if d.dot(&d) > vd2 {
-                continue;
+        let max_height = voxels.max_height;
+        let vd2 = view_distance * view_distance;
+        let mut to_remove: HashSet<Point3i> = voxel_meshes.generated_map.keys().cloned().collect();
+        for z in (min.z()..max.z()).step_by(chunk_size as usize) {
+            for x in (min.x()..max.x()).step_by(chunk_size as usize) {
+                let p = PointN([x, 0, z]);
+                let d = p - cam_pos;
+                if d.dot(&d) > vd2 {
+                    continue;
+                }
+                to_remove.remove(&p);
+                if voxel_meshes.generated_map.get(&p).is_some() {
+                    continue;
+                }
+                let entity_mesh = spawn_mesh(
+                    commands,
+                    &mut meshes,
+                    &mut bodies,
+                    &mut colliders,
+                    &voxels.materials,
+                    &voxels.map,
+                    Extent3i::from_min_and_shape(p, PointN([chunk_size, max_height, chunk_size])),
+                );
+                voxel_meshes.generated_map.insert(p, entity_mesh);
             }
-            to_remove.remove(&p);
-            if voxel_meshes.generated_map.get(&p).is_some() {
-                continue;
-            }
-            let entity_mesh = spawn_mesh(
-                &mut commands,
-                &mut meshes,
-                &mut bodies,
-                &mut colliders,
-                &voxels.materials,
-                &voxels.map,
-                Extent3i::from_min_and_shape(p, PointN([chunk_size, max_height, chunk_size])),
-            );
-            voxel_meshes.generated_map.insert(p, entity_mesh);
         }
-    }
-    for p in &to_remove {
-        if let Some(entities) = voxel_meshes.generated_map.remove(p) {
-            for (entity, mesh, body) in entities {
-                commands.despawn(entity);
-                meshes.remove(&mesh);
-                // NOTE: This removes the body, as well as its colliders and
-                // joints from the simulation so it's the only thing we need to call
-                bodies.remove(body, &mut *colliders, &mut *joints);
+        for p in &to_remove {
+            if let Some(entities) = voxel_meshes.generated_map.remove(p) {
+                for (entity, mesh, body) in entities {
+                    commands.despawn(entity);
+                    meshes.remove(&mesh);
+                    // NOTE: This removes the body, as well as its colliders and
+                    // joints from the simulation so it's the only thing we need to call
+                    bodies.remove(body, &mut *colliders, &mut *joints);
+                }
             }
         }
     }
