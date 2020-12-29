@@ -41,11 +41,7 @@ fn debug_setup(
     asset_server: Res<AssetServer>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    debug.font_handle = Some(
-        asset_server
-            .load("assets/fonts/FiraMono-Medium.ttf")
-            .unwrap(),
-    );
+    debug.font_handle = Some(asset_server.load("assets/fonts/FiraMono-Medium.ttf"));
     debug.transparent_material = Some(color_materials.add(ColorMaterial::color(Color::NONE)));
 }
 
@@ -61,7 +57,7 @@ fn debug_toggle_system(commands: &mut Commands, mut debug: ResMut<Debug>) {
                         padding: Rect::all(Val::Px(16.0f32)),
                         ..Default::default()
                     },
-                    material: debug.transparent_material.unwrap(),
+                    material: debug.transparent_material.as_ref().unwrap().clone(),
                     ..Default::default()
                 })
                 .with_children(|p| {
@@ -72,10 +68,11 @@ fn debug_toggle_system(commands: &mut Commands, mut debug: ResMut<Debug>) {
                         },
                         text: Text {
                             value: "FT:".to_string(),
-                            font: debug.font_handle.unwrap(),
+                            font: debug.font_handle.as_ref().unwrap().clone(),
                             style: TextStyle {
                                 font_size: 24.0,
                                 color: Color::WHITE,
+                                ..Default::default()
                             },
                         },
                         ..Default::default()
@@ -87,10 +84,11 @@ fn debug_toggle_system(commands: &mut Commands, mut debug: ResMut<Debug>) {
                         },
                         text: Text {
                             value: "XYZ:".to_string(),
-                            font: debug.font_handle.unwrap(),
+                            font: debug.font_handle.as_ref().unwrap().clone(),
                             style: TextStyle {
                                 font_size: 24.0,
                                 color: Color::WHITE,
+                                ..Default::default()
                             },
                         },
                         ..Default::default()
@@ -102,10 +100,11 @@ fn debug_toggle_system(commands: &mut Commands, mut debug: ResMut<Debug>) {
                         },
                         text: Text {
                             value: "YP:".to_string(),
-                            font: debug.font_handle.unwrap(),
+                            font: debug.font_handle.as_ref().unwrap().clone(),
                             style: TextStyle {
                                 font_size: 24.0,
                                 color: Color::WHITE,
+                                ..Default::default()
                             },
                         },
                         ..Default::default()
@@ -123,15 +122,15 @@ fn debug_system(
     debug: Res<Debug>,
     diagnostics: Res<Diagnostics>,
     settings: Res<MouseSettings>,
-    mut camera: Query<&Transform, With<DebugTransformTag>>,
+    camera: Query<&Transform, With<DebugTransformTag>>,
     mut query: Query<&mut Text>,
 ) {
     if !debug.enabled || debug.text_entity.is_none() {
         return;
     }
     let mut cam_iter = camera.iter();
-    let cam_transform = cam_iter.iter().next().unwrap();
-    for mut text in &mut query.iter() {
+    let cam_transform = cam_iter.next().unwrap();
+    for mut text in query.iter_mut() {
         match text.value.get(..3) {
             Some("FT:") => {
                 if let Some(frame_time) = diagnostics.get(FrameTimeDiagnosticsPlugin::FRAME_TIME) {
@@ -142,19 +141,16 @@ fn debug_system(
                 }
             }
             Some("XYZ") => {
-                let cam_pos = cam_transform.translation();
+                let cam_pos = cam_transform.translation;
                 text.value = format!(
                     "XYZ: ({:>8.2}, {:>8.2}, {:>8.2})",
-                    cam_pos.x(),
-                    cam_pos.y(),
-                    cam_pos.z()
+                    cam_pos.x, cam_pos.y, cam_pos.z
                 );
             }
             Some("YP:") => {
                 text.value = format!(
                     "YP: ({:>8.2}, {:>8.2})",
-                    settings.yaw_pitch_roll.x(),
-                    settings.yaw_pitch_roll.y()
+                    settings.yaw_pitch_roll.x, settings.yaw_pitch_roll.y
                 );
             }
             _ => {}
