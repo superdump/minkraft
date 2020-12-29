@@ -1,5 +1,3 @@
-#[cfg(feature = "profiler")]
-use bevy::diagnostic::PrintDiagnosticsPlugin;
 use bevy::{
     input::{keyboard::KeyCode, system::exit_on_esc_system},
     prelude::*,
@@ -10,7 +8,7 @@ use bevy_prototype_character_controller::{
     rapier::RapierDynamicImpulseCharacterControllerPlugin,
 };
 use bevy_rapier3d::{
-    physics::{PhysicsInterpolationComponent, RapierPhysicsPlugin},
+    physics::{PhysicsInterpolationComponent, RapierConfiguration, RapierPhysicsPlugin},
     rapier::dynamics::RigidBodyBuilder,
     rapier::geometry::ColliderBuilder,
 };
@@ -23,8 +21,7 @@ use minkraft::{
 fn main() {
     env_logger::builder().format_timestamp_micros().init();
 
-    let mut app_builder = App::build();
-    app_builder
+    App::build()
         // Generic
         .add_resource(WindowDescriptor {
             title: env!("CARGO_PKG_NAME").to_string(),
@@ -40,24 +37,25 @@ fn main() {
         .add_plugin(WorldAxesPlugin)
         // Physics - Rapier
         .add_plugin(RapierPhysicsPlugin)
+        // NOTE: This overridden configuration must come after the plugin to override the defaults
+        .add_resource(RapierConfiguration {
+            time_dependent_number_of_timesteps: true,
+            ..Default::default()
+        })
         // Character Controller
         .add_plugin(RapierDynamicImpulseCharacterControllerPlugin)
         // Terrain
         .add_plugin(GeneratePlugin)
         // Minkraft
         .add_startup_system(setup_world.system())
-        .add_startup_system(setup_player.system());
-
-    #[cfg(feature = "profiler")]
-    app_builder.add_plugin(PrintDiagnosticsPlugin::default());
-
-    app_builder.run();
+        .add_startup_system(setup_player.system())
+        .run();
 }
 
 pub struct PlayerTag;
 
 fn setup_player(
-    mut commands: Commands,
+    commands: &mut Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -102,7 +100,7 @@ fn setup_player(
         .current_entity()
         .expect("Failed to spawn yaw");
     let body_model = commands
-        .spawn(PbrComponents {
+        .spawn(PbrBundle {
             material: red,
             mesh: cuboid,
             transform: Transform::new(Mat4::from_scale_rotation_translation(
@@ -126,7 +124,7 @@ fn setup_player(
         .expect("Failed to spawn head");
 
     let head_model = commands
-        .spawn(PbrComponents {
+        .spawn(PbrBundle {
             material: red,
             mesh: cuboid,
             transform: Transform::from_scale(head_scale),
@@ -135,7 +133,7 @@ fn setup_player(
         .current_entity()
         .expect("Failed to spawn head_model");
     let camera = commands
-        .spawn(Camera3dComponents {
+        .spawn(Camera3dBundle {
             transform: Transform::new(camera_transform),
             ..Default::default()
         })
@@ -149,10 +147,10 @@ fn setup_player(
         .push_children(head, &[head_model, camera]);
 }
 
-fn setup_world(mut commands: Commands) {
+fn setup_world(commands: &mut Commands) {
     commands
-        .spawn(UiCameraComponents::default())
-        .spawn(LightComponents {
+        .spawn(UiCameraBundle::default())
+        .spawn(LightBundle {
             transform: Transform::from_translation(Vec3::new(14.0, 18.0, 14.0)),
             ..Default::default()
         });

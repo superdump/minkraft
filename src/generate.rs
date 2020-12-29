@@ -1,6 +1,6 @@
 use bevy::{
     prelude::*,
-    render::{mesh::VertexAttribute, pipeline::PrimitiveTopology},
+    render::pipeline::PrimitiveTopology,
 };
 use bevy_rapier3d::{
     physics::{ColliderHandleComponent, RigidBodyHandleComponent},
@@ -228,15 +228,12 @@ fn spawn_mesh(
     let mut entities = Vec::with_capacity(pos_norm_tex_ind.len());
     for (i, pos_norm_tex_ind) in pos_norm_tex_ind {
         let indices: Vec<u32> = pos_norm_tex_ind.indices.iter().map(|i| *i as u32).collect();
-        let mesh = meshes.add(Mesh {
-            primitive_topology: PrimitiveTopology::TriangleList,
-            attributes: vec![
-                VertexAttribute::position(pos_norm_tex_ind.positions.clone()),
-                VertexAttribute::normal(pos_norm_tex_ind.normals.clone()),
-                VertexAttribute::uv(pos_norm_tex_ind.tex_coords.clone()),
-            ],
-            indices: Some(indices.clone()),
-        });
+        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+        mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, pos_norm_tex_ind.positions.clone());
+        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, pos_norm_tex_ind.normals.clone());
+        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, pos_norm_tex_ind.uvs.clone());
+        mesh.set_indices(Some(indices));
+        let mesh_handle = meshes.add(mesh);
         let vertices = pos_norm_tex_ind
             .positions
             .iter()
@@ -255,8 +252,8 @@ fn spawn_mesh(
         );
 
         let entity = commands
-            .spawn(PbrComponents {
-                mesh,
+            .spawn(PbrBundle {
+                mesh: mesh_handle,
                 material: materials[i as usize],
                 ..Default::default()
             })
@@ -266,13 +263,13 @@ fn spawn_mesh(
             ))
             .current_entity()
             .unwrap();
-        entities.push((entity, mesh, body_handle));
+        entities.push((entity, mesh_handle, body_handle));
     }
     entities
 }
 
 fn generate_meshes(
-    mut commands: Commands,
+    commands: &mut Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut bodies: ResMut<RigidBodySet>,
     mut colliders: ResMut<ColliderSet>,

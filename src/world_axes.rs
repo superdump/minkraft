@@ -86,7 +86,7 @@ fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>)
                 ))
                 .with_children(|axis_root| {
                     axis_root
-                        .spawn(PbrComponents {
+                        .spawn(PbrBundle {
                             material: red,
                             mesh: cone_mesh,
                             transform: Transform::from_translation(Vec3::new(
@@ -94,7 +94,7 @@ fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>)
                             )),
                             ..Default::default()
                         })
-                        .spawn(PbrComponents {
+                        .spawn(PbrBundle {
                             material: red,
                             mesh: cylinder_mesh,
                             ..Default::default()
@@ -103,7 +103,7 @@ fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>)
                 .spawn((GlobalTransform::identity(), Transform::identity()))
                 .with_children(|axis_root| {
                     axis_root
-                        .spawn(PbrComponents {
+                        .spawn(PbrBundle {
                             material: green,
                             mesh: cone_mesh,
                             transform: Transform::from_translation(Vec3::new(
@@ -111,7 +111,7 @@ fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>)
                             )),
                             ..Default::default()
                         })
-                        .spawn(PbrComponents {
+                        .spawn(PbrBundle {
                             material: green,
                             mesh: cylinder_mesh,
                             ..Default::default()
@@ -123,7 +123,7 @@ fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>)
                 ))
                 .with_children(|axis_root| {
                     axis_root
-                        .spawn(PbrComponents {
+                        .spawn(PbrBundle {
                             material: blue,
                             mesh: cone_mesh,
                             transform: Transform::from_translation(Vec3::new(
@@ -131,7 +131,7 @@ fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>)
                             )),
                             ..Default::default()
                         })
-                        .spawn(PbrComponents {
+                        .spawn(PbrBundle {
                             material: blue,
                             mesh: cylinder_mesh,
                             ..Default::default()
@@ -141,7 +141,7 @@ fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>)
         .current_entity();
 }
 
-fn world_axes_toggle_system(mut commands: Commands, mut world_axes: ResMut<WorldAxes>) {
+fn world_axes_toggle_system(commands: &mut Commands, mut world_axes: ResMut<WorldAxes>) {
     if world_axes.enabled {
         if world_axes.axes_entity.is_none() {
             spawn_world_axes(&mut commands, &mut world_axes)
@@ -155,8 +155,8 @@ fn world_axes_toggle_system(mut commands: Commands, mut world_axes: ResMut<World
 // NOTE: This system depends on the tagged camera's GlobalTransform having been updated!
 fn world_axes_system(
     world_axes: Res<WorldAxes>,
-    mut camera_query: Query<With<WorldAxesCameraTag, (&Camera, &GlobalTransform)>>,
-    mut axes_query: Query<With<WorldAxesTag, (&mut Transform,)>>,
+    mut camera_query: Query<(&Camera, &GlobalTransform), With<WorldAxesCameraTag>>,
+    mut axes_query: Query<&mut Transform, With<WorldAxesTag>>,
 ) {
     if !world_axes.enabled || world_axes.axes_entity.is_none() {
         return;

@@ -49,11 +49,11 @@ fn debug_setup(
     debug.transparent_material = Some(color_materials.add(ColorMaterial::color(Color::NONE)));
 }
 
-fn debug_toggle_system(mut commands: Commands, mut debug: ResMut<Debug>) {
+fn debug_toggle_system(commands: &mut Commands, mut debug: ResMut<Debug>) {
     if debug.enabled {
         if debug.text_entity.is_none() {
             debug.text_entity = commands
-                .spawn(NodeComponents {
+                .spawn(NodeBundle {
                     style: Style {
                         size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                         flex_direction: FlexDirection::Column,
@@ -65,7 +65,7 @@ fn debug_toggle_system(mut commands: Commands, mut debug: ResMut<Debug>) {
                     ..Default::default()
                 })
                 .with_children(|p| {
-                    p.spawn(TextComponents {
+                    p.spawn(TextBundle {
                         style: Style {
                             align_self: AlignSelf::FlexStart,
                             ..Default::default()
@@ -80,7 +80,7 @@ fn debug_toggle_system(mut commands: Commands, mut debug: ResMut<Debug>) {
                         },
                         ..Default::default()
                     })
-                    .spawn(TextComponents {
+                    .spawn(TextBundle {
                         style: Style {
                             align_self: AlignSelf::FlexStart,
                             ..Default::default()
@@ -95,7 +95,7 @@ fn debug_toggle_system(mut commands: Commands, mut debug: ResMut<Debug>) {
                         },
                         ..Default::default()
                     })
-                    .spawn(TextComponents {
+                    .spawn(TextBundle {
                         style: Style {
                             align_self: AlignSelf::FlexStart,
                             ..Default::default()
@@ -123,7 +123,7 @@ fn debug_system(
     debug: Res<Debug>,
     diagnostics: Res<Diagnostics>,
     settings: Res<MouseSettings>,
-    mut camera: Query<With<DebugTransformTag, &Transform>>,
+    mut camera: Query<&Transform, With<DebugTransformTag>>,
     mut query: Query<&mut Text>,
 ) {
     if !debug.enabled || debug.text_entity.is_none() {
