@@ -41,7 +41,7 @@ fn debug_setup(
     asset_server: Res<AssetServer>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    debug.font_handle = Some(asset_server.load("assets/fonts/FiraMono-Medium.ttf"));
+    debug.font_handle = Some(asset_server.load("fonts/FiraMono-Medium.ttf"));
     debug.transparent_material = Some(color_materials.add(ColorMaterial::color(Color::NONE)));
 }
 
