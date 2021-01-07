@@ -3,6 +3,8 @@ use bevy::{prelude::*, render::camera::Camera};
 
 pub struct WorldAxesPlugin;
 
+pub const UPDATE_AXES_TRANSFORM: &str = "update_axes_transform";
+
 impl Plugin for WorldAxesPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.init_resource::<WorldAxes>()
@@ -11,13 +13,19 @@ impl Plugin for WorldAxesPlugin {
                 bevy::app::stage::PRE_UPDATE,
                 world_axes_toggle_system.system(),
             )
-            .add_system_to_stage(bevy::app::stage::POST_UPDATE, world_axes_system.system());
+            .add_stage_after(
+                bevy::app::stage::UPDATE,
+                UPDATE_AXES_TRANSFORM,
+                SystemStage::parallel(),
+            )
+            .add_system_to_stage(UPDATE_AXES_TRANSFORM, world_axes_system.system());
     }
 }
 
 pub struct WorldAxes {
     pub enabled: bool,
-    pub position: Vec3,
+    pub clip_space_position: Vec3,
+    pub scale: f32,
     pub axes_entity: Option<Entity>,
     pub meshes: Vec<Handle<Mesh>>,
     pub standard_materials: Vec<Handle<StandardMaterial>>,
@@ -26,8 +34,9 @@ pub struct WorldAxes {
 impl Default for WorldAxes {
     fn default() -> Self {
         WorldAxes {
-            enabled: true,
-            position: Vec3::new(0.85, -0.75, 0.3),
+            enabled: false,
+            clip_space_position: Vec3::new(0.73044837, -0.59729564, 0.2318211),
+            scale: 0.1f32,
             axes_entity: None,
             meshes: Vec::with_capacity(2),
             standard_materials: Vec::with_capacity(3),
@@ -75,7 +84,7 @@ fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>)
     world_axes.axes_entity = commands
         .spawn((
             GlobalTransform::identity(),
-            Transform::from_scale(Vec3::splat(0.1f32)),
+            Transform::from_scale(Vec3::splat(world_axes.scale)),
             WorldAxesTag,
         ))
         .with_children(|axes_root| {
@@ -144,7 +153,7 @@ fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>)
 fn world_axes_toggle_system(commands: &mut Commands, mut world_axes: ResMut<WorldAxes>) {
     if world_axes.enabled {
         if world_axes.axes_entity.is_none() {
-            spawn_world_axes(commands, &mut world_axes)
+            spawn_world_axes(commands, &mut world_axes);
         }
     } else if let Some(entity) = world_axes.axes_entity {
         commands.despawn_recursive(entity);
@@ -166,10 +175,10 @@ fn world_axes_system(
     let mut axes_temp = axes_query.iter_mut();
     let mut axes_transform = axes_temp.next().unwrap();
 
-    let view_matrix = camera_transform.compute_matrix();
+    let inv_view_matrix = camera_transform.compute_matrix();
     let projection_matrix = camera.projection_matrix;
-    let world_pos: Vec4 =
-        (view_matrix * projection_matrix.inverse()).mul_vec4(world_axes.position.extend(1.0));
+    let world_pos: Vec4 = (inv_view_matrix * projection_matrix.inverse())
+        .mul_vec4(world_axes.clip_space_position.extend(1.0));
     let position: Vec3 = (world_pos / world_pos.w).truncate().into();
 
     axes_transform.translation = position;
