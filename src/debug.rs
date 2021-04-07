@@ -45,75 +45,80 @@ fn debug_setup(
     debug.transparent_material = Some(color_materials.add(ColorMaterial::color(Color::NONE)));
 }
 
-fn debug_toggle_system(commands: &mut Commands, mut debug: ResMut<Debug>) {
+fn debug_toggle_system(mut commands: Commands, mut debug: ResMut<Debug>) {
     if debug.enabled {
         if debug.text_entity.is_none() {
-            debug.text_entity = commands
-                .spawn(NodeBundle {
-                    style: Style {
-                        size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                        flex_direction: FlexDirection::Column,
-                        justify_content: JustifyContent::FlexEnd,
-                        padding: Rect::all(Val::Px(16.0f32)),
-                        ..Default::default()
-                    },
-                    material: debug.transparent_material.as_ref().unwrap().clone(),
-                    ..Default::default()
-                })
-                .with_children(|p| {
-                    p.spawn(TextBundle {
+            debug.text_entity = Some(
+                commands
+                    .spawn_bundle(NodeBundle {
                         style: Style {
-                            align_self: AlignSelf::FlexStart,
+                            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                            flex_direction: FlexDirection::Column,
+                            justify_content: JustifyContent::FlexEnd,
+                            padding: Rect::all(Val::Px(16.0f32)),
                             ..Default::default()
                         },
-                        text: Text {
-                            value: "FT:".to_string(),
-                            font: debug.font_handle.as_ref().unwrap().clone(),
-                            style: TextStyle {
-                                font_size: 24.0,
-                                color: Color::WHITE,
-                                ..Default::default()
-                            },
-                        },
+                        material: debug.transparent_material.as_ref().unwrap().clone(),
                         ..Default::default()
                     })
-                    .spawn(TextBundle {
-                        style: Style {
-                            align_self: AlignSelf::FlexStart,
-                            ..Default::default()
-                        },
-                        text: Text {
-                            value: "XYZ:".to_string(),
-                            font: debug.font_handle.as_ref().unwrap().clone(),
-                            style: TextStyle {
-                                font_size: 24.0,
-                                color: Color::WHITE,
+                    .with_children(|p| {
+                        p.spawn_bundle(TextBundle {
+                            style: Style {
+                                align_self: AlignSelf::FlexStart,
                                 ..Default::default()
                             },
-                        },
-                        ..Default::default()
+                            text: Text::with_section(
+                                "FT:".to_string(),
+                                TextStyle {
+                                    font: debug.font_handle.as_ref().unwrap().clone(),
+                                    font_size: 24.0,
+                                    color: Color::WHITE,
+                                    ..Default::default()
+                                },
+                                Default::default(),
+                            ),
+                            ..Default::default()
+                        });
+                        p.spawn_bundle(TextBundle {
+                            style: Style {
+                                align_self: AlignSelf::FlexStart,
+                                ..Default::default()
+                            },
+                            text: Text::with_section(
+                                "XYZ:".to_string(),
+                                TextStyle {
+                                    font: debug.font_handle.as_ref().unwrap().clone(),
+                                    font_size: 24.0,
+                                    color: Color::WHITE,
+                                    ..Default::default()
+                                },
+                                Default::default(),
+                            ),
+                            ..Default::default()
+                        });
+                        p.spawn_bundle(TextBundle {
+                            style: Style {
+                                align_self: AlignSelf::FlexStart,
+                                ..Default::default()
+                            },
+                            text: Text::with_section(
+                                "YP:".to_string(),
+                                TextStyle {
+                                    font: debug.font_handle.as_ref().unwrap().clone(),
+                                    font_size: 24.0,
+                                    color: Color::WHITE,
+                                    ..Default::default()
+                                },
+                                Default::default(),
+                            ),
+                            ..Default::default()
+                        });
                     })
-                    .spawn(TextBundle {
-                        style: Style {
-                            align_self: AlignSelf::FlexStart,
-                            ..Default::default()
-                        },
-                        text: Text {
-                            value: "YP:".to_string(),
-                            font: debug.font_handle.as_ref().unwrap().clone(),
-                            style: TextStyle {
-                                font_size: 24.0,
-                                color: Color::WHITE,
-                                ..Default::default()
-                            },
-                        },
-                        ..Default::default()
-                    });
-                })
-                .current_entity();
+                    .id(),
+            );
         }
     } else if let Some(entity) = debug.text_entity {
-        commands.despawn_recursive(entity);
+        commands.entity(entity).despawn_recursive();
         debug.text_entity = None;
     }
 }
@@ -131,24 +136,24 @@ fn debug_system(
     let mut cam_iter = camera.iter();
     let cam_transform = cam_iter.next().unwrap();
     for mut text in query.iter_mut() {
-        match text.value.get(..3) {
+        match text.sections[0].value.get(..3) {
             Some("FT:") => {
                 if let Some(frame_time) = diagnostics.get(FrameTimeDiagnosticsPlugin::FRAME_TIME) {
                     if let Some(fdt) = frame_time.average() {
-                        text.value =
+                        text.sections[0].value =
                             format!("FT: {:6.2}ms {:6.2}fps", fdt * 1000.0f64, 1.0f64 / fdt);
                     }
                 }
             }
             Some("XYZ") => {
                 let cam_pos = cam_transform.translation;
-                text.value = format!(
+                text.sections[0].value = format!(
                     "XYZ: ({:>8.2}, {:>8.2}, {:>8.2})",
                     cam_pos.x, cam_pos.y, cam_pos.z
                 );
             }
             Some("YP:") => {
-                text.value = format!(
+                text.sections[0].value = format!(
                     "YP: ({:>8.2}, {:>8.2})",
                     settings.yaw_pitch_roll.x, settings.yaw_pitch_roll.y
                 );

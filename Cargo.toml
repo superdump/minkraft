@@ -6,9 +6,9 @@ edition = "2018"
 license = "MIT"
 
 [dependencies]
-bevy = "0.4"
+bevy = { version = "0.5", features = [ "dynamic" ] }
 bevy_prototype_character_controller = { git = "https://github.com/superdump/bevy_prototype_character_controller", branch = "main", features = [ "use_rapier" ] }
-bevy_rapier3d = { version = "0.7", features = [ "parallel", "simd-stable" ] }
+bevy_rapier3d = { version = "0.9", features = [ "parallel", "simd-stable" ] }
 building-blocks = "0.4"
 env_logger = "0.8"
 log = "0.4.11"

@@ -10,11 +10,11 @@ impl Plugin for WorldAxesPlugin {
         app.init_resource::<WorldAxes>()
             .add_startup_system(world_axes_setup_system.system())
             .add_system_to_stage(
-                bevy::app::stage::PRE_UPDATE,
+                bevy::app::CoreStage::PreUpdate,
                 world_axes_toggle_system.system(),
             )
             .add_stage_after(
-                bevy::app::stage::UPDATE,
+                bevy::app::CoreStage::Update,
                 UPDATE_AXES_TRANSFORM,
                 SystemStage::parallel(),
             )
@@ -81,82 +81,87 @@ fn spawn_world_axes(commands: &mut Commands, world_axes: &mut ResMut<WorldAxes>)
     let cylinder_mesh = world_axes.meshes[0].clone();
     let cone_mesh = world_axes.meshes[1].clone();
 
-    world_axes.axes_entity = commands
-        .spawn((
-            GlobalTransform::identity(),
-            Transform::from_scale(Vec3::splat(world_axes.scale)),
-            WorldAxesTag,
-        ))
-        .with_children(|axes_root| {
-            axes_root
-                .spawn((
-                    GlobalTransform::identity(),
-                    Transform::from_rotation(Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2)),
-                ))
-                .with_children(|axis_root| {
-                    axis_root
-                        .spawn(PbrBundle {
+    world_axes.axes_entity = Some(
+        commands
+            .spawn_bundle((
+                GlobalTransform::identity(),
+                Transform::from_scale(Vec3::splat(world_axes.scale)),
+                WorldAxesTag,
+            ))
+            .with_children(|axes_root| {
+                axes_root
+                    .spawn_bundle((
+                        GlobalTransform::identity(),
+                        Transform::from_rotation(Quat::from_rotation_z(
+                            -std::f32::consts::FRAC_PI_2,
+                        )),
+                    ))
+                    .with_children(|axis_root| {
+                        axis_root.spawn_bundle(PbrBundle {
                             material: red.clone(),
                             mesh: cone_mesh.clone(),
                             transform: Transform::from_translation(Vec3::new(
                                 0.0f32, 0.85f32, 0.0f32,
                             )),
                             ..Default::default()
-                        })
-                        .spawn(PbrBundle {
+                        });
+                        axis_root.spawn_bundle(PbrBundle {
                             material: red,
                             mesh: cylinder_mesh.clone(),
                             ..Default::default()
                         });
-                })
-                .spawn((GlobalTransform::identity(), Transform::identity()))
-                .with_children(|axis_root| {
-                    axis_root
-                        .spawn(PbrBundle {
+                    });
+                axes_root
+                    .spawn_bundle((GlobalTransform::identity(), Transform::identity()))
+                    .with_children(|axis_root| {
+                        axis_root.spawn_bundle(PbrBundle {
                             material: green.clone(),
                             mesh: cone_mesh.clone(),
                             transform: Transform::from_translation(Vec3::new(
                                 0.0f32, 0.85f32, 0.0f32,
                             )),
                             ..Default::default()
-                        })
-                        .spawn(PbrBundle {
+                        });
+                        axis_root.spawn_bundle(PbrBundle {
                             material: green,
                             mesh: cylinder_mesh.clone(),
                             ..Default::default()
                         });
-                })
-                .spawn((
-                    GlobalTransform::identity(),
-                    Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)),
-                ))
-                .with_children(|axis_root| {
-                    axis_root
-                        .spawn(PbrBundle {
+                    });
+                axes_root
+                    .spawn_bundle((
+                        GlobalTransform::identity(),
+                        Transform::from_rotation(Quat::from_rotation_x(
+                            std::f32::consts::FRAC_PI_2,
+                        )),
+                    ))
+                    .with_children(|axis_root| {
+                        axis_root.spawn_bundle(PbrBundle {
                             material: blue.clone(),
                             mesh: cone_mesh,
                             transform: Transform::from_translation(Vec3::new(
                                 0.0f32, 0.85f32, 0.0f32,
                             )),
                             ..Default::default()
-                        })
-                        .spawn(PbrBundle {
+                        });
+                        axis_root.spawn_bundle(PbrBundle {
                             material: blue,
                             mesh: cylinder_mesh,
                             ..Default::default()
                         });
-                });
-        })
-        .current_entity();
+                    });
+            })
+            .id(),
+    );
 }
 
-fn world_axes_toggle_system(commands: &mut Commands, mut world_axes: ResMut<WorldAxes>) {
+fn world_axes_toggle_system(mut commands: Commands, mut world_axes: ResMut<WorldAxes>) {
     if world_axes.enabled {
         if world_axes.axes_entity.is_none() {
-            spawn_world_axes(commands, &mut world_axes);
+            spawn_world_axes(&mut commands, &mut world_axes);
         }
     } else if let Some(entity) = world_axes.axes_entity {
-        commands.despawn_recursive(entity);
+        commands.entity(entity).despawn_recursive();
         world_axes.axes_entity = None;
     }
 }

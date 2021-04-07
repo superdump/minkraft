@@ -72,8 +72,8 @@ pub struct GeneratePlugin;
 
 impl Plugin for GeneratePlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_resource::<GeneratedVoxelResource>(GeneratedVoxelResource::default())
-            .add_resource::<GeneratedMeshesResource>(GeneratedMeshesResource::default())
+        app.insert_resource::<GeneratedVoxelResource>(GeneratedVoxelResource::default())
+            .insert_resource::<GeneratedMeshesResource>(GeneratedMeshesResource::default())
             .add_startup_system(init_generation.system())
             .add_system(generate_voxels.system())
             .add_system(generate_meshes.system());
@@ -246,10 +246,8 @@ fn spawn_mesh(
             .iter()
             .map(|p| bevy_rapier3d::rapier::math::Point::from_slice(p))
             .collect();
-        let collider_indices = indices
-            .chunks(3)
-            .map(|i| bevy_rapier3d::rapier::na::Point3::<u32>::from_slice(i))
-            .collect();
+        let collider_indices: Vec<[u32; 3]> =
+            indices.chunks(3).map(|i| [i[0], i[1], i[2]]).collect();
 
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
         mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, pos_norm_tex_ind.positions.clone());
@@ -266,32 +264,34 @@ fn spawn_mesh(
         );
 
         let entity = commands
-            .spawn(PbrBundle {
+            .spawn_bundle(PbrBundle {
                 mesh: mesh_handle.clone(),
                 material: materials[material as usize].clone(),
                 ..Default::default()
             })
-            .with_bundle((
+            .insert_bundle((
                 RigidBodyHandleComponent::from(body_handle),
                 ColliderHandleComponent::from(collider_handle),
             ))
-            .current_entity()
-            .unwrap();
+            .id();
         entities.push((entity, mesh_handle, body_handle));
     }
     entities
 }
 
 fn generate_meshes(
-    commands: &mut Commands,
+    mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut bodies: ResMut<RigidBodySet>,
     mut colliders: ResMut<ColliderSet>,
     mut joints: ResMut<JointSet>,
-    voxels: ChangedRes<GeneratedVoxelResource>,
+    voxels: Res<GeneratedVoxelResource>,
     mut voxel_meshes: ResMut<GeneratedMeshesResource>,
     query: Query<&Transform, With<GeneratedVoxelsTag>>,
 ) {
+    if !voxels.is_changed() {
+        return;
+    }
     for cam_transform in query.iter() {
         let cam_pos = cam_transform.translation;
         let cam_pos = PointN([cam_pos.x.round() as i32, 0i32, cam_pos.z.round() as i32]);
@@ -318,7 +318,7 @@ fn generate_meshes(
                     continue;
                 }
                 let entity_mesh = spawn_mesh(
-                    commands,
+                    &mut commands,
                     &mut meshes,
                     &mut bodies,
                     &mut colliders,
@@ -332,7 +332,7 @@ fn generate_meshes(
         for p in &to_remove {
             if let Some(entities) = voxel_meshes.generated_map.remove(p) {
                 for (entity, mesh, body) in entities {
-                    commands.despawn(entity);
+                    commands.entity(entity).despawn();
                     meshes.remove(&mesh);
                     // NOTE: This removes the body, as well as its colliders and
                     // joints from the simulation so it's the only thing we need to call
