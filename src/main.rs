@@ -1,5 +1,6 @@
 use bevy::{
     input::{keyboard::KeyCode, system::exit_on_esc_system},
+    pbr::AmbientLight,
     prelude::*,
 };
 use bevy_prototype_character_controller::{
@@ -138,9 +139,13 @@ fn setup_player(
 }
 
 fn setup_world(mut commands: Commands) {
+    commands.insert_resource(AmbientLight {
+        color: Color::rgb_linear(1.0f32, 0.84f32, 0.67f32),
+        brightness: 1.0 / 7.5f32,
+    });
     commands.spawn_bundle(UiCameraBundle::default());
     commands.spawn_bundle(LightBundle {
-        transform: Transform::from_translation(Vec3::new(14.0, 18.0, 14.0)),
+        transform: Transform::from_translation(Vec3::new(14.0, 40.0, 14.0)),
         ..Default::default()
     });
 }
