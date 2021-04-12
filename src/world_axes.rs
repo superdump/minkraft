@@ -1,9 +1,7 @@
 use crate::shapes::{Cone, Cylinder};
-use bevy::{prelude::*, render::camera::Camera};
+use bevy::{prelude::*, render::camera::Camera, transform::TransformSystem};
 
 pub struct WorldAxesPlugin;
-
-pub const UPDATE_AXES_TRANSFORM: &str = "update_axes_transform";
 
 impl Plugin for WorldAxesPlugin {
     fn build(&self, app: &mut AppBuilder) {
@@ -13,12 +11,12 @@ impl Plugin for WorldAxesPlugin {
                 bevy::app::CoreStage::PreUpdate,
                 world_axes_toggle_system.system(),
             )
-            .add_stage_after(
-                bevy::app::CoreStage::Update,
-                UPDATE_AXES_TRANSFORM,
-                SystemStage::parallel(),
-            )
-            .add_system_to_stage(UPDATE_AXES_TRANSFORM, world_axes_system.system());
+            .add_system_to_stage(
+                CoreStage::PostUpdate,
+                world_axes_system
+                    .system()
+                    .after(TransformSystem::TransformPropagate),
+            );
     }
 }
 
