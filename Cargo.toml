@@ -9,7 +9,7 @@ license = "MIT"
 bevy = { version = "0.5", features = [ "dynamic" ] }
 bevy_prototype_character_controller = { git = "https://github.com/superdump/bevy_prototype_character_controller", branch = "main", features = [ "use_rapier" ] }
 bevy_rapier3d = { version = "0.9", features = [ "parallel", "simd-stable" ] }
-building-blocks = "0.4"
+building-blocks = "0.6"
 env_logger = "0.8"
 log = "0.4.11"
 noise = "0.7"

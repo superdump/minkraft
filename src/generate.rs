@@ -11,16 +11,17 @@ use bevy_rapier3d::{
 };
 use building_blocks::{
     core::prelude::*,
-    mesh::{greedy_quads, GreedyQuadsBuffer, MaterialVoxel},
+    mesh::{greedy_quads, GreedyQuadsBuffer, IsOpaque, MergeVoxel, PosNormTexMesh},
     storage::{prelude::*, IsEmpty},
 };
 use noise::{MultiFractal, NoiseFn, RidgedMulti, Seedable};
 use std::collections::{HashMap, HashSet};
 
+const CHUNK_SIZE: i32 = 32;
 const SEA_LEVEL: f64 = 64.0;
 const TERRAIN_Y_SCALE: f64 = 0.2;
 
-type VoxelMap = ChunkHashMap3<Voxel>;
+type VoxelMap = ChunkHashMap3x1<Voxel>;
 type VoxelMaterial = u8;
 
 pub struct GeneratedVoxelsTag;
@@ -48,19 +49,14 @@ struct GeneratedVoxelResource {
 
 impl Default for GeneratedVoxelResource {
     fn default() -> Self {
-        let chunk_size = 32;
         GeneratedVoxelResource {
             noise: RidgedMulti::new()
                 .set_seed(1234)
                 .set_frequency(0.008)
                 .set_octaves(5),
-            chunk_size,
-            map: ChunkMapBuilder3 {
-                chunk_shape: PointN([chunk_size; 3]),
-                ambient_value: Voxel(0),
-                default_chunk_metadata: (),
-            }
-            .build_with_hash_map_storage(),
+            chunk_size: CHUNK_SIZE,
+            map: ChunkMapBuilder3x1::new(PointN([CHUNK_SIZE; 3]), Voxel(0))
+                .build_with_hash_map_storage(),
             max_height: 256,
             view_distance: 256,
             materials: Vec::new(),
@@ -114,10 +110,16 @@ impl IsEmpty for Voxel {
     }
 }
 
-impl MaterialVoxel for Voxel {
-    type Material = VoxelMaterial;
+impl IsOpaque for Voxel {
+    fn is_opaque(&self) -> bool {
+        self.0 > 1
+    }
+}
 
-    fn material(&self) -> Self::Material {
+impl MergeVoxel for Voxel {
+    type VoxelValue = u8;
+
+    fn voxel_merge_value(&self) -> Self::VoxelValue {
         self.0
     }
 }
@@ -140,7 +142,7 @@ fn generate_chunk(res: &mut ResMut<GeneratedVoxelResource>, min: Point3i, max: P
         for x in min.x()..max.x() {
             let max_y = (res.noise.get([x as f64, z as f64]) * yscale + yoffset).round() as i32;
             for y in 0..(max_y + 1) {
-                *res.map.get_mut(&PointN([x, y, z])) = Voxel(height_to_material(y));
+                *res.map.get_mut(PointN([x, y, z])) = Voxel(height_to_material(y));
             }
         }
     }
@@ -167,7 +169,7 @@ fn generate_voxels(
             for x in (min.x()..max.x()).step_by(voxels.chunk_size as usize) {
                 let p = PointN([x, 0, z]);
                 let d = p - cam_pos;
-                if voxel_meshes.generated_map.get(&p).is_some() || d.dot(&d) > vd2 {
+                if voxel_meshes.generated_map.get(&p).is_some() || d.dot(d) > vd2 {
                     continue;
                 }
                 generate_chunk(
@@ -222,26 +224,34 @@ fn spawn_mesh(
     extent: Extent3i,
 ) -> Vec<(Entity, Handle<Mesh>, RigidBodyHandle)> {
     let padded_chunk_extent = extent.padded(1);
-    let mut padded_chunk = Array3::fill(padded_chunk_extent, Voxel(0));
+    let mut padded_chunk = Array3x1::fill(padded_chunk_extent, Voxel(0));
     copy_extent(&padded_chunk_extent, voxel_map, &mut padded_chunk);
-    let mut buffer = GreedyQuadsBuffer::new(padded_chunk_extent);
+    let mut buffer = GreedyQuadsBuffer::new_with_y_up(padded_chunk_extent);
     greedy_quads(&padded_chunk, &padded_chunk_extent, &mut buffer);
 
-    let mut pos_norm_tex_inds = HashMap::new();
+    let mut pos_norm_tex_meshes: Vec<PosNormTexMesh> = vec![PosNormTexMesh::default(); 7];
     for group in buffer.quad_groups.iter() {
-        for (quad, material) in group.quads.iter() {
+        for quad in group.quads.iter() {
             group.face.add_quad_to_pos_norm_tex_mesh(
+                false,
                 quad,
-                pos_norm_tex_inds.entry(*material).or_default(),
+                &mut pos_norm_tex_meshes[padded_chunk.get(quad.minimum).0 as usize],
             );
         }
     }
 
     let mut entities = Vec::with_capacity(meshes.len());
-    for (material, pos_norm_tex_ind) in pos_norm_tex_inds {
-        let indices: Vec<u32> = pos_norm_tex_ind.indices.iter().map(|i| *i as u32).collect();
+    for (material, pos_norm_tex_mesh) in pos_norm_tex_meshes.iter().enumerate() {
+        if pos_norm_tex_mesh.indices.is_empty() {
+            continue;
+        }
+        let indices: Vec<u32> = pos_norm_tex_mesh
+            .indices
+            .iter()
+            .map(|i| *i as u32)
+            .collect();
 
-        let collider_vertices = pos_norm_tex_ind
+        let collider_vertices = pos_norm_tex_mesh
             .positions
             .iter()
             .map(|p| bevy_rapier3d::rapier::math::Point::from_slice(p))
@@ -250,9 +260,12 @@ fn spawn_mesh(
             indices.chunks(3).map(|i| [i[0], i[1], i[2]]).collect();
 
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-        mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, pos_norm_tex_ind.positions.clone());
-        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, pos_norm_tex_ind.normals.clone());
-        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, pos_norm_tex_ind.tex_coords.clone());
+        mesh.set_attribute(
+            Mesh::ATTRIBUTE_POSITION,
+            pos_norm_tex_mesh.positions.clone(),
+        );
+        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, pos_norm_tex_mesh.normals.clone());
+        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, pos_norm_tex_mesh.tex_coords.clone());
         mesh.set_indices(Some(Indices::U32(indices)));
         let mesh_handle = meshes.add(mesh);
 
@@ -310,7 +323,7 @@ fn generate_meshes(
             for x in (min.x()..max.x()).step_by(chunk_size as usize) {
                 let p = PointN([x, 0, z]);
                 let d = p - cam_pos;
-                if d.dot(&d) > vd2 {
+                if d.dot(d) > vd2 {
                     continue;
                 }
                 to_remove.remove(&p);
