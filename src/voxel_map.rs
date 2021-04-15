@@ -71,6 +71,7 @@ pub fn generate_map(
     freq: f32,
     scale: f32,
     seed: i32,
+    octaves: u8,
 ) -> VoxelMap {
     let builder = ChunkMapBuilder3x1::new(CHUNK_SHAPE, Voxel::EMPTY);
     let mut pyramid = ChunkHashMapPyramid3::new(builder, || SmallKeyHashMap::new(), NUM_LODS);
@@ -83,7 +84,7 @@ pub fn generate_map(
                 let chunk_extent = Extent3i::from_min_and_shape(chunk_min, CHUNK_SHAPE);
                 let mut chunk_noise = Array3x1::fill(chunk_extent, Voxel::EMPTY);
 
-                let noise = noise_array(chunk_extent, freq, seed);
+                let noise = noise_array(chunk_extent, freq, seed, octaves);
 
                 // Convert the f32 noise into Voxels.
                 let sdf_voxel_noise = TransformMap::new(&noise, |d: f32| {
@@ -111,7 +112,7 @@ pub fn generate_map(
     VoxelMap { pyramid, index }
 }
 
-fn noise_array(extent: Extent3i, freq: f32, seed: i32) -> Array3x1<f32> {
+fn noise_array(extent: Extent3i, freq: f32, seed: i32, octaves: u8) -> Array3x1<f32> {
     let min = Point3f::from(extent.minimum);
     let (noise, _min_val, _max_val) = NoiseBuilder::fbm_3d_offset(
         min.x(),
@@ -121,8 +122,9 @@ fn noise_array(extent: Extent3i, freq: f32, seed: i32) -> Array3x1<f32> {
         min.z(),
         extent.shape.z() as usize,
     )
-    .with_freq(freq)
     .with_seed(seed)
+    .with_freq(freq)
+    .with_octaves(octaves)
     .generate();
 
     Array3x1::new_one_channel(extent, noise)

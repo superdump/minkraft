@@ -155,10 +155,11 @@ fn setup_world(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Generate a voxel map from noise.
-    let freq = 0.15;
+    let freq = 0.15; //0.008;
     let scale = 20.0;
-    let seed = 666;
-    let map = generate_map(&*pool, WORLD_CHUNKS_EXTENT, freq, scale, seed);
+    let seed = 1234;
+    let octaves = 5;
+    let map = generate_map(&*pool, WORLD_CHUNKS_EXTENT, freq, scale, seed, octaves);
 
     // Queue up commands to initialize the chunk meshes to their appropriate LODs given the starting camera position.
     let init_lod0_center = Point3f::from(Vec3::new(1.1, 90.0, 1.1)).in_voxel() >> CHUNK_LOG2;
