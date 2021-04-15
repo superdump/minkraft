@@ -2,6 +2,7 @@ use bevy::{
     input::{keyboard::KeyCode, system::exit_on_esc_system},
     pbr::AmbientLight,
     prelude::*,
+    tasks::ComputeTaskPool,
 };
 use bevy_prototype_character_controller::{
     controller::{BodyTag, CameraTag, CharacterController, HeadTag, YawTag},
@@ -13,9 +14,15 @@ use bevy_rapier3d::{
     rapier::dynamics::RigidBodyBuilder,
     rapier::geometry::ColliderBuilder,
 };
+use building_blocks::core::prelude::*;
 use minkraft::{
     debug::{Debug, DebugPlugin, DebugTransformTag},
-    generate::{GeneratePlugin, GeneratedVoxelsTag},
+    // generate::{GeneratePlugin, GeneratedVoxelsTag},
+    level_of_detail::{level_of_detail_system, LodState},
+    mesh_generator::{
+        mesh_generator_system, ChunkMeshes, MeshCommand, MeshCommandQueue, MeshMaterial,
+    },
+    voxel_map::{generate_map, CHUNK_LOG2, CLIP_BOX_RADIUS, WORLD_CHUNKS_EXTENT, WORLD_EXTENT},
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
 
@@ -25,6 +32,8 @@ fn main() {
     App::build()
         // Generic
         .insert_resource(WindowDescriptor {
+            width: 1600.0,
+            height: 900.0,
             title: env!("CARGO_PKG_NAME").to_string(),
             ..Default::default()
         })
@@ -49,7 +58,9 @@ fn main() {
         // Character Controller
         .add_plugin(RapierDynamicImpulseCharacterControllerPlugin)
         // Terrain
-        .add_plugin(GeneratePlugin)
+        // .add_plugin(GeneratePlugin)
+        .add_system(level_of_detail_system.system())
+        .add_system(mesh_generator_system.system())
         // Minkraft
         .add_startup_system(setup_world.system())
         .add_startup_system(setup_player.system())
@@ -88,7 +99,7 @@ fn setup_player(
             CharacterController::default(),
             BodyTag,
             PlayerTag,
-            GeneratedVoxelsTag,
+            // GeneratedVoxelsTag,
             DebugTransformTag,
         ))
         .id();
@@ -138,14 +149,49 @@ fn setup_player(
     commands.entity(head).push_children(&[head_model, camera]);
 }
 
-fn setup_world(mut commands: Commands) {
-    commands.insert_resource(AmbientLight {
-        color: Color::rgb_linear(1.0f32, 0.84f32, 0.67f32),
-        brightness: 1.0 / 7.5f32,
-    });
+fn setup_world(
+    mut commands: Commands,
+    pool: Res<ComputeTaskPool>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    // Generate a voxel map from noise.
+    let freq = 0.15;
+    let scale = 20.0;
+    let seed = 666;
+    let map = generate_map(&*pool, WORLD_CHUNKS_EXTENT, freq, scale, seed);
+
+    // Queue up commands to initialize the chunk meshes to their appropriate LODs given the starting camera position.
+    let init_lod0_center = Point3f::from(Vec3::new(1.1, 90.0, 1.1)).in_voxel() >> CHUNK_LOG2;
+    let mut mesh_commands = MeshCommandQueue::default();
+    map.index.active_clipmap_lod_chunks(
+        &WORLD_EXTENT,
+        CLIP_BOX_RADIUS,
+        init_lod0_center,
+        |chunk_key| mesh_commands.enqueue(MeshCommand::Create(chunk_key)),
+    );
+    assert!(!mesh_commands.is_empty());
+    commands.insert_resource(mesh_commands);
+    commands.insert_resource(LodState::new(init_lod0_center));
+    commands.insert_resource(map);
+    commands.insert_resource(ChunkMeshes::default());
+
+    let mut material = StandardMaterial::from(Color::rgb(1.0, 0.0, 0.0));
+    material.roughness = 0.9;
+    commands.insert_resource(MeshMaterial(materials.add(material)));
+
+    // commands.insert_resource(AmbientLight {
+    //     color: Color::rgb_linear(1.0f32, 0.84f32, 0.67f32),
+    //     brightness: 1.0 / 7.5f32,
+    // });
     commands.spawn_bundle(UiCameraBundle::default());
     commands.spawn_bundle(LightBundle {
-        transform: Transform::from_translation(Vec3::new(14.0, 40.0, 14.0)),
+        transform: Transform::from_translation(Vec3::new(0.0, 500.0, 0.0)),
+        light: Light {
+            intensity: 1000000.0,
+            depth: 0.1..1000000.0,
+            range: 1000000.0,
+            ..Default::default()
+        },
         ..Default::default()
     });
 }
