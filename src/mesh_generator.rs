@@ -24,10 +24,17 @@
  */
 
 use crate::{
-    utilities::bevy_util::{mesh::create_mesh_bundle, thread_local_resource::ThreadLocalResource},
+    utilities::bevy_util::{mesh::create_mesh_handle, thread_local_resource::ThreadLocalResource},
     voxel_map::{Voxel, VoxelMap},
 };
 
+use bevy_rapier3d::{
+    physics::{ColliderHandleComponent, RigidBodyHandleComponent},
+    rapier::{
+        dynamics::{JointSet, RigidBodyBuilder, RigidBodyHandle, RigidBodySet},
+        geometry::{ColliderBuilder, ColliderSet},
+    },
+};
 use building_blocks::{
     mesh::*,
     prelude::*,
@@ -73,7 +80,7 @@ pub struct MeshMaterial(pub Handle<StandardMaterial>);
 #[derive(Default)]
 pub struct ChunkMeshes {
     // Map from chunk key to mesh entity.
-    entities: SmallKeyHashMap<LodChunkKey3, Entity>,
+    entities: SmallKeyHashMap<LodChunkKey3, (Entity, Handle<Mesh>, Option<RigidBodyHandle>)>,
 }
 
 /// Generates new meshes for all dirty chunks.
@@ -86,6 +93,9 @@ pub fn mesh_generator_system(
     mut mesh_commands: ResMut<MeshCommandQueue>,
     mut mesh_assets: ResMut<Assets<Mesh>>,
     mut chunk_meshes: ResMut<ChunkMeshes>,
+    mut bodies: ResMut<RigidBodySet>,
+    mut colliders: ResMut<ColliderSet>,
+    mut joints: ResMut<JointSet>,
 ) {
     let new_chunk_meshes = apply_mesh_commands(
         &*voxel_map,
@@ -94,6 +104,10 @@ pub fn mesh_generator_system(
         &mut *mesh_commands,
         &mut *chunk_meshes,
         &mut commands,
+        &mut *mesh_assets,
+        &mut *bodies,
+        &mut *colliders,
+        &mut *joints,
     );
     spawn_mesh_entities(
         new_chunk_meshes,
@@ -101,6 +115,9 @@ pub fn mesh_generator_system(
         &mut commands,
         &mut *mesh_assets,
         &mut *chunk_meshes,
+        &mut *bodies,
+        &mut *colliders,
+        &mut *joints,
     );
 }
 
@@ -111,6 +128,10 @@ fn apply_mesh_commands(
     mesh_commands: &mut MeshCommandQueue,
     chunk_meshes: &mut ChunkMeshes,
     commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    bodies: &mut RigidBodySet,
+    colliders: &mut ColliderSet,
+    joints: &mut JointSet,
 ) -> Vec<(LodChunkKey3, Option<PosNormMesh>)> {
     let num_chunks_to_mesh = mesh_commands.len().min(max_mesh_creations_per_frame(pool));
 
@@ -134,8 +155,16 @@ fn apply_mesh_commands(
                     num_updates += 1;
                     match update {
                         LodChunkUpdate3::Split(split) => {
-                            if let Some(entity) = chunk_meshes.entities.remove(&split.old_chunk) {
+                            if let Some((entity, mesh, body)) =
+                                chunk_meshes.entities.remove(&split.old_chunk)
+                            {
                                 commands.entity(entity).despawn();
+                                meshes.remove(&mesh);
+                                if let Some(body) = body {
+                                    // NOTE: This removes the body, as well as its colliders and
+                                    // joints from the simulation so it's the only thing we need to call
+                                    bodies.remove(body, &mut *colliders, &mut *joints);
+                                }
                             }
                             for &key in split.new_chunks.iter() {
                                 num_meshes_created += 1;
@@ -149,8 +178,16 @@ fn apply_mesh_commands(
                         }
                         LodChunkUpdate3::Merge(merge) => {
                             for key in merge.old_chunks.iter() {
-                                if let Some(entity) = chunk_meshes.entities.remove(&key) {
+                                if let Some((entity, mesh, body)) =
+                                    chunk_meshes.entities.remove(&key)
+                                {
                                     commands.entity(entity).despawn();
+                                    meshes.remove(&mesh);
+                                    if let Some(body) = body {
+                                        // NOTE: This removes the body, as well as its colliders and
+                                        // joints from the simulation so it's the only thing we need to call
+                                        bodies.remove(body, &mut *colliders, &mut *joints);
+                                    }
                                 }
                             }
                             num_meshes_created += 1;
@@ -246,24 +283,65 @@ fn spawn_mesh_entities(
     commands: &mut Commands,
     mesh_assets: &mut Assets<Mesh>,
     chunk_meshes: &mut ChunkMeshes,
+    mut bodies: &mut RigidBodySet,
+    colliders: &mut ColliderSet,
+    joints: &mut JointSet,
 ) {
     for (lod_chunk_key, item) in new_chunk_meshes.into_iter() {
         let old_mesh = if let Some(mesh) = item {
-            chunk_meshes.entities.insert(
-                lod_chunk_key,
-                commands
-                    .spawn_bundle(create_mesh_bundle(
-                        mesh,
-                        mesh_material.0.clone(),
-                        mesh_assets,
-                    ))
-                    .id(),
-            )
+            if mesh.indices.is_empty() {
+                None
+            } else {
+                let indices: Vec<u32> = mesh.indices.iter().map(|i| *i as u32).collect();
+                let mesh_handle = create_mesh_handle(&mesh, mesh_assets);
+                let entity = commands
+                    .spawn_bundle(PbrBundle {
+                        mesh: mesh_handle.clone(),
+                        material: mesh_material.0.clone(),
+                        ..Default::default()
+                    })
+                    .id();
+                let body_handle = if lod_chunk_key.lod == 0 {
+                    let collider_vertices = mesh
+                        .positions
+                        .iter()
+                        .cloned()
+                        .map(|p| bevy_rapier3d::rapier::math::Point::from_slice(&p))
+                        .collect();
+                    let collider_indices: Vec<[u32; 3]> =
+                        indices.chunks(3).map(|i| [i[0], i[1], i[2]]).collect();
+
+                    let body_handle = bodies.insert(RigidBodyBuilder::new_static().build());
+                    let collider_handle = colliders.insert(
+                        ColliderBuilder::trimesh(collider_vertices, collider_indices).build(),
+                        body_handle,
+                        &mut bodies,
+                    );
+
+                    commands.entity(entity).insert_bundle((
+                        RigidBodyHandleComponent::from(body_handle),
+                        ColliderHandleComponent::from(collider_handle),
+                    ));
+
+                    Some(body_handle)
+                } else {
+                    None
+                };
+                chunk_meshes
+                    .entities
+                    .insert(lod_chunk_key, (entity, mesh_handle, body_handle))
+            }
         } else {
             chunk_meshes.entities.remove(&lod_chunk_key)
         };
-        if let Some(old_mesh) = old_mesh {
-            commands.entity(old_mesh).despawn();
+        if let Some((entity, mesh, body)) = old_mesh {
+            commands.entity(entity).despawn();
+            mesh_assets.remove(&mesh);
+            if let Some(body) = body {
+                // NOTE: This removes the body, as well as its colliders and
+                // joints from the simulation so it's the only thing we need to call
+                bodies.remove(body, &mut *colliders, &mut *joints);
+            }
         }
     }
 }
