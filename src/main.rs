@@ -93,8 +93,11 @@ fn setup_player(
             RigidBodyBuilder::new_dynamic()
                 .translation(spawn_pos.x, spawn_pos.y, spawn_pos.z)
                 .lock_rotations(),
-            ColliderBuilder::cuboid(0.5 * obj_scale.x, 0.5 * obj_scale.y, 0.5 * obj_scale.z)
-                .density(200.0),
+            ColliderBuilder::capsule_y(
+                0.5 * (obj_scale.y - obj_scale.x.max(obj_scale.z)),
+                0.5 * obj_scale.x.max(obj_scale.z),
+            )
+            .density(200.0),
             PhysicsInterpolationComponent::new(spawn_pos, Quat::IDENTITY),
             CharacterController::default(),
             BodyTag,
