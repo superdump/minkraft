@@ -152,6 +152,7 @@ pub fn chunk_generator_system(
                     &PointDownsampler,
                     &chunk_extent,
                 );
+                voxel_map.index = index;
             });
         });
     }
