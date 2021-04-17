@@ -23,7 +23,7 @@
  *
  */
 
-use bevy::tasks::ComputeTaskPool;
+use bevy::{prelude::Res, tasks::ComputeTaskPool};
 use building_blocks::{
     prelude::*,
     storage::{ChunkHashMapPyramid3, OctreeChunkIndex, SmallKeyHashMap},
@@ -32,7 +32,7 @@ use building_blocks::{
 use building_blocks::mesh::{IsOpaque, MergeVoxel};
 use simdnoise::NoiseBuilder;
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Voxel(pub u8);
 
 impl Voxel {
@@ -65,39 +65,38 @@ pub struct VoxelMap {
     pub index: OctreeChunkIndex,
 }
 
-pub fn generate_map(
-    pool: &ComputeTaskPool,
-    chunks_extent: Extent3i,
-    freq: f32,
+#[derive(Debug)]
+pub struct NoiseConfig {
+    frequency: f32,
     scale: f32,
     seed: i32,
     octaves: u8,
+}
+
+impl Default for NoiseConfig {
+    fn default() -> Self {
+        Self {
+            frequency: 0.15,
+            scale: 20.0,
+            seed: 1234,
+            octaves: 5,
+        }
+    }
+}
+
+pub fn generate_map(
+    pool: &ComputeTaskPool,
+    chunks_extent: Extent3i,
+    noise_config: Res<NoiseConfig>,
 ) -> VoxelMap {
     let builder = ChunkMapBuilder3x1::new(CHUNK_SHAPE, Voxel::EMPTY);
     let mut pyramid = ChunkHashMapPyramid3::new(builder, || SmallKeyHashMap::new(), NUM_LODS);
     let lod0 = pyramid.level_mut(0);
 
     let chunks = pool.scope(|s| {
+        let noise_config = &noise_config;
         for p in chunks_extent.iter_points() {
-            s.spawn(async move {
-                let chunk_min = p * CHUNK_SHAPE;
-                let chunk_extent = Extent3i::from_min_and_shape(chunk_min, CHUNK_SHAPE);
-                let mut chunk_noise = Array3x1::fill(chunk_extent, Voxel::EMPTY);
-
-                let noise = noise_array(chunk_extent, freq, seed, octaves);
-
-                // Convert the f32 noise into Voxels.
-                let sdf_voxel_noise = TransformMap::new(&noise, |d: f32| {
-                    if scale * d < 0.0 {
-                        Voxel::FILLED
-                    } else {
-                        Voxel::EMPTY
-                    }
-                });
-                copy_extent(&chunk_extent, &sdf_voxel_noise, &mut chunk_noise);
-
-                (chunk_min, chunk_noise)
-            });
+            s.spawn(async move { generate_chunk(p, noise_config) });
         }
     });
     for (chunk_key, chunk) in chunks.into_iter() {
@@ -110,6 +109,33 @@ pub fn generate_map(
     pyramid.downsample_chunks_with_index(&index, &PointDownsampler, &world_extent);
 
     VoxelMap { pyramid, index }
+}
+
+pub fn update_pyramid() {}
+
+pub fn generate_chunk(key: Point3i, noise_config: &Res<NoiseConfig>) -> (Point3i, Array3x1<Voxel>) {
+    let chunk_min = key * CHUNK_SHAPE;
+    let chunk_extent = Extent3i::from_min_and_shape(chunk_min, CHUNK_SHAPE);
+    let mut chunk_noise = Array3x1::fill(chunk_extent, Voxel::EMPTY);
+
+    let noise = noise_array(
+        chunk_extent,
+        noise_config.frequency,
+        noise_config.seed,
+        noise_config.octaves,
+    );
+
+    // Convert the f32 noise into Voxels.
+    let sdf_voxel_noise = TransformMap::new(&noise, |d: f32| {
+        if noise_config.scale * d < 0.0 {
+            Voxel::FILLED
+        } else {
+            Voxel::EMPTY
+        }
+    });
+    copy_extent(&chunk_extent, &sdf_voxel_noise, &mut chunk_noise);
+
+    (chunk_min, chunk_noise)
 }
 
 fn noise_array(extent: Extent3i, freq: f32, seed: i32, octaves: u8) -> Array3x1<f32> {

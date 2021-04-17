@@ -1,6 +1,5 @@
 use bevy::{
     input::{keyboard::KeyCode, system::exit_on_esc_system},
-    pbr::AmbientLight,
     prelude::*,
     tasks::ComputeTaskPool,
 };
@@ -16,13 +15,16 @@ use bevy_rapier3d::{
 };
 use building_blocks::core::prelude::*;
 use minkraft::{
+    chunk_generator::{chunk_detection_system, chunk_generator_system, ChunkCommandQueue},
     debug::{Debug, DebugPlugin, DebugTransformTag},
     // generate::{GeneratePlugin, GeneratedVoxelsTag},
     level_of_detail::{level_of_detail_system, LodState},
     mesh_generator::{
         mesh_generator_system, ChunkMeshes, MeshCommand, MeshCommandQueue, MeshMaterial,
     },
-    voxel_map::{generate_map, CHUNK_LOG2, CLIP_BOX_RADIUS, WORLD_CHUNKS_EXTENT, WORLD_EXTENT},
+    voxel_map::{
+        generate_map, NoiseConfig, CHUNK_LOG2, CLIP_BOX_RADIUS, WORLD_CHUNKS_EXTENT, WORLD_EXTENT,
+    },
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
 
@@ -59,8 +61,28 @@ fn main() {
         .add_plugin(RapierDynamicImpulseCharacterControllerPlugin)
         // Terrain
         // .add_plugin(GeneratePlugin)
-        .add_system(level_of_detail_system.system())
-        .add_system(mesh_generator_system.system())
+        .insert_resource(NoiseConfig::default())
+        .insert_resource(ChunkCommandQueue::default())
+        .add_system(chunk_detection_system.system().label("chunk_detection"))
+        .add_system(
+            chunk_generator_system
+                .system()
+                .label("chunk_generator")
+                .after("chunk_detection"),
+        )
+        .insert_resource(MeshCommandQueue::default())
+        .add_system(
+            level_of_detail_system
+                .system()
+                .label("level_of_detail")
+                .after("chunk_generator"),
+        )
+        .add_system(
+            mesh_generator_system
+                .system()
+                .label("mesh_generator")
+                .after("level_of_detail"),
+        )
         // Minkraft
         .add_startup_system(setup_world.system())
         .add_startup_system(setup_player.system())
@@ -156,17 +178,14 @@ fn setup_world(
     mut commands: Commands,
     pool: Res<ComputeTaskPool>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    noise_config: Res<NoiseConfig>,
+    mut mesh_commands: ResMut<MeshCommandQueue>,
 ) {
     // Generate a voxel map from noise.
-    let freq = 0.15; //0.008;
-    let scale = 20.0;
-    let seed = 1234;
-    let octaves = 5;
-    let map = generate_map(&*pool, WORLD_CHUNKS_EXTENT, freq, scale, seed, octaves);
+    let map = generate_map(&*pool, WORLD_CHUNKS_EXTENT, noise_config);
 
     // Queue up commands to initialize the chunk meshes to their appropriate LODs given the starting camera position.
     let init_lod0_center = Point3f::from(Vec3::new(1.1, 90.0, 1.1)).in_voxel() >> CHUNK_LOG2;
-    let mut mesh_commands = MeshCommandQueue::default();
     map.index.active_clipmap_lod_chunks(
         &WORLD_EXTENT,
         CLIP_BOX_RADIUS,
@@ -174,7 +193,6 @@ fn setup_world(
         |chunk_key| mesh_commands.enqueue(MeshCommand::Create(chunk_key)),
     );
     assert!(!mesh_commands.is_empty());
-    commands.insert_resource(mesh_commands);
     commands.insert_resource(LodState::new(init_lod0_center));
     commands.insert_resource(map);
     commands.insert_resource(ChunkMeshes::default());

@@ -1,3 +1,4 @@
+pub mod chunk_generator;
 pub mod debug;
 // pub mod generate;
 pub mod level_of_detail;
