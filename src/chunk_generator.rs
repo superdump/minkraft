@@ -38,7 +38,7 @@ use building_blocks::{
 };
 
 use bevy::{prelude::*, render::camera::Camera, tasks::ComputeTaskPool};
-use std::{collections::VecDeque};
+use std::collections::VecDeque;
 
 fn max_chunk_creations_per_frame(pool: &ComputeTaskPool) -> usize {
     40 * pool.thread_num()
