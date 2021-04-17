@@ -93,12 +93,6 @@ pub fn chunk_generator_system(
                     num_chunks_generated += 1;
                     s.spawn(async move { generate_chunk(key, noise_config) });
                 }
-                // ChunkCommand::Edit(key, chunk) => {
-                //     num_edits += 1;
-                // }
-                // ChunkCommand::Remove(key) => {
-                //     num_removes += 1;
-                // }
                 _ => {}
             }
             if num_chunks_generated >= num_chunks_to_generate {
@@ -116,8 +110,6 @@ pub fn chunk_generator_system(
                 ChunkCommand::Generate(key) => {
                     num_generates += 1;
                     let (chunk_key, chunk) = generated_chunks.pop().unwrap();
-                    // println!("k {:?} ck {:?}", key, chunk_key);
-                    debug_assert!(key * CHUNK_SHAPE == chunk_key);
                     lod0.write_chunk(chunk_key, chunk);
                     let extent = Extent3i::from_min_and_shape(key, Point3i::ONES);
                     if let Some(extent_to_update) = extent_to_update.as_mut() {
@@ -142,7 +134,6 @@ pub fn chunk_generator_system(
                 ChunkCommand::Remove(key) => {
                     num_removes += 1;
                 }
-                _ => {}
             }
             if num_generates >= num_chunks_to_generate {
                 break;
