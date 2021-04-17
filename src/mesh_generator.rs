@@ -143,6 +143,7 @@ fn apply_mesh_commands(
         for command in mesh_commands.commands.iter().rev().cloned() {
             match command {
                 MeshCommand::Create(lod_key) => {
+                    if !chunk_meshes.entities.contains_key(&lod_key) {
                     num_creates += 1;
                     num_meshes_created += 1;
                     s.spawn(async move {
@@ -151,6 +152,7 @@ fn apply_mesh_commands(
                                 create_mesh_for_chunk(lod_key, voxel_map, local_mesh_buffers),
                         )
                     });
+                }
                 }
                 MeshCommand::Update(update) => {
                     num_updates += 1;
@@ -168,6 +170,7 @@ fn apply_mesh_commands(
                                 }
                             }
                             for &lod_key in split.new_chunks.iter() {
+                                if !chunk_meshes.entities.contains_key(&lod_key) {
                                 num_meshes_created += 1;
                                 s.spawn(async move {
                                     (
@@ -180,6 +183,7 @@ fn apply_mesh_commands(
                                     )
                                 });
                             }
+                        }
                         }
                         LodChunkUpdate3::Merge(merge) => {
                             for lod_key in merge.old_chunks.iter() {
@@ -195,6 +199,7 @@ fn apply_mesh_commands(
                                     }
                                 }
                             }
+                            if !chunk_meshes.entities.contains_key(&merge.new_chunk) {
                             num_meshes_created += 1;
                             s.spawn(async move {
                                 (
@@ -209,6 +214,7 @@ fn apply_mesh_commands(
                         }
                     }
                 }
+            }
             }
             if num_meshes_created >= num_chunks_to_mesh {
                 break;
