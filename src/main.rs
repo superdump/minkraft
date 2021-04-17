@@ -121,7 +121,10 @@ fn setup_player(
             )
             .density(200.0),
             PhysicsInterpolationComponent::new(spawn_pos, Quat::IDENTITY),
-            CharacterController::default(),
+            CharacterController {
+                run_speed: 40.0f32,
+                ..Default::default()
+            },
             BodyTag,
             PlayerTag,
             // GeneratedVoxelsTag,
