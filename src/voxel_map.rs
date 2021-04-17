@@ -162,11 +162,23 @@ pub const NUM_LODS: u8 = 5;
 pub const SUPERCHUNK_SHAPE: Point3i = PointN([1 << (CHUNK_LOG2 + NUM_LODS as i32 - 1); 3]);
 pub const CLIP_BOX_RADIUS: i32 = 16;
 
+const CHUNKS_MINIMUM: i32 = -50;
+const CHUNKS_SHAPE: i32 = 100;
+const CHUNKS_THICKNESS: i32 = 1;
+
 pub const WORLD_CHUNKS_EXTENT: Extent3i = Extent3i {
-    minimum: PointN([-50, 0, -50]),
-    shape: PointN([100, 1, 100]),
+    minimum: PointN([CHUNKS_MINIMUM, CHUNKS_MINIMUM, CHUNKS_MINIMUM]),
+    shape: PointN([CHUNKS_SHAPE, CHUNKS_THICKNESS, CHUNKS_SHAPE]),
 };
 pub const WORLD_EXTENT: Extent3i = Extent3i {
-    minimum: PointN([-800, 0, -800]),
-    shape: PointN([1600, 16, 1600]),
+    minimum: PointN([
+        CHUNKS_MINIMUM << CHUNK_LOG2,
+        CHUNKS_MINIMUM << CHUNK_LOG2,
+        CHUNKS_MINIMUM << CHUNK_LOG2,
+    ]),
+    shape: PointN([
+        CHUNKS_SHAPE << CHUNK_LOG2,
+        CHUNKS_THICKNESS << CHUNK_LOG2,
+        CHUNKS_SHAPE << CHUNK_LOG2,
+    ]),
 };
