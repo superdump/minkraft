@@ -145,6 +145,8 @@ pub fn chunk_generator_system(
         let voxel_map = &mut voxel_map;
         pool.scope(|s| {
             let lod0 = voxel_map.pyramid.level(0);
+            // TODO: If you need to update the OctreeChunkIndex, you could call add_extent and subtract_extent
+            // on the superchunk_octrees field.
             let index = OctreeChunkIndex::index_chunk_map(SUPERCHUNK_SHAPE, lod0);
             s.spawn(async move {
                 voxel_map.pyramid.downsample_chunks_with_index(
