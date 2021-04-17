@@ -65,8 +65,9 @@ pub fn level_of_detail_system(
         return;
     }
 
+    let bounding_extent = voxel_map.pyramid.level(0).bounding_extent();
     voxel_map.index.find_clipmap_chunk_updates(
-        &WORLD_EXTENT,
+        &bounding_extent,
         CLIP_BOX_RADIUS,
         lod_state.old_lod0_center,
         lod0_center,
