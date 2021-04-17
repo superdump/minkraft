@@ -89,9 +89,9 @@ pub fn chunk_generator_system(
         let mut num_chunks_generated = 0;
         for command in chunk_commands.commands.iter().rev().cloned() {
             match command {
-                ChunkCommand::Generate(key) => {
+                ChunkCommand::Generate(chunk_key) => {
                     num_chunks_generated += 1;
-                    s.spawn(async move { generate_chunk(key, noise_config) });
+                    s.spawn(async move { generate_chunk(chunk_key, noise_config) });
                 }
                 _ => {}
             }
@@ -102,36 +102,36 @@ pub fn chunk_generator_system(
     });
     generated_chunks.reverse();
 
-    let mut extent_to_update: Option<Extent3i> = None;
+    let mut generated_chunk_extent: Option<Extent3i> = None;
     {
         let lod0 = voxel_map.pyramid.level_mut(0);
         for command in chunk_commands.commands.iter().rev().cloned() {
             match command {
-                ChunkCommand::Generate(key) => {
+                ChunkCommand::Generate(chunk_key) => {
                     num_generates += 1;
-                    let (chunk_key, chunk) = generated_chunks.pop().unwrap();
-                    lod0.write_chunk(chunk_key, chunk);
-                    let extent = Extent3i::from_min_and_shape(key, Point3i::ONES);
-                    if let Some(extent_to_update) = extent_to_update.as_mut() {
+                    let (voxel_key, chunk) = generated_chunks.pop().unwrap();
+                    lod0.write_chunk(voxel_key, chunk);
+                    let chunk_extent = Extent3i::from_min_and_shape(chunk_key, Point3i::ONES);
+                    if let Some(extent_to_update) = generated_chunk_extent.as_mut() {
                         *extent_to_update = bounding_extent(
                             [
                                 extent_to_update.minimum,
-                                extent.minimum,
+                                chunk_extent.minimum,
                                 extent_to_update.max(),
-                                extent.max(),
+                                chunk_extent.max(),
                             ]
                             .iter()
                             .cloned(),
                         );
                     } else {
-                        extent_to_update = Some(extent);
+                        generated_chunk_extent = Some(chunk_extent);
                     }
                 }
-                ChunkCommand::Edit(key, chunk) => {
+                ChunkCommand::Edit(chunk_key, chunk) => {
                     num_edits += 1;
-                    lod0.write_chunk(key, chunk);
+                    lod0.write_chunk(chunk_key, chunk);
                 }
-                ChunkCommand::Remove(key) => {
+                ChunkCommand::Remove(chunk_key) => {
                     num_removes += 1;
                 }
             }
@@ -141,17 +141,16 @@ pub fn chunk_generator_system(
         }
     }
 
-    if let Some(extent) = extent_to_update {
+    if let Some(chunk_extent) = generated_chunk_extent {
         let voxel_map = &mut voxel_map;
         pool.scope(|s| {
             let lod0 = voxel_map.pyramid.level(0);
             let index = OctreeChunkIndex::index_chunk_map(SUPERCHUNK_SHAPE, lod0);
-            let world_extent = extent * CHUNK_SHAPE;
             s.spawn(async move {
                 voxel_map.pyramid.downsample_chunks_with_index(
                     &index,
                     &PointDownsampler,
-                    &world_extent,
+                    &chunk_extent,
                 );
             });
         });
@@ -177,10 +176,10 @@ pub fn chunk_detection_system(
     let visible_extent = WORLD_CHUNKS_EXTENT + camera_center;
 
     let lod0 = voxel_map.pyramid.level(0);
-    for p in visible_extent.iter_points() {
-        let key = p * CHUNK_SHAPE;
-        if lod0.get_chunk(key).is_none() {
-            chunk_commands.enqueue(ChunkCommand::Generate(key));
+    for chunk_key in visible_extent.iter_points() {
+        let voxel_key = chunk_key * CHUNK_SHAPE;
+        if lod0.get_chunk(voxel_key).is_none() {
+            chunk_commands.enqueue(ChunkCommand::Generate(chunk_key));
         }
     }
 }

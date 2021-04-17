@@ -142,13 +142,13 @@ fn apply_mesh_commands(
         let mut num_meshes_created = 0;
         for command in mesh_commands.commands.iter().rev().cloned() {
             match command {
-                MeshCommand::Create(key) => {
+                MeshCommand::Create(lod_key) => {
                     num_creates += 1;
                     num_meshes_created += 1;
                     s.spawn(async move {
                         (
-                            key,
-                            create_mesh_for_chunk(key, voxel_map, local_mesh_buffers),
+                                lod_key,
+                                create_mesh_for_chunk(lod_key, voxel_map, local_mesh_buffers),
                         )
                     });
                 }
@@ -167,20 +167,24 @@ fn apply_mesh_commands(
                                     bodies.remove(body, &mut *colliders, &mut *joints);
                                 }
                             }
-                            for &key in split.new_chunks.iter() {
+                            for &lod_key in split.new_chunks.iter() {
                                 num_meshes_created += 1;
                                 s.spawn(async move {
                                     (
-                                        key,
-                                        create_mesh_for_chunk(key, voxel_map, local_mesh_buffers),
+                                        lod_key,
+                                        create_mesh_for_chunk(
+                                            lod_key,
+                                            voxel_map,
+                                            local_mesh_buffers,
+                                        ),
                                     )
                                 });
                             }
                         }
                         LodChunkUpdate3::Merge(merge) => {
-                            for key in merge.old_chunks.iter() {
+                            for lod_key in merge.old_chunks.iter() {
                                 if let Some((entity, mesh, body)) =
-                                    chunk_meshes.entities.remove(&key)
+                                    chunk_meshes.entities.remove(&lod_key)
                                 {
                                     commands.entity(entity).despawn();
                                     meshes.remove(&mesh);
