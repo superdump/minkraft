@@ -25,7 +25,7 @@
 
 use crate::{
     mesh_generator::{MeshCommand, MeshCommandQueue},
-    voxel_map::{VoxelMap, CHUNK_LOG2, CLIP_BOX_RADIUS, WORLD_EXTENT},
+    voxel_map::{VoxelMap, CHUNK_LOG2, CLIP_BOX_RADIUS},
 };
 
 use bevy_prototype_character_controller::controller::CameraTag;
