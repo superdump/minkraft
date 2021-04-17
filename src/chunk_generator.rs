@@ -24,18 +24,13 @@
  *
  */
 
-use crate::{
-    voxel_map::{
-        generate_chunk, NoiseConfig, Voxel, VoxelMap, CHUNK_LOG2, CHUNK_SHAPE, SUPERCHUNK_SHAPE,
-        WORLD_CHUNKS_EXTENT,
-    },
+use crate::voxel_map::{
+    generate_chunk, NoiseConfig, Voxel, VoxelMap, CHUNK_LOG2, CHUNK_SHAPE, SUPERCHUNK_SHAPE,
+    WORLD_CHUNKS_EXTENT,
 };
 
 use bevy_prototype_character_controller::controller::CameraTag;
-use building_blocks::{
-    core::extent::bounding_extent,
-    prelude::*,
-};
+use building_blocks::{core::extent::bounding_extent, prelude::*};
 
 use bevy::{prelude::*, render::camera::Camera, tasks::ComputeTaskPool};
 use std::collections::VecDeque;
