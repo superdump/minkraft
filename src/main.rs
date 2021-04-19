@@ -271,8 +271,11 @@ fn voxel_map_config_update_system(
         if voxel_map_config.chunk_log2 > 7 {
             voxel_map_config.chunk_log2 = 1;
         }
-        *voxel_map_config =
-            VoxelMapConfig::new(voxel_map_config.chunk_log2, voxel_map_config.num_lods);
+        *voxel_map_config = VoxelMapConfig::new(
+            voxel_map_config.chunk_log2,
+            voxel_map_config.num_lods,
+            voxel_map_config.clip_box_radius,
+        );
     }
 }
 

@@ -182,18 +182,19 @@ impl Default for VoxelMapConfig {
     fn default() -> Self {
         let chunk_log2 = 4;
         let num_lods = 5;
-        VoxelMapConfig::new(chunk_log2, num_lods)
+        let clip_box_radius = 16;
+        VoxelMapConfig::new(chunk_log2, num_lods, clip_box_radius)
     }
 }
 
 impl VoxelMapConfig {
-    pub fn new(chunk_log2: i32, num_lods: u8) -> VoxelMapConfig {
+    pub fn new(chunk_log2: i32, num_lods: u8, clip_box_radius: i32) -> VoxelMapConfig {
         VoxelMapConfig {
             chunk_log2,
             chunk_shape: PointN([1 << chunk_log2; 3]),
             num_lods,
             superchunk_shape: PointN([1 << (chunk_log2 + num_lods as i32 - 1); 3]),
-            clip_box_radius: 16,
+            clip_box_radius,
             world_chunks_extent: Extent3i {
                 minimum: PointN([CHUNKS_MINIMUM_XZ, CHUNKS_MINIMUM_Y, CHUNKS_MINIMUM_XZ]),
                 shape: PointN([CHUNKS_SHAPE, CHUNKS_THICKNESS, CHUNKS_SHAPE]),
