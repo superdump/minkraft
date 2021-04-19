@@ -24,10 +24,7 @@
  *
  */
 
-use crate::voxel_map::{
-    generate_chunk, NoiseConfig, Voxel, VoxelMap, CHUNK_LOG2, CHUNK_SHAPE, SUPERCHUNK_SHAPE,
-    WORLD_CHUNKS_EXTENT,
-};
+use crate::voxel_map::{generate_chunk, NoiseConfig, Voxel, VoxelMap, VoxelMapConfig};
 
 use bevy_prototype_character_controller::controller::CameraTag;
 use building_blocks::{core::extent::bounding_extent, prelude::*};
@@ -71,6 +68,7 @@ pub fn chunk_generator_system(
     mut voxel_map: ResMut<VoxelMap>,
     mut chunk_commands: ResMut<ChunkCommandQueue>,
     noise_config: Res<NoiseConfig>,
+    voxel_map_config: Res<VoxelMapConfig>,
 ) {
     let num_chunks_to_generate = chunk_commands
         .len()
@@ -81,12 +79,15 @@ pub fn chunk_generator_system(
     let mut num_removes = 0;
     let mut generated_chunks = pool.scope(|s| {
         let noise_config = &noise_config;
+        let voxel_map_config = &voxel_map_config;
         let mut num_chunks_generated = 0;
         for command in chunk_commands.commands.iter().rev().cloned() {
             match command {
                 ChunkCommand::Generate(chunk_key) => {
                     num_chunks_generated += 1;
-                    s.spawn(async move { generate_chunk(chunk_key, noise_config) });
+                    s.spawn(
+                        async move { generate_chunk(chunk_key, noise_config, voxel_map_config) },
+                    );
                 }
                 _ => {}
             }
@@ -138,12 +139,12 @@ pub fn chunk_generator_system(
 
     if let Some(chunk_extent) = generated_chunk_extent {
         let voxel_map = &mut voxel_map;
-        let voxel_extent = chunk_extent * CHUNK_SHAPE;
+        let voxel_extent = chunk_extent * voxel_map_config.chunk_shape;
         pool.scope(|s| {
             let lod0 = voxel_map.pyramid.level(0);
             // TODO: If you need to update the OctreeChunkIndex, you could call add_extent and subtract_extent
             // on the superchunk_octrees field.
-            let index = OctreeChunkIndex::index_chunk_map(SUPERCHUNK_SHAPE, lod0);
+            let index = OctreeChunkIndex::index_chunk_map(voxel_map_config.superchunk_shape, lod0);
             s.spawn(async move {
                 voxel_map.pyramid.downsample_chunks_with_index(
                     &index,
@@ -162,6 +163,7 @@ pub fn chunk_generator_system(
 pub fn chunk_detection_system(
     cameras: Query<(&Camera, &GlobalTransform), With<CameraTag>>,
     voxel_map: Res<VoxelMap>,
+    voxel_map_config: Res<VoxelMapConfig>,
     mut chunk_commands: ResMut<ChunkCommandQueue>,
 ) {
     let camera_position = if let Some((_camera, tfm)) = cameras.iter().next() {
@@ -170,13 +172,14 @@ pub fn chunk_detection_system(
         return;
     };
 
-    let mut camera_center = Point3f::from(camera_position).in_voxel() >> CHUNK_LOG2;
+    let mut camera_center =
+        Point3f::from(camera_position).in_voxel() >> voxel_map_config.chunk_log2;
     *camera_center.y_mut() = 0;
-    let visible_extent = WORLD_CHUNKS_EXTENT + camera_center;
+    let visible_extent = voxel_map_config.world_chunks_extent + camera_center;
 
     let lod0 = voxel_map.pyramid.level(0);
     for chunk_key in visible_extent.iter_points() {
-        let voxel_key = chunk_key * CHUNK_SHAPE;
+        let voxel_key = chunk_key * voxel_map_config.chunk_shape;
         if lod0.get_chunk(voxel_key).is_none() {
             chunk_commands.enqueue(ChunkCommand::Generate(chunk_key));
         }

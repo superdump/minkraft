@@ -89,34 +89,41 @@ pub fn generate_map(
     pool: &ComputeTaskPool,
     chunks_extent: Extent3i,
     noise_config: Res<NoiseConfig>,
+    voxel_map_config: &Res<VoxelMapConfig>,
 ) -> VoxelMap {
-    let builder = ChunkMapBuilder3x1::new(CHUNK_SHAPE, Voxel::EMPTY);
-    let mut pyramid = ChunkHashMapPyramid3::new(builder, || SmallKeyHashMap::new(), NUM_LODS);
+    let builder = ChunkMapBuilder3x1::new(voxel_map_config.chunk_shape, Voxel::EMPTY);
+    let mut pyramid = ChunkHashMapPyramid3::new(
+        builder,
+        || SmallKeyHashMap::new(),
+        voxel_map_config.num_lods,
+    );
     let lod0 = pyramid.level_mut(0);
 
     let chunks = pool.scope(|s| {
         let noise_config = &noise_config;
         for p in chunks_extent.iter_points() {
-            s.spawn(async move { generate_chunk(p, noise_config) });
+            s.spawn(async move { generate_chunk(p, noise_config, voxel_map_config) });
         }
     });
     for (chunk_key, chunk) in chunks.into_iter() {
         lod0.write_chunk(chunk_key, chunk);
     }
 
-    let index = OctreeChunkIndex::index_chunk_map(SUPERCHUNK_SHAPE, lod0);
+    let index = OctreeChunkIndex::index_chunk_map(voxel_map_config.superchunk_shape, lod0);
 
-    let world_extent = chunks_extent * CHUNK_SHAPE;
+    let world_extent = chunks_extent * voxel_map_config.chunk_shape;
     pyramid.downsample_chunks_with_index(&index, &PointDownsampler, &world_extent);
 
     VoxelMap { pyramid, index }
 }
 
-pub fn update_pyramid() {}
-
-pub fn generate_chunk(key: Point3i, noise_config: &Res<NoiseConfig>) -> (Point3i, Array3x1<Voxel>) {
-    let chunk_min = key * CHUNK_SHAPE;
-    let chunk_extent = Extent3i::from_min_and_shape(chunk_min, CHUNK_SHAPE);
+pub fn generate_chunk(
+    key: Point3i,
+    noise_config: &Res<NoiseConfig>,
+    voxel_map_config: &Res<VoxelMapConfig>,
+) -> (Point3i, Array3x1<Voxel>) {
+    let chunk_min = key * voxel_map_config.chunk_shape;
+    let chunk_extent = Extent3i::from_min_and_shape(chunk_min, voxel_map_config.chunk_shape);
     let mut chunk_noise = Array3x1::fill(chunk_extent, Voxel::EMPTY);
 
     let noise = noise_array(
@@ -157,30 +164,47 @@ fn noise_array(extent: Extent3i, freq: f32, seed: i32, octaves: u8) -> Array3x1<
     Array3x1::new_one_channel(extent, noise)
 }
 
-pub const CHUNK_LOG2: i32 = 4;
-pub const CHUNK_SHAPE: Point3i = PointN([1 << CHUNK_LOG2; 3]);
-pub const NUM_LODS: u8 = 5;
-pub const SUPERCHUNK_SHAPE: Point3i = PointN([1 << (CHUNK_LOG2 + NUM_LODS as i32 - 1); 3]);
-pub const CLIP_BOX_RADIUS: i32 = 16;
+pub struct VoxelMapConfig {
+    pub chunk_log2: i32,
+    pub chunk_shape: Point3i,
+    pub num_lods: u8,
+    pub superchunk_shape: Point3i,
+    pub clip_box_radius: i32,
+    pub world_chunks_extent: Extent3i,
+    pub world_voxel_extent: Extent3i,
+}
 
 const CHUNKS_MINIMUM_XZ: i32 = -50;
 const CHUNKS_MINIMUM_Y: i32 = 0;
 const CHUNKS_SHAPE: i32 = 100;
 const CHUNKS_THICKNESS: i32 = 1;
 
-pub const WORLD_CHUNKS_EXTENT: Extent3i = Extent3i {
-    minimum: PointN([CHUNKS_MINIMUM_XZ, CHUNKS_MINIMUM_Y, CHUNKS_MINIMUM_XZ]),
-    shape: PointN([CHUNKS_SHAPE, CHUNKS_THICKNESS, CHUNKS_SHAPE]),
-};
-pub const WORLD_VOXEL_EXTENT: Extent3i = Extent3i {
-    minimum: PointN([
-        CHUNKS_MINIMUM_XZ << CHUNK_LOG2,
-        CHUNKS_MINIMUM_Y << CHUNK_LOG2,
-        CHUNKS_MINIMUM_XZ << CHUNK_LOG2,
-    ]),
-    shape: PointN([
-        CHUNKS_SHAPE << CHUNK_LOG2,
-        CHUNKS_THICKNESS << CHUNK_LOG2,
-        CHUNKS_SHAPE << CHUNK_LOG2,
-    ]),
-};
+impl Default for VoxelMapConfig {
+    fn default() -> Self {
+        let chunk_log2 = 4;
+        let num_lods = 5;
+        Self {
+            chunk_log2,
+            chunk_shape: PointN([1 << chunk_log2; 3]),
+            num_lods,
+            superchunk_shape: PointN([1 << (chunk_log2 + num_lods as i32 - 1); 3]),
+            clip_box_radius: 16,
+            world_chunks_extent: Extent3i {
+                minimum: PointN([CHUNKS_MINIMUM_XZ, CHUNKS_MINIMUM_Y, CHUNKS_MINIMUM_XZ]),
+                shape: PointN([CHUNKS_SHAPE, CHUNKS_THICKNESS, CHUNKS_SHAPE]),
+            },
+            world_voxel_extent: Extent3i {
+                minimum: PointN([
+                    CHUNKS_MINIMUM_XZ << chunk_log2,
+                    CHUNKS_MINIMUM_Y << chunk_log2,
+                    CHUNKS_MINIMUM_XZ << chunk_log2,
+                ]),
+                shape: PointN([
+                    CHUNKS_SHAPE << chunk_log2,
+                    CHUNKS_THICKNESS << chunk_log2,
+                    CHUNKS_SHAPE << chunk_log2,
+                ]),
+            },
+        }
+    }
+}

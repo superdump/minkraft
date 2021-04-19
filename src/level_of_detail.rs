@@ -26,7 +26,7 @@
 
 use crate::{
     mesh_generator::{MeshCommand, MeshCommandQueue},
-    voxel_map::{VoxelMap, CHUNK_LOG2, CLIP_BOX_RADIUS},
+    voxel_map::{VoxelMap, VoxelMapConfig},
 };
 
 use bevy_prototype_character_controller::controller::CameraTag;
@@ -51,6 +51,7 @@ impl LodState {
 pub fn level_of_detail_system(
     cameras: Query<(&Camera, &GlobalTransform), With<CameraTag>>,
     voxel_map: Res<VoxelMap>,
+    voxel_map_config: Res<VoxelMapConfig>,
     mut lod_state: ResMut<LodState>,
     mut mesh_commands: ResMut<MeshCommandQueue>,
 ) {
@@ -62,7 +63,7 @@ pub fn level_of_detail_system(
     // TODO: Remove this when no longer debugging
     camera_position.y = 0.0f32;
 
-    let lod0_center = Point3f::from(camera_position).in_voxel() >> CHUNK_LOG2;
+    let lod0_center = Point3f::from(camera_position).in_voxel() >> voxel_map_config.chunk_log2;
 
     if lod0_center == lod_state.old_lod0_center {
         return;
@@ -71,7 +72,7 @@ pub fn level_of_detail_system(
     let bounding_extent = voxel_map.pyramid.level(0).bounding_extent();
     voxel_map.index.find_clipmap_chunk_updates(
         &bounding_extent,
-        CLIP_BOX_RADIUS,
+        voxel_map_config.clip_box_radius,
         lod_state.old_lod0_center,
         lod0_center,
         |update| mesh_commands.enqueue(MeshCommand::Update(update)),

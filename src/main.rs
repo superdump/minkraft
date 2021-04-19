@@ -23,10 +23,7 @@ use minkraft::{
     mesh_generator::{
         mesh_generator_system, ChunkMeshes, MeshCommand, MeshCommandQueue, MeshMaterials,
     },
-    voxel_map::{
-        generate_map, NoiseConfig, CHUNK_LOG2, CLIP_BOX_RADIUS, WORLD_CHUNKS_EXTENT,
-        WORLD_VOXEL_EXTENT,
-    },
+    voxel_map::{generate_map, NoiseConfig, VoxelMapConfig},
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
 
@@ -64,6 +61,7 @@ fn main() {
         // Terrain
         // .add_plugin(GeneratePlugin)
         .insert_resource(NoiseConfig::default())
+        .insert_resource(VoxelMapConfig::default())
         .insert_resource(ChunkCommandQueue::default())
         .add_system(chunk_detection_system.system().label("chunk_detection"))
         .add_system(
@@ -188,16 +186,18 @@ fn setup_world(
     pool: Res<ComputeTaskPool>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     noise_config: Res<NoiseConfig>,
-    mut mesh_commands: ResMut<MeshCommandQueue>,
+    voxel_map_config: Res<VoxelMapConfig>,
+    mesh_commands: ResMut<MeshCommandQueue>,
 ) {
     // Generate a voxel map from noise.
-    let map = generate_map(&*pool, WORLD_CHUNKS_EXTENT, noise_config);
+    let map = generate_map(&*pool, voxel_map_config.world_chunks_extent, noise_config);
 
     // Queue up commands to initialize the chunk meshes to their appropriate LODs given the starting camera position.
-    let init_lod0_center = Point3f::from(Vec3::new(1.1, 90.0, 1.1)).in_voxel() >> CHUNK_LOG2;
+    let init_lod0_center =
+        Point3f::from(Vec3::new(1.1, 90.0, 1.1)).in_voxel() >> voxel_map_config.chunk_log2;
     map.index.active_clipmap_lod_chunks(
-        &WORLD_VOXEL_EXTENT,
-        CLIP_BOX_RADIUS,
+        &voxel_map_config.world_voxel_extent,
+        voxel_map_config.clip_box_radius,
         init_lod0_center,
         |chunk_key| mesh_commands.enqueue(MeshCommand::Create(chunk_key)),
     );
