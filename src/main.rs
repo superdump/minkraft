@@ -1,7 +1,7 @@
 use bevy::{
     input::{keyboard::KeyCode, system::exit_on_esc_system},
     prelude::*,
-    render::camera::{Camera, PerspectiveProjection},
+    render::camera::PerspectiveProjection,
     tasks::ComputeTaskPool,
 };
 use bevy_prototype_character_controller::{
@@ -12,20 +12,14 @@ use bevy_prototype_character_controller::{
 use bevy_rapier3d::{
     physics::{PhysicsInterpolationComponent, RapierConfiguration, RapierPhysicsPlugin},
     rapier::dynamics::RigidBodyBuilder,
-    rapier::{
-        dynamics::{JointSet, RigidBodySet},
-        geometry::{ColliderBuilder, ColliderSet},
-    },
+    rapier::geometry::ColliderBuilder,
 };
 use building_blocks::core::prelude::*;
 use minkraft::{
-    chunk_generator::{chunk_detection_system, chunk_generator_system, ChunkCommandQueue},
     debug::{Debug, DebugPlugin, DebugTransformTag},
-    level_of_detail::{level_of_detail_system, LodState},
-    mesh_generator::{
-        mesh_generator_system, ChunkMeshes, MeshCommand, MeshCommandQueue, MeshMaterials,
-    },
-    voxel_map::{generate_map, NoiseConfig, VoxelMap, VoxelMapConfig},
+    level_of_detail::LodState,
+    mesh_generator::{ChunkMeshes, MeshCommandQueue, MeshMaterials},
+    voxel_map::{NoiseConfig, VoxelMap, VoxelMapConfig, VoxelMapPlugin},
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
 
@@ -62,45 +56,7 @@ fn main() {
         .add_plugin(RapierDynamicImpulseCharacterControllerPlugin)
         // Terrain
         // .add_plugin(GeneratePlugin)
-        .insert_resource(NoiseConfig::default())
-        .insert_resource(VoxelMapConfig::default())
-        .insert_resource(ChunkCommandQueue::default())
-        .add_system(
-            voxel_map_config_update_system
-                .system()
-                .label("voxel_map_config_update"),
-        )
-        .add_system(
-            voxel_map_config_changed_system
-                .system()
-                .label("voxel_map_config_changed")
-                .after("voxel_map_config_update"),
-        )
-        .add_system(
-            chunk_detection_system
-                .system()
-                .label("chunk_detection")
-                .after("voxel_map_config_changed"),
-        )
-        .add_system(
-            chunk_generator_system
-                .system()
-                .label("chunk_generator")
-                .after("chunk_detection"),
-        )
-        .insert_resource(MeshCommandQueue::default())
-        .add_system(
-            level_of_detail_system
-                .system()
-                .label("level_of_detail")
-                .after("chunk_generator"),
-        )
-        .add_system(
-            mesh_generator_system
-                .system()
-                .label("mesh_generator")
-                .after("level_of_detail"),
-        )
+        .add_plugin(VoxelMapPlugin)
         // Minkraft
         .add_startup_system(setup_world.system())
         .add_startup_system(setup_player.system())
@@ -210,7 +166,7 @@ fn setup_world(
     let init_lod0_center =
         Point3f::from(Vec3::new(1.1, 90.0, 1.1)).in_voxel() >> voxel_map_config.chunk_log2;
 
-    let map = init_map(
+    let map = VoxelMap::new(
         &pool,
         &voxel_map_config,
         &noise_config,
@@ -254,103 +210,6 @@ fn setup_world(
         },
         ..Default::default()
     });
-}
-
-fn voxel_map_config_update_system(
-    keyboard_input: Res<Input<KeyCode>>,
-    mut voxel_map_config: ResMut<VoxelMapConfig>,
-) {
-    if keyboard_input.just_pressed(KeyCode::C) {
-        voxel_map_config.clip_box_radius <<= 1;
-        if voxel_map_config.clip_box_radius > 128 {
-            voxel_map_config.clip_box_radius = 1;
-        }
-    }
-    if keyboard_input.just_pressed(KeyCode::L) {
-        voxel_map_config.chunk_log2 += 1;
-        if voxel_map_config.chunk_log2 > 7 {
-            voxel_map_config.chunk_log2 = 1;
-        }
-        *voxel_map_config = VoxelMapConfig::new(
-            voxel_map_config.chunk_log2,
-            voxel_map_config.num_lods,
-            voxel_map_config.clip_box_radius,
-        );
-    }
-}
-
-fn voxel_map_config_changed_system(
-    cameras: Query<(&Camera, &GlobalTransform), With<CameraTag>>,
-    pool: Res<ComputeTaskPool>,
-    mut voxel_map: ResMut<VoxelMap>,
-    voxel_map_config: Res<VoxelMapConfig>,
-    mut lod_state: ResMut<LodState>,
-    noise_config: Res<NoiseConfig>,
-    mut chunk_meshes: ResMut<ChunkMeshes>,
-    mut mesh_commands: ResMut<MeshCommandQueue>,
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut bodies: ResMut<RigidBodySet>,
-    mut colliders: ResMut<ColliderSet>,
-    mut joints: ResMut<JointSet>,
-) {
-    if !voxel_map_config.is_changed() {
-        return;
-    }
-
-    chunk_meshes.clear_entities(
-        &mut commands,
-        &mut meshes,
-        &mut bodies,
-        &mut colliders,
-        &mut joints,
-    );
-    mesh_commands.clear();
-
-    let mut camera_position = if let Some((_camera, tfm)) = cameras.iter().next() {
-        tfm.translation
-    } else {
-        return;
-    };
-    // TODO: Remove this when no longer debugging
-    camera_position.y = 0.0f32;
-
-    let lod0_center = Point3f::from(camera_position).in_voxel() >> voxel_map_config.chunk_log2;
-
-    *voxel_map = init_map(
-        &pool,
-        &voxel_map_config,
-        &noise_config,
-        mesh_commands,
-        lod0_center,
-    );
-    lod_state.old_lod0_center = lod0_center;
-}
-
-fn init_map(
-    pool: &Res<ComputeTaskPool>,
-    voxel_map_config: &Res<VoxelMapConfig>,
-    noise_config: &Res<NoiseConfig>,
-    mut mesh_commands: ResMut<MeshCommandQueue>,
-    lod0_center: Point3i,
-) -> VoxelMap {
-    // Generate a voxel map from noise.
-    let map = generate_map(
-        pool,
-        voxel_map_config.world_chunks_extent,
-        noise_config,
-        voxel_map_config,
-    );
-
-    // Queue up commands to initialize the chunk meshes to their appropriate LODs given the starting camera position.
-    map.index.active_clipmap_lod_chunks(
-        &voxel_map_config.world_voxel_extent,
-        voxel_map_config.clip_box_radius,
-        lod0_center,
-        |chunk_key| mesh_commands.enqueue(MeshCommand::Create(chunk_key)),
-    );
-    assert!(!mesh_commands.is_empty());
-    map
 }
 
 fn toggle_debug_system(
