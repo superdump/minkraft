@@ -54,11 +54,13 @@ pub fn level_of_detail_system(
     mut lod_state: ResMut<LodState>,
     mut mesh_commands: ResMut<MeshCommandQueue>,
 ) {
-    let camera_position = if let Some((_camera, tfm)) = cameras.iter().next() {
+    let mut camera_position = if let Some((_camera, tfm)) = cameras.iter().next() {
         tfm.translation
     } else {
         return;
     };
+    // TODO: Remove this when no longer debugging
+    camera_position.y = 0.0f32;
 
     let lod0_center = Point3f::from(camera_position).in_voxel() >> CHUNK_LOG2;
 
