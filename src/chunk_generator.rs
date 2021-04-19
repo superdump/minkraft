@@ -138,6 +138,7 @@ pub fn chunk_generator_system(
 
     if let Some(chunk_extent) = generated_chunk_extent {
         let voxel_map = &mut voxel_map;
+        let voxel_extent = chunk_extent * CHUNK_SHAPE;
         pool.scope(|s| {
             let lod0 = voxel_map.pyramid.level(0);
             // TODO: If you need to update the OctreeChunkIndex, you could call add_extent and subtract_extent
@@ -147,7 +148,7 @@ pub fn chunk_generator_system(
                 voxel_map.pyramid.downsample_chunks_with_index(
                     &index,
                     &PointDownsampler,
-                    &chunk_extent,
+                    &voxel_extent,
                 );
                 voxel_map.index = index;
             });
