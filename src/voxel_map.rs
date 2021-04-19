@@ -122,11 +122,11 @@ pub fn generate_chunk(
     voxel_map_config: &Res<VoxelMapConfig>,
 ) -> (Point3i, Array3x1<Voxel>) {
     let chunk_min = key * voxel_map_config.chunk_shape;
-    let chunk_extent = Extent3i::from_min_and_shape(chunk_min, voxel_map_config.chunk_shape);
-    let mut chunk_noise = Array3x1::fill(chunk_extent, Voxel::EMPTY);
+    let chunk_voxel_extent = Extent3i::from_min_and_shape(chunk_min, voxel_map_config.chunk_shape);
+    let mut chunk_noise = Array3x1::fill(chunk_voxel_extent, Voxel::EMPTY);
 
     let noise = noise_array(
-        chunk_extent,
+        chunk_voxel_extent,
         noise_config.frequency,
         noise_config.seed,
         noise_config.octaves,
@@ -140,7 +140,7 @@ pub fn generate_chunk(
             Voxel::EMPTY
         }
     });
-    copy_extent(&chunk_extent, &sdf_voxel_noise, &mut chunk_noise);
+    copy_extent(&chunk_voxel_extent, &sdf_voxel_noise, &mut chunk_noise);
 
     (chunk_min, chunk_noise)
 }
