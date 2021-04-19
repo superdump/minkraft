@@ -36,7 +36,7 @@ use bevy::{prelude::*, render::camera::Camera};
 
 #[derive(Default)]
 pub struct LodState {
-    old_lod0_center: Point3i,
+    pub old_lod0_center: Point3i,
 }
 
 impl LodState {

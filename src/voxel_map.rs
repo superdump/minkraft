@@ -86,9 +86,9 @@ impl Default for NoiseConfig {
 }
 
 pub fn generate_map(
-    pool: &ComputeTaskPool,
+    pool: &Res<ComputeTaskPool>,
     chunks_extent: Extent3i,
-    noise_config: Res<NoiseConfig>,
+    noise_config: &Res<NoiseConfig>,
     voxel_map_config: &Res<VoxelMapConfig>,
 ) -> VoxelMap {
     let builder = ChunkMapBuilder3x1::new(voxel_map_config.chunk_shape, Voxel::EMPTY);
@@ -100,7 +100,6 @@ pub fn generate_map(
     let lod0 = pyramid.level_mut(0);
 
     let chunks = pool.scope(|s| {
-        let noise_config = &noise_config;
         for p in chunks_extent.iter_points() {
             s.spawn(async move { generate_chunk(p, noise_config, voxel_map_config) });
         }

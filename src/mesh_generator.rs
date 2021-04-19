@@ -34,6 +34,7 @@ use bevy_rapier3d::{
     rapier::{
         dynamics::{JointSet, RigidBodyBuilder, RigidBodyHandle, RigidBodySet},
         geometry::{ColliderBuilder, ColliderSet},
+        rayon::join,
     },
 };
 use building_blocks::{
@@ -71,6 +72,10 @@ impl MeshCommandQueue {
     pub fn len(&self) -> usize {
         self.commands.len()
     }
+
+    pub fn clear(&mut self) {
+        self.commands.clear();
+    }
 }
 
 // PERF: try to eliminate the use of multiple Vecs
@@ -84,6 +89,59 @@ pub enum MeshCommand {
 pub struct ChunkMeshes {
     // Map from chunk key to mesh entity.
     entities: SmallKeyHashMap<LodChunkKey3, (Entity, Handle<Mesh>, Option<RigidBodyHandle>)>,
+}
+
+impl ChunkMeshes {
+    pub fn clear_entities(
+        &mut self,
+        commands: &mut Commands,
+        meshes: &mut Assets<Mesh>,
+        bodies: &mut RigidBodySet,
+        colliders: &mut ColliderSet,
+        joints: &mut JointSet,
+    ) {
+        self.entities.retain(|_, (entity, mesh, body)| {
+            clear_up_entity(
+                entity, mesh, body, commands, meshes, bodies, colliders, joints,
+            );
+            false
+        });
+    }
+
+    pub fn remove_entity(
+        &mut self,
+        lod_chunk_key: &LodChunkKey3,
+        commands: &mut Commands,
+        meshes: &mut Assets<Mesh>,
+        bodies: &mut RigidBodySet,
+        colliders: &mut ColliderSet,
+        joints: &mut JointSet,
+    ) {
+        if let Some((entity, mesh, body)) = self.entities.remove(lod_chunk_key) {
+            clear_up_entity(
+                &entity, &mesh, &body, commands, meshes, bodies, colliders, joints,
+            );
+        }
+    }
+}
+
+fn clear_up_entity(
+    entity: &Entity,
+    mesh: &Handle<Mesh>,
+    body: &Option<RigidBodyHandle>,
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    bodies: &mut RigidBodySet,
+    colliders: &mut ColliderSet,
+    joints: &mut JointSet,
+) {
+    commands.entity(*entity).despawn();
+    meshes.remove(mesh);
+    if let Some(body) = body {
+        // NOTE: This removes the body, as well as its colliders and
+        // joints from the simulation so it's the only thing we need to call
+        bodies.remove(*body, &mut *colliders, &mut *joints);
+    }
 }
 
 /// Generates new meshes for all dirty chunks.
