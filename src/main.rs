@@ -24,7 +24,8 @@ use minkraft::{
         mesh_generator_system, ChunkMeshes, MeshCommand, MeshCommandQueue, MeshMaterials,
     },
     voxel_map::{
-        generate_map, NoiseConfig, CHUNK_LOG2, CLIP_BOX_RADIUS, WORLD_CHUNKS_EXTENT, WORLD_EXTENT,
+        generate_map, NoiseConfig, CHUNK_LOG2, CLIP_BOX_RADIUS, WORLD_CHUNKS_EXTENT,
+        WORLD_VOXEL_EXTENT,
     },
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
@@ -195,7 +196,7 @@ fn setup_world(
     // Queue up commands to initialize the chunk meshes to their appropriate LODs given the starting camera position.
     let init_lod0_center = Point3f::from(Vec3::new(1.1, 90.0, 1.1)).in_voxel() >> CHUNK_LOG2;
     map.index.active_clipmap_lod_chunks(
-        &WORLD_EXTENT,
+        &WORLD_VOXEL_EXTENT,
         CLIP_BOX_RADIUS,
         init_lod0_center,
         |chunk_key| mesh_commands.enqueue(MeshCommand::Create(chunk_key)),

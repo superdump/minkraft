@@ -172,7 +172,7 @@ pub const WORLD_CHUNKS_EXTENT: Extent3i = Extent3i {
     minimum: PointN([CHUNKS_MINIMUM_XZ, CHUNKS_MINIMUM_Y, CHUNKS_MINIMUM_XZ]),
     shape: PointN([CHUNKS_SHAPE, CHUNKS_THICKNESS, CHUNKS_SHAPE]),
 };
-pub const WORLD_EXTENT: Extent3i = Extent3i {
+pub const WORLD_VOXEL_EXTENT: Extent3i = Extent3i {
     minimum: PointN([
         CHUNKS_MINIMUM_XZ << CHUNK_LOG2,
         CHUNKS_MINIMUM_Y << CHUNK_LOG2,
