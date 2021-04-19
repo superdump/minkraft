@@ -50,6 +50,11 @@ fn max_mesh_creations_per_frame(pool: &ComputeTaskPool) -> usize {
 }
 
 #[derive(Default)]
+pub struct MeshMaterials {
+    pub mesh_materials: Vec<Handle<StandardMaterial>>,
+}
+
+#[derive(Default)]
 pub struct MeshCommandQueue {
     commands: VecDeque<MeshCommand>,
 }
@@ -76,9 +81,6 @@ pub enum MeshCommand {
 }
 
 #[derive(Default)]
-pub struct MeshMaterial(pub Handle<StandardMaterial>);
-
-#[derive(Default)]
 pub struct ChunkMeshes {
     // Map from chunk key to mesh entity.
     entities: SmallKeyHashMap<LodChunkKey3, (Entity, Handle<Mesh>, Option<RigidBodyHandle>)>,
@@ -90,7 +92,7 @@ pub fn mesh_generator_system(
     pool: Res<ComputeTaskPool>,
     voxel_map: Res<VoxelMap>,
     local_mesh_buffers: ecs::system::Local<ThreadLocalMeshBuffers>,
-    mesh_material: Res<MeshMaterial>,
+    mesh_materials: Res<MeshMaterials>,
     mut mesh_commands: ResMut<MeshCommandQueue>,
     mut mesh_assets: ResMut<Assets<Mesh>>,
     mut chunk_meshes: ResMut<ChunkMeshes>,
@@ -112,7 +114,7 @@ pub fn mesh_generator_system(
     );
     spawn_mesh_entities(
         new_chunk_meshes,
-        &*mesh_material,
+        &*mesh_materials,
         &mut commands,
         &mut *mesh_assets,
         &mut *chunk_meshes,
@@ -290,7 +292,7 @@ pub struct LocalSurfaceNetsBuffers {
 
 fn spawn_mesh_entities(
     new_chunk_meshes: Vec<(LodChunkKey3, Option<PosNormMesh>)>,
-    mesh_material: &MeshMaterial,
+    mesh_materials: &MeshMaterials,
     commands: &mut Commands,
     mesh_assets: &mut Assets<Mesh>,
     chunk_meshes: &mut ChunkMeshes,
@@ -308,7 +310,7 @@ fn spawn_mesh_entities(
                 let entity = commands
                     .spawn_bundle(PbrBundle {
                         mesh: mesh_handle.clone(),
-                        material: mesh_material.0.clone(),
+                        material: mesh_materials.mesh_materials[lod_chunk_key.lod as usize].clone(),
                         ..Default::default()
                     })
                     .id();

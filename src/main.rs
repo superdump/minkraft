@@ -20,7 +20,7 @@ use minkraft::{
     // generate::{GeneratePlugin, GeneratedVoxelsTag},
     level_of_detail::{level_of_detail_system, LodState},
     mesh_generator::{
-        mesh_generator_system, ChunkMeshes, MeshCommand, MeshCommandQueue, MeshMaterial,
+        mesh_generator_system, ChunkMeshes, MeshCommand, MeshCommandQueue, MeshMaterials,
     },
     voxel_map::{
         generate_map, NoiseConfig, CHUNK_LOG2, CLIP_BOX_RADIUS, WORLD_CHUNKS_EXTENT, WORLD_EXTENT,
@@ -200,9 +200,22 @@ fn setup_world(
     commands.insert_resource(map);
     commands.insert_resource(ChunkMeshes::default());
 
-    let mut material = StandardMaterial::from(Color::rgb(1.0, 0.0, 0.0));
-    material.roughness = 0.9;
-    commands.insert_resource(MeshMaterial(materials.add(material)));
+    let colors = [
+        Color::RED,
+        Color::ORANGE,
+        Color::YELLOW,
+        Color::GREEN,
+        Color::BLUE,
+        Color::INDIGO,
+        Color::VIOLET,
+    ];
+    let mut mesh_materials = MeshMaterials::default();
+    for color in &colors {
+        let mut material = StandardMaterial::from(*color);
+        material.roughness = 0.9;
+        mesh_materials.mesh_materials.push(materials.add(material));
+    }
+    commands.insert_resource(mesh_materials);
 
     // commands.insert_resource(AmbientLight {
     //     color: Color::rgb_linear(1.0f32, 0.84f32, 0.67f32),
