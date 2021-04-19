@@ -25,7 +25,6 @@ use minkraft::{
     mesh_generator::{
         mesh_generator_system, ChunkMeshes, MeshCommand, MeshCommandQueue, MeshMaterials,
     },
-    utilities::bevy_util::mesh,
     voxel_map::{generate_map, NoiseConfig, VoxelMap, VoxelMapConfig},
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
@@ -266,6 +265,14 @@ fn voxel_map_config_update_system(
         if voxel_map_config.clip_box_radius > 128 {
             voxel_map_config.clip_box_radius = 1;
         }
+    }
+    if keyboard_input.just_pressed(KeyCode::L) {
+        voxel_map_config.chunk_log2 += 1;
+        if voxel_map_config.chunk_log2 > 7 {
+            voxel_map_config.chunk_log2 = 1;
+        }
+        *voxel_map_config =
+            VoxelMapConfig::new(voxel_map_config.chunk_log2, voxel_map_config.num_lods);
     }
 }
 

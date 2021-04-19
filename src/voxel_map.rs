@@ -182,7 +182,13 @@ impl Default for VoxelMapConfig {
     fn default() -> Self {
         let chunk_log2 = 4;
         let num_lods = 5;
-        Self {
+        VoxelMapConfig::new(chunk_log2, num_lods)
+    }
+}
+
+impl VoxelMapConfig {
+    pub fn new(chunk_log2: i32, num_lods: u8) -> VoxelMapConfig {
+        VoxelMapConfig {
             chunk_log2,
             chunk_shape: PointN([1 << chunk_log2; 3]),
             num_lods,
