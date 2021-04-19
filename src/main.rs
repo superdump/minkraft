@@ -1,6 +1,7 @@
 use bevy::{
     input::{keyboard::KeyCode, system::exit_on_esc_system},
     prelude::*,
+    render::camera::PerspectiveProjection,
     tasks::ComputeTaskPool,
 };
 use bevy_prototype_character_controller::{
@@ -165,6 +166,10 @@ fn setup_player(
     let camera = commands
         .spawn_bundle(PerspectiveCameraBundle {
             transform: Transform::from_matrix(camera_transform),
+            perspective_projection: PerspectiveProjection {
+                far: 5000.0f32,
+                ..Default::default()
+            },
             ..Default::default()
         })
         .insert_bundle((LookDirection::default(), CameraTag, WorldAxesCameraTag))
