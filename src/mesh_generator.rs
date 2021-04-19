@@ -34,7 +34,6 @@ use bevy_rapier3d::{
     rapier::{
         dynamics::{JointSet, RigidBodyBuilder, RigidBodyHandle, RigidBodySet},
         geometry::{ColliderBuilder, ColliderSet},
-        rayon::join,
     },
 };
 use building_blocks::{
