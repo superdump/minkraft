@@ -138,14 +138,12 @@ pub fn chunk_generator_system(
     }
 
     if let Some(chunk_extent) = generated_chunk_extent {
-        let voxel_map = &mut voxel_map;
         let voxel_extent = chunk_extent * voxel_map_config.chunk_shape;
         pool.scope(|s| {
-            let lod0 = voxel_map.pyramid.level(0);
-            // TODO: If you need to update the OctreeChunkIndex, you could call add_extent and subtract_extent
-            // on the superchunk_octrees field.
-            let index = OctreeChunkIndex::index_chunk_map(voxel_map_config.superchunk_shape, lod0);
+            let voxel_map = &mut voxel_map;
             s.spawn(async move {
+                let mut index = voxel_map.index.clone();
+                index.superchunk_octrees.add_extent(&voxel_extent);
                 voxel_map.pyramid.downsample_chunks_with_index(
                     &index,
                     &PointDownsampler,
