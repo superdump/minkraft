@@ -78,7 +78,6 @@ pub fn chunk_generator_system(
     let mut num_edits = 0;
     let mut num_removes = 0;
     let mut generated_chunks = pool.scope(|s| {
-        let lod0_storage = voxel_map.pyramid.level(0).storage();
         let noise_config = &noise_config;
         let voxel_map_config = &voxel_map_config;
         let mut num_chunks_generated = 0;
