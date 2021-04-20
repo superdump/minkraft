@@ -238,7 +238,6 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6b14f8ba7c373fdf7bd27547bb95f2849b2569bf02bbf3d19ca54e9d692de4f"
 dependencies = [
- "bevy_dylib",
  "bevy_internal",
  "syn",
 ]
@@ -349,15 +348,6 @@ dependencies = [
  "bevy_log",
  "bevy_utils",
  "parking_lot",
-]
-
-[[package]]
-name = "bevy_dylib"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efa62c7c03470969539a07337bf8c5694c0b952678fd081d68b6331842134b85"
-dependencies = [
- "bevy_internal",
 ]
 
 [[package]]
@@ -855,7 +845,7 @@ checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
 [[package]]
 name = "building-blocks"
 version = "0.6.0"
-source = "git+https://github.com/bonsairobo/building-blocks?branch=main#95a59081f3c49deb1da91a957485b895653a68b6"
+source = "git+https://github.com/bonsairobo/building-blocks?branch=main#1f07493fd4278a9eddb2252ade88ffefae37d53e"
 dependencies = [
  "building_blocks_core",
  "building_blocks_mesh",
@@ -866,7 +856,7 @@ dependencies = [
 [[package]]
 name = "building_blocks_core"
 version = "0.6.0"
-source = "git+https://github.com/bonsairobo/building-blocks?branch=main#95a59081f3c49deb1da91a957485b895653a68b6"
+source = "git+https://github.com/bonsairobo/building-blocks?branch=main#1f07493fd4278a9eddb2252ade88ffefae37d53e"
 dependencies = [
  "glam",
  "itertools",
@@ -880,7 +870,7 @@ dependencies = [
 [[package]]
 name = "building_blocks_mesh"
 version = "0.6.0"
-source = "git+https://github.com/bonsairobo/building-blocks?branch=main#95a59081f3c49deb1da91a957485b895653a68b6"
+source = "git+https://github.com/bonsairobo/building-blocks?branch=main#1f07493fd4278a9eddb2252ade88ffefae37d53e"
 dependencies = [
  "building_blocks_core",
  "building_blocks_storage",
@@ -889,7 +879,7 @@ dependencies = [
 [[package]]
 name = "building_blocks_search"
 version = "0.6.0"
-source = "git+https://github.com/bonsairobo/building-blocks?branch=main#95a59081f3c49deb1da91a957485b895653a68b6"
+source = "git+https://github.com/bonsairobo/building-blocks?branch=main#1f07493fd4278a9eddb2252ade88ffefae37d53e"
 dependencies = [
  "building_blocks_core",
  "building_blocks_storage",
@@ -903,7 +893,7 @@ dependencies = [
 [[package]]
 name = "building_blocks_storage"
 version = "0.6.0"
-source = "git+https://github.com/bonsairobo/building-blocks?branch=main#95a59081f3c49deb1da91a957485b895653a68b6"
+source = "git+https://github.com/bonsairobo/building-blocks?branch=main#1f07493fd4278a9eddb2252ade88ffefae37d53e"
 dependencies = [
  "ahash 0.7.2",
  "auto_impl",
@@ -1093,9 +1083,9 @@ dependencies = [
 
 [[package]]
 name = "const_fn"
-version = "0.4.6"
+version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "076a6803b0dacd6a88cfe64deba628b01533ff5ef265687e6938280c1afd0a28"
+checksum = "402da840495de3f976eaefc3485b7f5eb5b0bf9761f9a47be27fe975b3b8c2ec"
 
 [[package]]
 name = "copyless"
@@ -1745,9 +1735,9 @@ dependencies = [
 
 [[package]]
 name = "gfx-backend-dx12"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36dc6ba2b7647e2c2b27b8f74ff5ccdd53c703776588eee5b1de515fdcbd6bc9"
+checksum = "5032d716a2a5f4dafb4675a794c5dc32081af8fbc7303c93ad93ff5413c6559f"
 dependencies = [
  "arrayvec 0.5.2",
  "bit-set",
@@ -1761,6 +1751,7 @@ dependencies = [
  "raw-window-handle",
  "smallvec",
  "spirv_cross",
+ "thunderdome",
  "winapi 0.3.9",
 ]
 
@@ -2199,9 +2190,9 @@ checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
 
 [[package]]
 name = "jobserver"
-version = "0.1.21"
+version = "0.1.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c71313ebb9439f74b00d9d2dcec36440beaf57a6aa0623068441dd7cd81a7f2"
+checksum = "972f5ae5d1cb9c6ae417789196c803205313edde988685da5e3aae0827b9e7fd"
 dependencies = [
  "libc",
 ]
@@ -2715,9 +2706,9 @@ dependencies = [
 
 [[package]]
 name = "notify"
-version = "5.0.0-pre.6"
+version = "5.0.0-pre.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5fd82b93434edb9c00ae65ee741e0e081cdc8c63346ab9f687935a629aaf4c3"
+checksum = "1ebe7699a0f8c5759450716ee03d231685c22b4fe8f406c42c22e0ad94d40ce7"
 dependencies = [
  "anymap",
  "bitflags",
@@ -3265,9 +3256,9 @@ checksum = "831eb2fcb5b72b09c72a3f2d24c09a28d79886512827cd4674d9bac10557f16a"
 
 [[package]]
 name = "redox_syscall"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94341e4e44e24f6b591b59e47a8a027df12e008d73fd5672dbea9cc22f4507d9"
+checksum = "8270314b5ccceb518e7e578952f0b72b88222d02e8f77f5ecf7abbb673539041"
 dependencies = [
  "bitflags",
 ]
@@ -3490,9 +3481,9 @@ dependencies = [
 
 [[package]]
 name = "simdeez"
-version = "1.0.6"
+version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1893a4b8db694e23889b63229b6e1deb33846ee0552588bb6e45e53eff59667d"
+checksum = "4032959efda4ba5e9c0108c4c88bfa79b2f6eaf1f1e965290d6e8cd058f50887"
 dependencies = [
  "cfg-if 0.1.10",
  "paste 0.1.18",
@@ -3570,9 +3561,9 @@ dependencies = [
 
 [[package]]
 name = "spirv-std"
-version = "0.4.0-alpha.4"
+version = "0.4.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "895a86b30e3dab8b15ca414bdf1d5d3f132374debb8bf03ca5e89109f674a171"
+checksum = "84eade459bc111a931804e49afdd1935fb115fff42afaccb35777b4a1bbad9c4"
 dependencies = [
  "num-traits",
  "spirv-std-macros",
@@ -3580,9 +3571,9 @@ dependencies = [
 
 [[package]]
 name = "spirv-std-macros"
-version = "0.4.0-alpha.4"
+version = "0.4.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b76d9abb9f30d0da7c54e164efecbfab6c8af3493ae41d43c38ebfbb80b9894"
+checksum = "789e03eacd37ed496c7648bb7866a5ed6ae8959bf222bfde4c8afc23e28de7c6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4059,9 +4050,9 @@ dependencies = [
 
 [[package]]
 name = "weezl"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a32b378380f4e9869b22f0b5177c68a5519f03b3454fde0b291455ddbae266c"
+checksum = "d8b77fdfd5a253be4ab714e4ffa3c49caf146b4de743e97510c0656cf90f1e8e"
 
 [[package]]
 name = "wgpu"
