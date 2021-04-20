@@ -154,18 +154,20 @@ impl VoxelMap {
 #[derive(Debug)]
 pub struct NoiseConfig {
     frequency: f32,
-    scale: f32,
+    gain: f32,
     seed: i32,
     octaves: u8,
+    y_offset: f32,
 }
 
 impl Default for NoiseConfig {
     fn default() -> Self {
         Self {
             frequency: 0.15,
-            scale: 20.0,
+            gain: 5.0,
             seed: 1234,
             octaves: 5,
+            y_offset: 64.0,
         }
     }
 }
@@ -189,7 +191,7 @@ impl Default for VoxelMapConfig {
     fn default() -> Self {
         let chunk_log2 = 4;
         let num_lods = 5;
-        let clip_box_radius = 16;
+        let clip_box_radius = 8;
         VoxelMapConfig::new(chunk_log2, num_lods, clip_box_radius)
     }
 }
@@ -308,65 +310,68 @@ pub fn generate_map(
     let lod0 = pyramid.level_mut(0);
 
     let chunks = pool.scope(|s| {
-        for p in chunks_extent.iter_points() {
-            s.spawn(async move { generate_chunk(p, noise_config, voxel_map_config) });
+        for x in chunks_extent.minimum.x()..chunks_extent.least_upper_bound().x() {
+            for z in chunks_extent.minimum.z()..chunks_extent.least_upper_bound().z() {
+                let p = PointN([x, 0, z]);
+                s.spawn(async move { generate_chunk_stack(p, noise_config, voxel_map_config) });
+            }
         }
     });
-    for (chunk_key, chunk) in chunks.into_iter() {
+    for (chunk_key, chunk) in chunks.into_iter().flatten() {
         lod0.write_chunk(chunk_key, chunk);
     }
 
     let index = OctreeChunkIndex::index_chunk_map(voxel_map_config.superchunk_shape, lod0);
 
-    let world_extent = chunks_extent * voxel_map_config.chunk_shape;
+    let world_extent = lod0.bounding_extent();
     pyramid.downsample_chunks_with_index(&index, &PointDownsampler, &world_extent);
 
     VoxelMap { pyramid, index }
 }
 
-pub fn generate_chunk(
+fn index(p: Point3i, shape: Point3i) -> usize {
+    (p.z() * shape.z() + p.x()) as usize
+}
+
+pub fn generate_chunk_stack(
     key: Point3i,
     noise_config: &Res<NoiseConfig>,
     voxel_map_config: &Res<VoxelMapConfig>,
-) -> (Point3i, Array3x1<Voxel>) {
+) -> Vec<(Point3i, Array3x1<Voxel>)> {
     let chunk_min = key * voxel_map_config.chunk_shape;
     let chunk_voxel_extent = Extent3i::from_min_and_shape(chunk_min, voxel_map_config.chunk_shape);
-    let mut chunk_noise = Array3x1::fill(chunk_voxel_extent, Voxel::EMPTY);
 
-    let noise = noise_array(
-        chunk_voxel_extent,
-        noise_config.frequency,
-        noise_config.seed,
-        noise_config.octaves,
-    );
-
-    // Convert the f32 noise into Voxels.
-    let sdf_voxel_noise = TransformMap::new(&noise, |d: f32| {
-        if noise_config.scale * d < 0.0 {
-            Voxel::FILLED
-        } else {
-            Voxel::EMPTY
-        }
-    });
-    copy_extent(&chunk_voxel_extent, &sdf_voxel_noise, &mut chunk_noise);
-
-    (chunk_min, chunk_noise)
-}
-
-fn noise_array(extent: Extent3i, freq: f32, seed: i32, octaves: u8) -> Array3x1<f32> {
-    let min = Point3f::from(extent.minimum);
-    let (noise, _min_val, _max_val) = NoiseBuilder::fbm_3d_offset(
-        min.x(),
-        extent.shape.x() as usize,
-        min.y(),
-        extent.shape.y() as usize,
-        min.z(),
-        extent.shape.z() as usize,
+    let (noise, min_y, max_y) = NoiseBuilder::fbm_2d_offset(
+        chunk_voxel_extent.minimum.x() as f32,
+        chunk_voxel_extent.shape.x() as usize,
+        chunk_voxel_extent.minimum.z() as f32,
+        chunk_voxel_extent.shape.z() as usize,
     )
-    .with_seed(seed)
-    .with_freq(freq)
-    .with_octaves(octaves)
+    .with_seed(noise_config.seed)
+    .with_freq(noise_config.frequency)
+    .with_octaves(noise_config.octaves)
+    .with_gain(noise_config.gain)
     .generate();
 
-    Array3x1::new_one_channel(extent, noise)
+    let mut chunks = Vec::new();
+
+    let min_y_chunk = ((min_y + noise_config.y_offset) as i32) >> voxel_map_config.chunk_log2;
+    let max_y_chunk = ((max_y + noise_config.y_offset) as i32) >> voxel_map_config.chunk_log2;
+    for y_min_chunk in min_y_chunk..=max_y_chunk {
+        let y_min = y_min_chunk << voxel_map_config.chunk_log2;
+        let y_chunk_min = PointN([chunk_min.x(), y_min, chunk_min.z()]);
+        let y_chunk_voxel_extent =
+            Extent3i::from_min_and_shape(y_chunk_min, voxel_map_config.chunk_shape);
+        let mut chunk_noise = Array3x1::fill(y_chunk_voxel_extent, Voxel::EMPTY);
+        chunk_noise.for_each_mut(&y_chunk_voxel_extent, |p: Point3i, v: &mut Voxel| {
+            let local_p = p - chunk_min;
+            let noise_index = index(local_p, voxel_map_config.chunk_shape);
+            if (p.y() as f32) < noise[noise_index] + noise_config.y_offset {
+                *v = Voxel::FILLED;
+            }
+        });
+        chunks.push((y_chunk_min, chunk_noise));
+    }
+
+    chunks
 }

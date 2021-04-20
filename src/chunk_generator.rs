@@ -24,7 +24,7 @@
  *
  */
 
-use crate::voxel_map::{generate_chunk, NoiseConfig, Voxel, VoxelMap, VoxelMapConfig};
+use crate::voxel_map::{generate_chunk_stack, NoiseConfig, Voxel, VoxelMap, VoxelMapConfig};
 
 use bevy_prototype_character_controller::controller::CameraTag;
 use building_blocks::{core::extent::bounding_extent, prelude::*};
@@ -78,6 +78,7 @@ pub fn chunk_generator_system(
     let mut num_edits = 0;
     let mut num_removes = 0;
     let mut generated_chunks = pool.scope(|s| {
+        let lod0_storage = voxel_map.pyramid.level(0).storage();
         let noise_config = &noise_config;
         let voxel_map_config = &voxel_map_config;
         let mut num_chunks_generated = 0;
@@ -85,9 +86,9 @@ pub fn chunk_generator_system(
             match command {
                 ChunkCommand::Generate(chunk_key) => {
                     num_chunks_generated += 1;
-                    s.spawn(
-                        async move { generate_chunk(chunk_key, noise_config, voxel_map_config) },
-                    );
+                    s.spawn(async move {
+                        generate_chunk_stack(chunk_key, noise_config, voxel_map_config)
+                    });
                 }
                 _ => {}
             }
@@ -105,22 +106,23 @@ pub fn chunk_generator_system(
             match command {
                 ChunkCommand::Generate(chunk_key) => {
                     num_generates += 1;
-                    let (voxel_key, chunk) = generated_chunks.pop().unwrap();
-                    lod0.write_chunk(voxel_key, chunk);
-                    let chunk_extent = Extent3i::from_min_and_shape(chunk_key, Point3i::ONES);
-                    if let Some(extent_to_update) = generated_chunk_extent.as_mut() {
-                        *extent_to_update = bounding_extent(
-                            [
-                                extent_to_update.minimum,
-                                chunk_extent.minimum,
-                                extent_to_update.max(),
-                                chunk_extent.max(),
-                            ]
-                            .iter()
-                            .cloned(),
-                        );
-                    } else {
-                        generated_chunk_extent = Some(chunk_extent);
+                    for (voxel_key, chunk) in generated_chunks.pop().unwrap().into_iter() {
+                        lod0.write_chunk(voxel_key, chunk);
+                        let chunk_extent = Extent3i::from_min_and_shape(chunk_key, Point3i::ONES);
+                        if let Some(extent_to_update) = generated_chunk_extent.as_mut() {
+                            *extent_to_update = bounding_extent(
+                                [
+                                    extent_to_update.minimum,
+                                    chunk_extent.minimum,
+                                    extent_to_update.max(),
+                                    chunk_extent.max(),
+                                ]
+                                .iter()
+                                .cloned(),
+                            );
+                        } else {
+                            generated_chunk_extent = Some(chunk_extent);
+                        }
                     }
                 }
                 ChunkCommand::Edit(chunk_key, chunk) => {
@@ -181,10 +183,24 @@ pub fn chunk_detection_system(
     let visible_extent = voxel_map_config.world_chunks_extent + camera_center;
 
     let lod0 = voxel_map.pyramid.level(0);
-    for chunk_key in visible_extent.iter_points() {
-        let voxel_key = chunk_key * voxel_map_config.chunk_shape;
-        if lod0.get_chunk(voxel_key).is_none() {
-            chunk_commands.enqueue(ChunkCommand::Generate(chunk_key));
+    let lod0_voxel_extent = lod0.bounding_extent();
+    let min_y = lod0_voxel_extent.minimum.y() >> voxel_map_config.chunk_log2;
+    let max_y = lod0_voxel_extent.max().y() >> voxel_map_config.chunk_log2;
+    for x in visible_extent.minimum.x()..visible_extent.least_upper_bound().x() {
+        for z in visible_extent.minimum.z()..visible_extent.least_upper_bound().z() {
+            let chunk_key = PointN([x, 0, z]);
+            let mut exists = false;
+            for y in min_y..=max_y {
+                let chunk_key = PointN([x, y, z]);
+                let voxel_key = chunk_key * voxel_map_config.chunk_shape;
+                if lod0.get_chunk(voxel_key).is_some() {
+                    exists = true;
+                    break;
+                }
+            }
+            if !exists {
+                chunk_commands.enqueue(ChunkCommand::Generate(chunk_key));
+            }
         }
     }
 }
