@@ -1,7 +1,12 @@
 use bevy::{
     input::{keyboard::KeyCode, system::exit_on_esc_system},
     prelude::*,
-    render::camera::PerspectiveProjection,
+    render::{
+        camera::PerspectiveProjection,
+        pipeline::{PipelineDescriptor, RenderPipeline},
+        shader::ShaderStages,
+        texture::{AddressMode, SamplerDescriptor},
+    },
     tasks::ComputeTaskPool,
 };
 use bevy_prototype_character_controller::{
@@ -16,12 +21,16 @@ use bevy_rapier3d::{
 };
 use building_blocks::core::prelude::*;
 use minkraft::{
+    app_state::AppState,
     debug::{Debug, DebugPlugin, DebugTransformTag},
     level_of_detail::LodState,
-    mesh_generator::{ChunkMeshes, MeshCommandQueue, MeshMaterials},
+    mesh_generator::{ArrayTextureMaterial, ArrayTexturePipelines, ChunkMeshes, MeshCommandQueue},
+    shaders::{FRAGMENT_SHADER, VERTEX_SHADER},
     voxel_map::{NoiseConfig, VoxelMap, VoxelMapConfig, VoxelMapPlugin},
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
+
+struct Loading(Handle<Texture>);
 
 fn main() {
     env_logger::builder().format_timestamp_micros().init();
@@ -38,6 +47,9 @@ fn main() {
         .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .add_system(exit_on_esc_system.system())
+        // States
+        .insert_resource(State::new(AppState::Loading))
+        .add_state(AppState::Loading)
         // Debug
         .add_plugin(DebugPlugin)
         .add_plugin(WorldAxesPlugin)
@@ -55,12 +67,65 @@ fn main() {
         // Character Controller
         .add_plugin(RapierDynamicImpulseCharacterControllerPlugin)
         // Terrain
-        // .add_plugin(GeneratePlugin)
         .add_plugin(VoxelMapPlugin)
         // Minkraft
-        .add_startup_system(setup_world.system())
-        .add_startup_system(setup_player.system())
+        .add_system_set(SystemSet::on_enter(AppState::Loading).with_system(load_assets.system()))
+        .add_system_set(SystemSet::on_update(AppState::Loading).with_system(check_loaded.system()))
+        .add_system_set(SystemSet::on_enter(AppState::Running).with_system(setup_graphics.system()))
+        .add_system_set(SystemSet::on_enter(AppState::Running).with_system(setup_world.system()))
+        .add_system_set(SystemSet::on_enter(AppState::Running).with_system(setup_player.system()))
         .run();
+}
+
+fn load_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let handle = asset_server.load("textures/voxel-pack/array_texture.png");
+    commands.insert_resource(Loading(handle));
+}
+
+/// Make sure that our texture is loaded so we can change some settings on it later
+fn check_loaded(
+    mut state: ResMut<State<AppState>>,
+    handle: Res<Loading>,
+    asset_server: Res<AssetServer>,
+) {
+    if let bevy::asset::LoadState::Loaded = asset_server.get_load_state(&handle.0) {
+        state.set(AppState::Running).unwrap();
+    }
+}
+
+fn setup_graphics(
+    mut commands: Commands,
+    texture_handle: Res<Loading>,
+    mut textures: ResMut<Assets<Texture>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut pipelines: ResMut<Assets<PipelineDescriptor>>,
+    mut shaders: ResMut<Assets<Shader>>,
+) {
+    let mut texture = textures.get_mut(&texture_handle.0).unwrap();
+    // Set the texture to tile over the entire quad
+    texture.sampler = SamplerDescriptor {
+        address_mode_u: AddressMode::Repeat,
+        address_mode_v: AddressMode::Repeat,
+        ..Default::default()
+    };
+    texture.reinterpret_stacked_2d_as_array(6);
+    let material_handle = materials.add(texture_handle.0.clone().into());
+    commands.insert_resource(ArrayTextureMaterial(material_handle));
+
+    let pipeline = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
+        vertex: shaders.add(Shader::from_glsl(
+            bevy::render::shader::ShaderStage::Vertex,
+            VERTEX_SHADER,
+        )),
+        fragment: Some(shaders.add(Shader::from_glsl(
+            bevy::render::shader::ShaderStage::Fragment,
+            FRAGMENT_SHADER,
+        ))),
+    }));
+
+    commands.insert_resource(ArrayTexturePipelines(RenderPipelines::from_pipelines(
+        vec![RenderPipeline::new(pipeline)],
+    )));
 }
 
 pub struct PlayerTag;
@@ -158,7 +223,6 @@ fn setup_player(
 fn setup_world(
     mut commands: Commands,
     pool: Res<ComputeTaskPool>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     noise_config: Res<NoiseConfig>,
     voxel_map_config: Res<VoxelMapConfig>,
     mesh_commands: ResMut<MeshCommandQueue>,
@@ -178,27 +242,6 @@ fn setup_world(
     commands.insert_resource(map);
     commands.insert_resource(ChunkMeshes::default());
 
-    let colors = [
-        Color::RED,
-        Color::ORANGE,
-        Color::YELLOW,
-        Color::GREEN,
-        Color::BLUE,
-        Color::INDIGO,
-        Color::VIOLET,
-    ];
-    let mut mesh_materials = MeshMaterials::default();
-    for color in &colors {
-        let mut material = StandardMaterial::from(*color);
-        material.roughness = 0.9;
-        mesh_materials.mesh_materials.push(materials.add(material));
-    }
-    commands.insert_resource(mesh_materials);
-
-    // commands.insert_resource(AmbientLight {
-    //     color: Color::rgb_linear(1.0f32, 0.84f32, 0.67f32),
-    //     brightness: 1.0 / 7.5f32,
-    // });
     commands.spawn_bundle(UiCameraBundle::default());
     commands.spawn_bundle(LightBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 500.0, 0.0)),

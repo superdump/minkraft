@@ -39,6 +39,7 @@ use building_blocks::mesh::{IsOpaque, MergeVoxel};
 use simdnoise::NoiseBuilder;
 
 use crate::{
+    app_state::AppState,
     chunk_generator::{chunk_detection_system, chunk_generator_system, ChunkCommandQueue},
     level_of_detail::{level_of_detail_system, LodState},
     mesh_generator::{mesh_generator_system, ChunkMeshes, MeshCommand, MeshCommandQueue},
@@ -51,41 +52,44 @@ impl Plugin for VoxelMapPlugin {
         app.insert_resource(NoiseConfig::default())
             .insert_resource(VoxelMapConfig::default())
             .insert_resource(ChunkCommandQueue::default())
-            .add_system(
-                voxel_map_config_update_system
-                    .system()
-                    .label("voxel_map_config_update"),
-            )
-            .add_system(
-                voxel_map_config_changed_system
-                    .system()
-                    .label("voxel_map_config_changed")
-                    .after("voxel_map_config_update"),
-            )
-            .add_system(
-                chunk_detection_system
-                    .system()
-                    .label("chunk_detection")
-                    .after("voxel_map_config_changed"),
-            )
-            .add_system(
-                chunk_generator_system
-                    .system()
-                    .label("chunk_generator")
-                    .after("chunk_detection"),
-            )
             .insert_resource(MeshCommandQueue::default())
-            .add_system(
-                level_of_detail_system
-                    .system()
-                    .label("level_of_detail")
-                    .after("chunk_generator"),
-            )
-            .add_system(
-                mesh_generator_system
-                    .system()
-                    .label("mesh_generator")
-                    .after("level_of_detail"),
+            .add_system_set(
+                SystemSet::on_update(AppState::Running)
+                    .with_system(
+                        voxel_map_config_update_system
+                            .system()
+                            .label("voxel_map_config_update"),
+                    )
+                    .with_system(
+                        voxel_map_config_changed_system
+                            .system()
+                            .label("voxel_map_config_changed")
+                            .after("voxel_map_config_update"),
+                    )
+                    .with_system(
+                        chunk_detection_system
+                            .system()
+                            .label("chunk_detection")
+                            .after("voxel_map_config_changed"),
+                    )
+                    .with_system(
+                        chunk_generator_system
+                            .system()
+                            .label("chunk_generator")
+                            .after("chunk_detection"),
+                    )
+                    .with_system(
+                        level_of_detail_system
+                            .system()
+                            .label("level_of_detail")
+                            .after("chunk_generator"),
+                    )
+                    .with_system(
+                        mesh_generator_system
+                            .system()
+                            .label("mesh_generator")
+                            .after("level_of_detail"),
+                    ),
             );
     }
 }
@@ -95,12 +99,17 @@ pub struct Voxel(pub u8);
 
 impl Voxel {
     pub const EMPTY: Self = Self(0);
-    pub const FILLED: Self = Self(1);
+    pub const WATER: Self = Self(1);
+    pub const SAND: Self = Self(2);
+    pub const GRASS: Self = Self(3);
+    pub const DIRT: Self = Self(4);
+    pub const STONE: Self = Self(5);
+    pub const SNOW: Self = Self(6);
 }
 
 impl IsEmpty for Voxel {
     fn is_empty(&self) -> bool {
-        self.0 == 0
+        *self == Voxel::EMPTY
     }
 }
 
@@ -163,8 +172,8 @@ pub struct NoiseConfig {
 impl Default for NoiseConfig {
     fn default() -> Self {
         Self {
-            frequency: 0.15,
-            gain: 5.0,
+            frequency: 0.03,
+            gain: 7.0,
             seed: 1234,
             octaves: 5,
             y_offset: 64.0,
@@ -367,11 +376,23 @@ pub fn generate_chunk_stack(
             let local_p = p - chunk_min;
             let noise_index = index(local_p, voxel_map_config.chunk_shape);
             if (p.y() as f32) < noise[noise_index] + noise_config.y_offset {
-                *v = Voxel::FILLED;
+                *v = height_to_material(p.y());
             }
         });
         chunks.push((y_chunk_min, chunk_noise));
     }
 
     chunks
+}
+
+// FIXME: Make this more generic - take a config for the thresholds
+fn height_to_material(y: i32) -> Voxel {
+    match y {
+        y if (y as f32) < 35.0 => Voxel::WATER,
+        y if (y as f32) < 40.0 => Voxel::SAND,
+        y if (y as f32) < 45.0 => Voxel::DIRT,
+        y if (y as f32) < 50.0 => Voxel::GRASS,
+        y if (y as f32) < 100.0 => Voxel::STONE,
+        _ => Voxel::SNOW,
+    }
 }

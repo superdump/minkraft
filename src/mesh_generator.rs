@@ -25,7 +25,7 @@
  */
 
 use crate::{
-    utilities::bevy_util::{mesh::create_mesh_handle, thread_local_resource::ThreadLocalResource},
+    utilities::bevy_util::thread_local_resource::ThreadLocalResource,
     voxel_map::{Voxel, VoxelMap},
 };
 
@@ -42,16 +42,17 @@ use building_blocks::{
     storage::{LodChunkKey3, LodChunkUpdate3, SmallKeyHashMap},
 };
 
-use bevy::{asset::prelude::*, ecs, prelude::*, tasks::ComputeTaskPool};
+use bevy::{
+    asset::prelude::*,
+    ecs,
+    prelude::*,
+    render::{mesh::Indices, pipeline::PrimitiveTopology},
+    tasks::ComputeTaskPool,
+};
 use std::{cell::RefCell, collections::VecDeque};
 
 fn max_mesh_creations_per_frame(pool: &ComputeTaskPool) -> usize {
     40 * pool.thread_num()
-}
-
-#[derive(Default)]
-pub struct MeshMaterials {
-    pub mesh_materials: Vec<Handle<StandardMaterial>>,
 }
 
 #[derive(Default)]
@@ -143,19 +144,57 @@ fn clear_up_entity(
     }
 }
 
+// Utility struct for building the mesh
+#[derive(Debug, Default, Clone)]
+struct MeshBuf {
+    pub positions: Vec<[f32; 3]>,
+    pub normals: Vec<[f32; 3]>,
+    pub tex_coords: Vec<[f32; 2]>,
+    pub layer: Vec<u32>,
+    pub indices: Vec<u32>,
+}
+
+impl MeshBuf {
+    fn add_quad(
+        &mut self,
+        face: &OrientedCubeFace,
+        quad: &UnorientedQuad,
+        voxel_size: f32,
+        u_flip_face: Axis3,
+        layer: u32,
+    ) {
+        let start_index = self.positions.len() as u32;
+        self.positions
+            .extend_from_slice(&face.quad_mesh_positions(quad, voxel_size));
+        self.normals.extend_from_slice(&face.quad_mesh_normals());
+
+        let flip_v = true;
+        self.tex_coords
+            .extend_from_slice(&face.tex_coords(u_flip_face, flip_v, quad));
+
+        self.layer.extend_from_slice(&[layer; 4]);
+        self.indices
+            .extend_from_slice(&face.quad_mesh_indices(start_index));
+    }
+}
+
+pub struct ArrayTextureMaterial(pub Handle<StandardMaterial>);
+pub struct ArrayTexturePipelines(pub RenderPipelines);
+
 /// Generates new meshes for all dirty chunks.
 pub fn mesh_generator_system(
     mut commands: Commands,
     pool: Res<ComputeTaskPool>,
     voxel_map: Res<VoxelMap>,
     local_mesh_buffers: ecs::system::Local<ThreadLocalMeshBuffers>,
-    mesh_materials: Res<MeshMaterials>,
     mut mesh_commands: ResMut<MeshCommandQueue>,
     mut mesh_assets: ResMut<Assets<Mesh>>,
     mut chunk_meshes: ResMut<ChunkMeshes>,
     mut bodies: ResMut<RigidBodySet>,
     mut colliders: ResMut<ColliderSet>,
     mut joints: ResMut<JointSet>,
+    array_texture_pipelines: Res<ArrayTexturePipelines>,
+    array_texture_material: Res<ArrayTextureMaterial>,
 ) {
     let new_chunk_meshes = apply_mesh_commands(
         &*voxel_map,
@@ -171,13 +210,14 @@ pub fn mesh_generator_system(
     );
     spawn_mesh_entities(
         new_chunk_meshes,
-        &*mesh_materials,
         &mut commands,
         &mut *mesh_assets,
         &mut *chunk_meshes,
         &mut *bodies,
         &mut *colliders,
         &mut *joints,
+        &*array_texture_pipelines,
+        &*array_texture_material,
     );
 }
 
@@ -192,7 +232,7 @@ fn apply_mesh_commands(
     bodies: &mut RigidBodySet,
     colliders: &mut ColliderSet,
     joints: &mut JointSet,
-) -> Vec<(LodChunkKey3, Option<PosNormMesh>)> {
+) -> Vec<(LodChunkKey3, Option<MeshBuf>)> {
     let num_chunks_to_mesh = mesh_commands.len().min(max_mesh_creations_per_frame(pool));
 
     let mut num_creates = 0;
@@ -289,7 +329,7 @@ fn create_mesh_for_chunk(
     key: LodChunkKey3,
     voxel_map: &VoxelMap,
     local_mesh_buffers: &ThreadLocalMeshBuffers,
-) -> Option<PosNormMesh> {
+) -> Option<MeshBuf> {
     let chunks = voxel_map.pyramid.level(key.lod);
 
     let chunk_extent = chunks.indexer.extent_for_chunk_at_key(key.chunk_key);
@@ -325,16 +365,21 @@ fn create_mesh_for_chunk(
     if mesh_buffer.num_quads() == 0 {
         None
     } else {
-        let mut mesh = PosNormMesh::default();
+        let mut mesh_buf = MeshBuf::default();
         for group in mesh_buffer.quad_groups.iter() {
             for quad in group.quads.iter() {
-                group
-                    .face
-                    .add_quad_to_pos_norm_mesh(&quad, voxel_size, &mut mesh);
+                let mat = neighborhood_buffer.get(quad.minimum);
+                mesh_buf.add_quad(
+                    &group.face,
+                    quad,
+                    voxel_size,
+                    RIGHT_HANDED_Y_UP_CONFIG.u_flip_face,
+                    mat.0 as u32 - 1,
+                );
             }
         }
 
-        Some(mesh)
+        Some(mesh_buf)
     }
 }
 
@@ -348,32 +393,50 @@ pub struct LocalSurfaceNetsBuffers {
 }
 
 fn spawn_mesh_entities(
-    new_chunk_meshes: Vec<(LodChunkKey3, Option<PosNormMesh>)>,
-    mesh_materials: &MeshMaterials,
+    new_chunk_meshes: Vec<(LodChunkKey3, Option<MeshBuf>)>,
     commands: &mut Commands,
     mesh_assets: &mut Assets<Mesh>,
     chunk_meshes: &mut ChunkMeshes,
     mut bodies: &mut RigidBodySet,
     colliders: &mut ColliderSet,
     joints: &mut JointSet,
+    array_texture_pipelines: &ArrayTexturePipelines,
+    array_texture_material: &ArrayTextureMaterial,
 ) {
     for (lod_chunk_key, item) in new_chunk_meshes.into_iter() {
-        let old_mesh = if let Some(mesh) = item {
-            if mesh.indices.is_empty() {
+        let old_mesh = if let Some(mesh_buf) = item {
+            if mesh_buf.indices.is_empty() {
                 None
             } else {
-                let indices: Vec<u32> = mesh.indices.iter().map(|i| *i as u32).collect();
-                let mesh_handle = create_mesh_handle(&mesh, mesh_assets);
+                let mut render_mesh = Mesh::new(PrimitiveTopology::TriangleList);
+
+                let MeshBuf {
+                    positions,
+                    normals,
+                    tex_coords,
+                    layer,
+                    indices,
+                } = mesh_buf;
+
+                render_mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions.clone());
+                render_mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+                render_mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, tex_coords);
+                render_mesh.set_attribute("Vertex_Layer", layer);
+                render_mesh.set_indices(Some(Indices::U32(indices.clone())));
+
+                let mesh_handle = mesh_assets.add(render_mesh);
+
                 let entity = commands
                     .spawn_bundle(PbrBundle {
                         mesh: mesh_handle.clone(),
-                        material: mesh_materials.mesh_materials[lod_chunk_key.lod as usize].clone(),
+                        render_pipelines: array_texture_pipelines.0.clone(),
+                        material: array_texture_material.0.clone(),
                         ..Default::default()
                     })
                     .id();
+
                 let body_handle = if lod_chunk_key.lod == 0 {
-                    let collider_vertices = mesh
-                        .positions
+                    let collider_vertices = positions
                         .iter()
                         .cloned()
                         .map(|p| bevy_rapier3d::rapier::math::Point::from_slice(&p))
