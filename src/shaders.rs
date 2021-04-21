@@ -155,7 +155,7 @@ layout(set = 3, binding = 4) uniform StandardMaterial_metallic {
 };
 
 #    ifdef STANDARDMATERIAL_METALLIC_ROUGHNESS_TEXTURE
-layout(set = 3, binding = 5) uniform texture2D StandardMaterial_metallic_roughness_texture;
+layout(set = 3, binding = 5) uniform texture2DArray StandardMaterial_metallic_roughness_texture;
 layout(set = 3,
        binding = 6) uniform sampler StandardMaterial_metallic_roughness_texture_sampler;
 #    endif
@@ -165,13 +165,13 @@ layout(set = 3, binding = 7) uniform StandardMaterial_reflectance {
 };
 
 #    ifdef STANDARDMATERIAL_NORMAL_MAP
-layout(set = 3, binding = 8) uniform texture2D StandardMaterial_normal_map;
+layout(set = 3, binding = 8) uniform texture2DArray StandardMaterial_normal_map;
 layout(set = 3,
        binding = 9) uniform sampler StandardMaterial_normal_map_sampler;
 #    endif
 
 #    if defined(STANDARDMATERIAL_OCCLUSION_TEXTURE)
-layout(set = 3, binding = 10) uniform texture2D StandardMaterial_occlusion_texture;
+layout(set = 3, binding = 10) uniform texture2DArray StandardMaterial_occlusion_texture;
 layout(set = 3,
        binding = 11) uniform sampler StandardMaterial_occlusion_texture_sampler;
 #    endif
@@ -181,7 +181,7 @@ layout(set = 3, binding = 12) uniform StandardMaterial_emissive {
 };
 
 #    if defined(STANDARDMATERIAL_EMISSIVE_TEXTURE)
-layout(set = 3, binding = 13) uniform texture2D StandardMaterial_emissive_texture;
+layout(set = 3, binding = 13) uniform texture2DArray StandardMaterial_emissive_texture;
 layout(set = 3,
        binding = 14) uniform sampler StandardMaterial_emissive_texture_sampler;
 #    endif
@@ -357,7 +357,7 @@ void main() {
 #ifndef STANDARDMATERIAL_UNLIT
     // calculate non-linear roughness from linear perceptualRoughness
 #    ifdef STANDARDMATERIAL_METALLIC_ROUGHNESS_TEXTURE
-    vec4 metallic_roughness = texture(sampler2D(StandardMaterial_metallic_roughness_texture, StandardMaterial_metallic_roughness_texture_sampler), v_Uv);
+    vec4 metallic_roughness = texture(sampler2DArray(StandardMaterial_metallic_roughness_texture, StandardMaterial_metallic_roughness_texture_sampler), v_Uv);
     // Sampling from GLTF standard channels for now
     float metallic = metallic * metallic_roughness.b;
     float perceptual_roughness = perceptual_roughness * metallic_roughness.g;
@@ -382,11 +382,11 @@ void main() {
 
 #    ifdef STANDARDMATERIAL_NORMAL_MAP
     mat3 TBN = mat3(T, B, N);
-    N = TBN * normalize(texture(sampler2D(StandardMaterial_normal_map, StandardMaterial_normal_map_sampler), v_Uv).rgb * 2.0 - 1.0);
+    N = TBN * normalize(texture(sampler2DArray(StandardMaterial_normal_map, StandardMaterial_normal_map_sampler), v_Uv).rgb * 2.0 - 1.0);
 #    endif
 
 #    ifdef STANDARDMATERIAL_OCCLUSION_TEXTURE
-    float occlusion = texture(sampler2D(StandardMaterial_occlusion_texture, StandardMaterial_occlusion_texture_sampler), v_Uv).r;
+    float occlusion = texture(sampler2DArray(StandardMaterial_occlusion_texture, StandardMaterial_occlusion_texture_sampler), v_Uv).r;
 #    else
     float occlusion = 1.0;
 #    endif
@@ -394,7 +394,7 @@ void main() {
 #    ifdef STANDARDMATERIAL_EMISSIVE_TEXTURE
     vec4 emissive = emissive;
     // TODO use .a for exposure compensation in HDR
-    emissive.rgb *= texture(sampler2D(StandardMaterial_emissive_texture, StandardMaterial_emissive_texture_sampler), v_Uv).rgb;
+    emissive.rgb *= texture(sampler2DArray(StandardMaterial_emissive_texture, StandardMaterial_emissive_texture_sampler), v_Uv).rgb;
 #    endif
 
     vec3 V = normalize(CameraPos.xyz - v_WorldPosition.xyz);
