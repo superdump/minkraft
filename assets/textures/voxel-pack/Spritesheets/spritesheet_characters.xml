@@ -1,0 +1,35 @@
+<TextureAtlas imagePath="spritesheet_characters.png">
+	<SubTexture name="alien_arm.png" x="180" y="261" width="16" height="42"/>
+	<SubTexture name="alien_body.png" x="116" y="0" width="44" height="47"/>
+	<SubTexture name="alien_head.png" x="0" y="54" width="92" height="92"/>
+	<SubTexture name="alien_leg.png" x="152" y="261" width="28" height="36"/>
+	<SubTexture name="boar_body.png" x="0" y="146" width="86" height="76"/>
+	<SubTexture name="boar_head.png" x="150" y="182" width="60" height="79"/>
+	<SubTexture name="boar_leg.png" x="78" y="282" width="24" height="23"/>
+	<SubTexture name="boar_tail.png" x="156" y="81" width="14" height="31"/>
+	<SubTexture name="female_arm.png" x="254" y="185" width="28" height="66"/>
+	<SubTexture name="female_body.png" x="210" y="241" width="44" height="59"/>
+	<SubTexture name="female_head.png" x="0" y="222" width="78" height="72"/>
+	<SubTexture name="female_leg.png" x="248" y="0" width="28" height="56"/>
+	<SubTexture name="fox_body.png" x="0" y="0" width="116" height="54"/>
+	<SubTexture name="fox_ear.png" x="102" y="282" width="12" height="20"/>
+	<SubTexture name="fox_leg.png" x="92" y="118" width="16" height="23"/>
+	<SubTexture name="fox_tail.png" x="78" y="262" width="40" height="20"/>
+	<SubTexture name="gnome_arm.png" x="196" y="261" width="14" height="42"/>
+	<SubTexture name="gnome_body.png" x="118" y="262" width="34" height="36"/>
+	<SubTexture name="gnome_head.png" x="160" y="0" width="44" height="81"/>
+	<SubTexture name="gnome_leg.png" x="258" y="66" width="24" height="34"/>
+	<SubTexture name="hedgehog_body.png" x="78" y="222" width="72" height="40"/>
+	<SubTexture name="male_arm.png" x="276" y="0" width="28" height="66"/>
+	<SubTexture name="male_body.png" x="210" y="182" width="44" height="59"/>
+	<SubTexture name="male_head.png" x="86" y="146" width="64" height="64"/>
+	<SubTexture name="male_leg.png" x="214" y="119" width="28" height="56"/>
+	<SubTexture name="skeleton_arm.png" x="282" y="122" width="20" height="66"/>
+	<SubTexture name="skeleton_body.png" x="204" y="0" width="44" height="60"/>
+	<SubTexture name="skeleton_head.png" x="92" y="54" width="64" height="64"/>
+	<SubTexture name="skeleton_leg.png" x="282" y="66" width="24" height="56"/>
+	<SubTexture name="zombie_arm.png" x="254" y="119" width="28" height="66"/>
+	<SubTexture name="zombie_body.png" x="214" y="60" width="44" height="59"/>
+	<SubTexture name="zombie_head.png" x="150" y="118" width="64" height="64"/>
+	<SubTexture name="zombie_leg.png" x="214" y="119" width="28" height="56"/>
+</TextureAtlas>

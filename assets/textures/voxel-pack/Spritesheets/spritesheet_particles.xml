@@ -1,0 +1,10 @@
+<TextureAtlas imagePath="spritesheet_particles.png">
+	<SubTexture name="square_blue.png" x="16" y="68" width="16" height="16"/>
+	<SubTexture name="square_orange.png" x="32" y="68" width="16" height="16"/>
+	<SubTexture name="square_red.png" x="48" y="68" width="16" height="16"/>
+	<SubTexture name="square_white.png" x="0" y="68" width="16" height="16"/>
+	<SubTexture name="swirl_blue.png" x="36" y="34" width="36" height="34"/>
+	<SubTexture name="swirl_orange.png" x="36" y="0" width="36" height="34"/>
+	<SubTexture name="swirl_red.png" x="0" y="34" width="36" height="34"/>
+	<SubTexture name="swirl_white.png" x="0" y="0" width="36" height="34"/>
+</TextureAtlas>
