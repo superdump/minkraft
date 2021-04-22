@@ -1,4 +1,5 @@
 use bevy::{
+    asset::AssetServerSettings,
     input::{keyboard::KeyCode, system::exit_on_esc_system},
     prelude::*,
     render::{
@@ -46,6 +47,9 @@ fn main() {
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
+        .insert_resource(AssetServerSettings {
+            asset_folder: env!("CARGO_MANIFEST_DIR").to_string(),
+        })
         .add_system(exit_on_esc_system.system())
         // States
         .insert_resource(State::new(AppState::Loading))
