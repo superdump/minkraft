@@ -350,7 +350,7 @@ pub fn generate_chunk_stack(
     let chunk_min = key * voxel_map_config.chunk_shape;
     let chunk_voxel_extent = Extent3i::from_min_and_shape(chunk_min, voxel_map_config.chunk_shape);
 
-    let (noise, min_y, max_y) = NoiseBuilder::fbm_2d_offset(
+    let (noise, min_y, max_y) = NoiseBuilder::ridge_2d_offset(
         chunk_voxel_extent.minimum.x() as f32,
         chunk_voxel_extent.shape.x() as usize,
         chunk_voxel_extent.minimum.z() as f32,
