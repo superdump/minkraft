@@ -143,13 +143,8 @@ pub fn chunk_generator_system(
         pool.scope(|s| {
             let voxel_map = &mut voxel_map;
             s.spawn(async move {
-                // NOTE: The below should be faster but it crashes sometimes when creating an OctreeSet for a chunk
-                //       I don't know why. It looks like it shouldn't be possible for the indexer's chunk shape to have changed.
-                // let mut index = voxel_map.index.clone();
-                // index.superchunk_octrees.add_extent(&voxel_extent);
-                let lod0 = voxel_map.pyramid.level(0);
-                let index =
-                    OctreeChunkIndex::index_chunk_map(voxel_map_config.superchunk_shape, lod0);
+                let mut index = voxel_map.index.clone();
+                index.superchunk_octrees.add_extent(&chunk_extent);
                 voxel_map.pyramid.downsample_chunks_with_index(
                     &index,
                     &PointDownsampler,
