@@ -256,9 +256,9 @@ fn setup_world(
     commands.spawn_bundle(UiCameraBundle::default());
     commands.spawn_bundle(LightBundle {
         transform: Transform::from_translation(Vec3::new(
-            SPAWN_POINT[0],
-            512.0 + SPAWN_POINT[1],
-            SPAWN_POINT[2],
+            SPAWN_POINT[0] + 512.0,
+            SPAWN_POINT[1] + 512.0,
+            SPAWN_POINT[2] + 512.0,
         )),
         light: Light {
             intensity: 1000000.0,
