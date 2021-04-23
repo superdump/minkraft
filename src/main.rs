@@ -33,6 +33,8 @@ use minkraft::{
 
 struct Loading(Handle<Texture>);
 
+const SPAWN_POINT: [f32; 3] = [128.0, 512.0, 128.0];
+
 fn main() {
     env_logger::builder().format_timestamp_micros().init();
 
@@ -145,7 +147,7 @@ fn setup_player(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let spawn_pos = Vec3::new(1.1, 90.0, 1.1);
+    let spawn_pos = SPAWN_POINT.into();
     let obj_scale = Vec3::new(0.465, 1.75, 0.25);
 
     let eye = Vec3::new(0.0, 4.0, 8.0);
@@ -237,8 +239,7 @@ fn setup_world(
     voxel_map_config: Res<VoxelMapConfig>,
     mesh_commands: ResMut<MeshCommandQueue>,
 ) {
-    let init_lod0_center =
-        Point3f::from(Vec3::new(1.1, 90.0, 1.1)).in_voxel() >> voxel_map_config.chunk_log2;
+    let init_lod0_center = PointN(SPAWN_POINT).in_voxel() >> voxel_map_config.chunk_log2;
 
     let map = VoxelMap::new(
         &pool,
@@ -254,7 +255,11 @@ fn setup_world(
 
     commands.spawn_bundle(UiCameraBundle::default());
     commands.spawn_bundle(LightBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 500.0, 0.0)),
+        transform: Transform::from_translation(Vec3::new(
+            SPAWN_POINT[0],
+            512.0 + SPAWN_POINT[1],
+            SPAWN_POINT[2],
+        )),
         light: Light {
             intensity: 1000000.0,
             depth: 0.1..1000000.0,
