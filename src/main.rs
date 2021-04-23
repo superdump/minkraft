@@ -76,8 +76,14 @@ fn main() {
         .add_system_set(SystemSet::on_enter(AppState::Loading).with_system(load_assets.system()))
         .add_system_set(SystemSet::on_update(AppState::Loading).with_system(check_loaded.system()))
         .add_system_set(SystemSet::on_enter(AppState::Running).with_system(setup_graphics.system()))
-        .add_system_set(SystemSet::on_enter(AppState::Running).with_system(setup_world.system()))
-        .add_system_set(SystemSet::on_enter(AppState::Running).with_system(setup_player.system()))
+        .add_system_set(
+            SystemSet::on_enter(AppState::Running)
+                .with_system(setup_world.system().label("setup_world")),
+        )
+        .add_system_set(
+            SystemSet::on_enter(AppState::Running)
+                .with_system(setup_player.system().after("setup_world")),
+        )
         .run();
 }
 
