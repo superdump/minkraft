@@ -198,8 +198,8 @@ const CHUNKS_THICKNESS: i32 = 1;
 
 impl Default for VoxelMapConfig {
     fn default() -> Self {
-        let chunk_log2 = 4;
-        let num_lods = 5;
+        let chunk_log2 = 5;
+        let num_lods = 6;
         let clip_box_radius = 8;
         VoxelMapConfig::new(chunk_log2, num_lods, clip_box_radius)
     }
@@ -233,21 +233,42 @@ impl VoxelMapConfig {
     }
 }
 
+const MAX_CLIP_BOX_RADIUS: i32 = 32;
+const MAX_CHUNK_LOG2: i32 = 6;
+// NOTE: Maximum number of LODs supported by building-blocks ChunkPyramidMap is 6
+// due to using an OctreeSet for a 'superchunk' and OctreeSet LocationCodes are limited
+// to 6 levels.
+const MAX_LODS: u8 = 6;
+
 pub fn voxel_map_config_update_system(
     keyboard_input: Res<Input<KeyCode>>,
     mut voxel_map_config: ResMut<VoxelMapConfig>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::C) {
+    if keyboard_input.just_pressed(KeyCode::R) {
         voxel_map_config.clip_box_radius <<= 1;
-        if voxel_map_config.clip_box_radius > 128 {
+        if voxel_map_config.clip_box_radius > MAX_CLIP_BOX_RADIUS {
             voxel_map_config.clip_box_radius = 1;
         }
+        println!("Clip box radius: {}", voxel_map_config.clip_box_radius);
     }
-    if keyboard_input.just_pressed(KeyCode::L) {
+    if keyboard_input.just_pressed(KeyCode::C) {
         voxel_map_config.chunk_log2 += 1;
-        if voxel_map_config.chunk_log2 > 7 {
+        if voxel_map_config.chunk_log2 > MAX_CHUNK_LOG2 {
             voxel_map_config.chunk_log2 = 1;
         }
+        println!("Chunk log2: {}", voxel_map_config.chunk_log2);
+        *voxel_map_config = VoxelMapConfig::new(
+            voxel_map_config.chunk_log2,
+            voxel_map_config.num_lods,
+            voxel_map_config.clip_box_radius,
+        );
+    }
+    if keyboard_input.just_pressed(KeyCode::L) {
+        voxel_map_config.num_lods += 1;
+        if voxel_map_config.num_lods > MAX_LODS {
+            voxel_map_config.num_lods = 1;
+        }
+        println!("Number of LoDs: {}", voxel_map_config.num_lods);
         *voxel_map_config = VoxelMapConfig::new(
             voxel_map_config.chunk_log2,
             voxel_map_config.num_lods,
