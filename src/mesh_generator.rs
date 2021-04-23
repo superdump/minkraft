@@ -25,6 +25,7 @@
  */
 
 use crate::{
+    mesh_fade::FadeUniform,
     utilities::bevy_util::thread_local_resource::ThreadLocalResource,
     voxel_map::{Voxel, VoxelMap},
 };
@@ -432,6 +433,11 @@ fn spawn_mesh_entities(
                         render_pipelines: array_texture_pipelines.0.clone(),
                         material: array_texture_material.0.clone(),
                         ..Default::default()
+                    })
+                    .insert(FadeUniform {
+                        duration: 5.0,
+                        remaining: 5.0,
+                        fade_in: true,
                     })
                     .id();
 

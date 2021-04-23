@@ -5,7 +5,8 @@ use bevy::{
     render::{
         camera::PerspectiveProjection,
         pipeline::{PipelineDescriptor, RenderPipeline},
-        shader::ShaderStages,
+        render_graph::{base, RenderGraph, RenderResourcesNode},
+        shader::{shader_defs_system, ShaderStages},
         texture::{AddressMode, SamplerDescriptor},
     },
     tasks::ComputeTaskPool,
@@ -25,6 +26,7 @@ use minkraft::{
     app_state::AppState,
     debug::{Debug, DebugPlugin, DebugTransformTag},
     level_of_detail::LodState,
+    mesh_fade::FadeUniform,
     mesh_generator::{ArrayTextureMaterial, ArrayTexturePipelines, ChunkMeshes, MeshCommandQueue},
     shaders::{FRAGMENT_SHADER, VERTEX_SHADER},
     voxel_map::{NoiseConfig, VoxelMap, VoxelMapConfig, VoxelMapPlugin},
@@ -73,6 +75,11 @@ fn main() {
         // Character Controller
         .add_plugin(RapierDynamicImpulseCharacterControllerPlugin)
         // Terrain
+        // For fade in/out
+        .add_system_to_stage(
+            CoreStage::PostUpdate,
+            shader_defs_system::<FadeUniform>.system(),
+        )
         .add_plugin(VoxelMapPlugin)
         // Minkraft
         .add_system_set(SystemSet::on_enter(AppState::Loading).with_system(load_assets.system()))
@@ -112,6 +119,7 @@ fn setup_graphics(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut pipelines: ResMut<Assets<PipelineDescriptor>>,
     mut shaders: ResMut<Assets<Shader>>,
+    mut render_graph: ResMut<RenderGraph>,
 ) {
     let mut texture = textures.get_mut(&texture_handle.0).unwrap();
     // Set the texture to tile over the entire quad
@@ -123,6 +131,14 @@ fn setup_graphics(
     texture.reinterpret_stacked_2d_as_array(6);
     let material_handle = materials.add(texture_handle.0.clone().into());
     commands.insert_resource(ArrayTextureMaterial(material_handle));
+
+    render_graph.add_system_node(
+        "fade_uniform",
+        RenderResourcesNode::<FadeUniform>::new(true),
+    );
+    render_graph
+        .add_node_edge("fade_uniform", base::node::MAIN_PASS)
+        .expect("Failed to add fade_uniform as dependency of main pass");
 
     let pipeline = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
         vertex: shaders.add(Shader::from_glsl(

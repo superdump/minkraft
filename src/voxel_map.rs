@@ -42,6 +42,7 @@ use crate::{
     app_state::AppState,
     chunk_generator::{chunk_detection_system, chunk_generator_system, ChunkCommandQueue},
     level_of_detail::{level_of_detail_system, LodState},
+    mesh_fade::mesh_fade_update_system,
     mesh_generator::{mesh_generator_system, ChunkMeshes, MeshCommand, MeshCommandQueue},
 };
 
@@ -89,6 +90,12 @@ impl Plugin for VoxelMapPlugin {
                             .system()
                             .label("mesh_generator")
                             .after("level_of_detail"),
+                    )
+                    .with_system(
+                        mesh_fade_update_system
+                            .system()
+                            .label("mesh_fade_update")
+                            .before("mesh_generator"),
                     ),
             );
     }

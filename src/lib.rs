@@ -2,6 +2,7 @@ pub mod app_state;
 pub mod chunk_generator;
 pub mod debug;
 pub mod level_of_detail;
+pub mod mesh_fade;
 pub mod mesh_generator;
 pub mod shaders;
 pub mod shapes;
