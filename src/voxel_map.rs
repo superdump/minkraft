@@ -163,20 +163,20 @@ impl VoxelMap {
 #[derive(Debug)]
 pub struct NoiseConfig {
     frequency: f32,
-    gain: f32,
     seed: i32,
     octaves: u8,
     y_offset: f32,
+    y_scale: f32,
 }
 
 impl Default for NoiseConfig {
     fn default() -> Self {
         Self {
-            frequency: 0.03,
-            gain: 7.0,
+            frequency: 1.0 / 256.0,
             seed: 1234,
             octaves: 5,
-            y_offset: 64.0,
+            y_offset: 128.0,
+            y_scale: 1024.0,
         }
     }
 }
@@ -342,6 +342,10 @@ fn index(p: Point3i, shape: Point3i) -> usize {
     (p.z() * shape.z() + p.x()) as usize
 }
 
+fn scale_noise(v: f32, config: &NoiseConfig) -> f32 {
+    (v - 4.5) * config.y_scale + config.y_offset
+}
+
 pub fn generate_chunk_stack(
     key: Point3i,
     noise_config: &Res<NoiseConfig>,
@@ -359,13 +363,12 @@ pub fn generate_chunk_stack(
     .with_seed(noise_config.seed)
     .with_freq(noise_config.frequency)
     .with_octaves(noise_config.octaves)
-    .with_gain(noise_config.gain)
     .generate();
 
     let mut chunks = Vec::new();
 
-    let min_y_chunk = ((min_y + noise_config.y_offset) as i32) >> voxel_map_config.chunk_log2;
-    let max_y_chunk = ((max_y + noise_config.y_offset) as i32) >> voxel_map_config.chunk_log2;
+    let min_y_chunk = (scale_noise(min_y, &noise_config) as i32) >> voxel_map_config.chunk_log2;
+    let max_y_chunk = (scale_noise(max_y, &noise_config) as i32) >> voxel_map_config.chunk_log2;
     for y_min_chunk in min_y_chunk..=max_y_chunk {
         let y_min = y_min_chunk << voxel_map_config.chunk_log2;
         let y_chunk_min = PointN([chunk_min.x(), y_min, chunk_min.z()]);
@@ -375,8 +378,8 @@ pub fn generate_chunk_stack(
         chunk_noise.for_each_mut(&y_chunk_voxel_extent, |p: Point3i, v: &mut Voxel| {
             let local_p = p - chunk_min;
             let noise_index = index(local_p, voxel_map_config.chunk_shape);
-            if (p.y() as f32) < noise[noise_index] + noise_config.y_offset {
-                *v = height_to_material(p.y());
+            if (p.y() as f32) < scale_noise(noise[noise_index], &noise_config) {
+                *v = height_to_material(p.y(), &noise_config);
             }
         });
         chunks.push((y_chunk_min, chunk_noise));
@@ -386,13 +389,13 @@ pub fn generate_chunk_stack(
 }
 
 // FIXME: Make this more generic - take a config for the thresholds
-fn height_to_material(y: i32) -> Voxel {
-    match y {
-        y if (y as f32) < 35.0 => Voxel::WATER,
-        y if (y as f32) < 40.0 => Voxel::SAND,
-        y if (y as f32) < 45.0 => Voxel::DIRT,
-        y if (y as f32) < 50.0 => Voxel::GRASS,
-        y if (y as f32) < 100.0 => Voxel::STONE,
+fn height_to_material(y: i32, config: &NoiseConfig) -> Voxel {
+    match y as f32 {
+        y if y < scale_noise(4.52, config) => Voxel::WATER,
+        y if y < scale_noise(4.54, config) => Voxel::SAND,
+        y if y < scale_noise(4.55, config) => Voxel::DIRT,
+        y if y < scale_noise(4.7, config) => Voxel::GRASS,
+        y if y < scale_noise(4.8, config) => Voxel::STONE,
         _ => Voxel::SNOW,
     }
 }
