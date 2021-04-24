@@ -90,6 +90,7 @@ pub enum MeshCommand {
 pub struct ChunkMeshes {
     // Map from chunk key to mesh entity.
     entities: SmallKeyHashMap<LodChunkKey3, (Entity, Handle<Mesh>, Option<RigidBodyHandle>)>,
+    remove_queue: SmallKeyHashMap<LodChunkKey3, (Entity, Handle<Mesh>, Option<RigidBodyHandle>)>,
 }
 
 impl ChunkMeshes {
@@ -102,6 +103,12 @@ impl ChunkMeshes {
         joints: &mut JointSet,
     ) {
         self.entities.retain(|_, (entity, mesh, body)| {
+            clear_up_entity(
+                entity, mesh, body, commands, meshes, bodies, colliders, joints,
+            );
+            false
+        });
+        self.remove_queue.retain(|_, (entity, mesh, body)| {
             clear_up_entity(
                 entity, mesh, body, commands, meshes, bodies, colliders, joints,
             );
@@ -248,10 +255,13 @@ fn apply_mesh_commands(
                     num_updates += 1;
                     match update {
                         LodChunkUpdate3::Split(split) => {
-                            if let Some((entity, _mesh, _body)) =
-                                chunk_meshes.entities.get(&split.old_chunk)
+                            if let Some((entity, mesh, body)) =
+                                chunk_meshes.entities.remove(&split.old_chunk)
                             {
-                                commands.entity(*entity).insert(FADE_OUT);
+                                chunk_meshes
+                                    .remove_queue
+                                    .insert(split.old_chunk, (entity, mesh, body));
+                                commands.entity(entity).insert(FADE_OUT);
                             }
                             for &lod_key in split.new_chunks.iter() {
                                 if !chunk_meshes.entities.contains_key(&lod_key) {
@@ -271,10 +281,13 @@ fn apply_mesh_commands(
                         }
                         LodChunkUpdate3::Merge(merge) => {
                             for lod_key in merge.old_chunks.iter() {
-                                if let Some((entity, _mesh, _body)) =
-                                    chunk_meshes.entities.get(lod_key)
+                                if let Some((entity, mesh, body)) =
+                                    chunk_meshes.entities.remove(lod_key)
                                 {
-                                    commands.entity(*entity).insert(FADE_OUT);
+                                    chunk_meshes
+                                        .remove_queue
+                                        .insert(*lod_key, (entity, mesh, body));
+                                    commands.entity(entity).insert(FADE_OUT);
                                 }
                             }
                             if !chunk_meshes.entities.contains_key(&merge.new_chunk) {
@@ -315,7 +328,7 @@ pub fn mesh_despawn_system(
 ) {
     for (fade, lod_chunk_key) in query.iter() {
         if !fade.fade_in && fade.remaining == 0.0 {
-            if let Some((entity, mesh, body)) = chunk_meshes.entities.remove(lod_chunk_key) {
+            if let Some((entity, mesh, body)) = chunk_meshes.remove_queue.remove(lod_chunk_key) {
                 commands.entity(entity).despawn();
                 meshes.remove(&mesh);
                 if let Some(body) = body {
