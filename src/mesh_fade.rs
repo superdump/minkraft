@@ -24,14 +24,8 @@ impl Default for FadeUniform {
     }
 }
 
-pub fn mesh_fade_update_system(
-    time: Res<Time>,
-    mut fades: Query<(&mut FadeUniform, &mut StandardMaterial)>,
-) {
-    for (mut fade, mut material) in fades.iter_mut() {
+pub fn mesh_fade_update_system(time: Res<Time>, mut fades: Query<&mut FadeUniform>) {
+    for mut fade in fades.iter_mut() {
         fade.remaining = (fade.remaining - time.delta_seconds()).clamp(0.0, fade.duration);
-        material
-            .base_color
-            .set_a((fade.duration - fade.remaining) / fade.duration);
     }
 }
