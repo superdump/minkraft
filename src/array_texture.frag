@@ -318,10 +318,10 @@ void main() {
     vec4 output_color = base_color;
 #ifdef FADEUNIFORM_FADE_IN
     // alpha is 0 at fade_remaining == fade_duration and 1 at fade_remaining == 0
-    output_color *= vec4(1.0, 1.0, 1.0, (fade_duration - fade_remaining) / fade_duration);
+    output_color.a *= (fade_duration - fade_remaining) / fade_duration;
 #else
     // alpha is 1 at fade_remaining == fade_duration and 0 at fade_remaining == 0
-    output_color *= vec4(1.0, 1.0, 1.0, 1.0 - (fade_duration - fade_remaining) / fade_duration);
+    output_color.a *= 1.0 - (fade_duration - fade_remaining) / fade_duration;
 #endif
 #ifdef STANDARDMATERIAL_BASE_COLOR_TEXTURE
     output_color *= texture(sampler2DArray(StandardMaterial_base_color_texture,
