@@ -146,10 +146,10 @@ layout(set = 3,
        binding = 14) uniform sampler StandardMaterial_emissive_texture_sampler;
 #    endif
 
-layout(set = 3, binding = 15) uniform FadeUniform_duration {
+layout(set = 2, binding = 1) uniform FadeUniform_duration {
     float fade_duration;
 };
-layout(set = 3, binding = 16) uniform FadeUniform_remaining {
+layout(set = 2, binding = 2) uniform FadeUniform_remaining {
     float fade_remaining;
 };
 
