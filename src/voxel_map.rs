@@ -43,7 +43,9 @@ use crate::{
     chunk_generator::{chunk_detection_system, chunk_generator_system, ChunkCommandQueue},
     level_of_detail::{level_of_detail_system, LodState},
     mesh_fade::mesh_fade_update_system,
-    mesh_generator::{mesh_generator_system, ChunkMeshes, MeshCommand, MeshCommandQueue},
+    mesh_generator::{
+        mesh_despawn_system, mesh_generator_system, ChunkMeshes, MeshCommand, MeshCommandQueue,
+    },
 };
 
 pub struct VoxelMapPlugin;
@@ -96,6 +98,12 @@ impl Plugin for VoxelMapPlugin {
                             .system()
                             .label("mesh_fade_update")
                             .before("mesh_generator"),
+                    )
+                    .with_system(
+                        mesh_despawn_system
+                            .system()
+                            .label("mesh_despawn")
+                            .after("mesh_fade_update"),
                     ),
             );
     }

@@ -193,7 +193,6 @@ pub fn mesh_generator_system(
     mut chunk_meshes: ResMut<ChunkMeshes>,
     mut bodies: ResMut<RigidBodySet>,
     mut colliders: ResMut<ColliderSet>,
-    mut joints: ResMut<JointSet>,
     array_texture_pipelines: Res<ArrayTexturePipelines>,
     array_texture_material: Res<ArrayTextureMaterial>,
 ) {
@@ -204,10 +203,6 @@ pub fn mesh_generator_system(
         &mut *mesh_commands,
         &mut *chunk_meshes,
         &mut commands,
-        &mut *mesh_assets,
-        &mut *bodies,
-        &mut *colliders,
-        &mut *joints,
     );
     spawn_mesh_entities(
         new_chunk_meshes,
@@ -216,7 +211,6 @@ pub fn mesh_generator_system(
         &mut *chunk_meshes,
         &mut *bodies,
         &mut *colliders,
-        &mut *joints,
         &*array_texture_pipelines,
         &*array_texture_material,
     );
@@ -229,10 +223,6 @@ fn apply_mesh_commands(
     mesh_commands: &mut MeshCommandQueue,
     chunk_meshes: &mut ChunkMeshes,
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    bodies: &mut RigidBodySet,
-    colliders: &mut ColliderSet,
-    joints: &mut JointSet,
 ) -> Vec<(LodChunkKey3, Option<MeshBuf>)> {
     let num_chunks_to_mesh = mesh_commands.len().min(max_mesh_creations_per_frame(pool));
 
@@ -258,16 +248,14 @@ fn apply_mesh_commands(
                     num_updates += 1;
                     match update {
                         LodChunkUpdate3::Split(split) => {
-                            if let Some((entity, mesh, body)) =
-                                chunk_meshes.entities.remove(&split.old_chunk)
+                            if let Some((entity, _mesh, _body)) =
+                                chunk_meshes.entities.get(&split.old_chunk)
                             {
-                                commands.entity(entity).despawn();
-                                meshes.remove(&mesh);
-                                if let Some(body) = body {
-                                    // NOTE: This removes the body, as well as its colliders and
-                                    // joints from the simulation so it's the only thing we need to call
-                                    bodies.remove(body, &mut *colliders, &mut *joints);
-                                }
+                                commands.entity(*entity).insert(FadeUniform {
+                                    duration: 1.0,
+                                    remaining: 1.0,
+                                    fade_in: false,
+                                });
                             }
                             for &lod_key in split.new_chunks.iter() {
                                 if !chunk_meshes.entities.contains_key(&lod_key) {
@@ -287,16 +275,14 @@ fn apply_mesh_commands(
                         }
                         LodChunkUpdate3::Merge(merge) => {
                             for lod_key in merge.old_chunks.iter() {
-                                if let Some((entity, mesh, body)) =
-                                    chunk_meshes.entities.remove(&lod_key)
+                                if let Some((entity, _mesh, _body)) =
+                                    chunk_meshes.entities.get(lod_key)
                                 {
-                                    commands.entity(entity).despawn();
-                                    meshes.remove(&mesh);
-                                    if let Some(body) = body {
-                                        // NOTE: This removes the body, as well as its colliders and
-                                        // joints from the simulation so it's the only thing we need to call
-                                        bodies.remove(body, &mut *colliders, &mut *joints);
-                                    }
+                                    commands.entity(*entity).insert(FadeUniform {
+                                        duration: 1.0,
+                                        remaining: 1.0,
+                                        fade_in: false,
+                                    });
                                 }
                             }
                             if !chunk_meshes.entities.contains_key(&merge.new_chunk) {
@@ -324,6 +310,30 @@ fn apply_mesh_commands(
         let new_length = mesh_commands.len() - (num_creates + num_updates);
         mesh_commands.commands.truncate(new_length);
     })
+}
+
+pub fn mesh_despawn_system(
+    mut commands: Commands,
+    mut chunk_meshes: ResMut<ChunkMeshes>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut bodies: ResMut<RigidBodySet>,
+    mut colliders: ResMut<ColliderSet>,
+    mut joints: ResMut<JointSet>,
+    query: Query<(&FadeUniform, &LodChunkKey3), With<Handle<Mesh>>>,
+) {
+    for (fade, lod_chunk_key) in query.iter() {
+        if !fade.fade_in && fade.remaining == 0.0 {
+            if let Some((entity, mesh, body)) = chunk_meshes.entities.remove(lod_chunk_key) {
+                commands.entity(entity).despawn();
+                meshes.remove(&mesh);
+                if let Some(body) = body {
+                    // NOTE: This removes the body, as well as its colliders and
+                    // joints from the simulation so it's the only thing we need to call
+                    bodies.remove(body, &mut *colliders, &mut *joints);
+                }
+            }
+        }
+    }
 }
 
 fn create_mesh_for_chunk(
@@ -400,7 +410,6 @@ fn spawn_mesh_entities(
     chunk_meshes: &mut ChunkMeshes,
     mut bodies: &mut RigidBodySet,
     colliders: &mut ColliderSet,
-    joints: &mut JointSet,
     array_texture_pipelines: &ArrayTexturePipelines,
     array_texture_material: &ArrayTextureMaterial,
 ) {
@@ -435,10 +444,11 @@ fn spawn_mesh_entities(
                         ..Default::default()
                     })
                     .insert(FadeUniform {
-                        duration: 5.0,
-                        remaining: 5.0,
+                        duration: 1.0,
+                        remaining: 1.0,
                         fade_in: true,
                     })
+                    .insert(lod_chunk_key)
                     .id();
 
                 let body_handle = if lod_chunk_key.lod == 0 {
@@ -473,14 +483,12 @@ fn spawn_mesh_entities(
         } else {
             chunk_meshes.entities.remove(&lod_chunk_key)
         };
-        if let Some((entity, mesh, body)) = old_mesh {
-            commands.entity(entity).despawn();
-            mesh_assets.remove(&mesh);
-            if let Some(body) = body {
-                // NOTE: This removes the body, as well as its colliders and
-                // joints from the simulation so it's the only thing we need to call
-                bodies.remove(body, &mut *colliders, &mut *joints);
-            }
+        if let Some((entity, _mesh, _body)) = old_mesh {
+            commands.entity(entity).insert(FadeUniform {
+                duration: 1.0,
+                remaining: 1.0,
+                fade_in: false,
+            });
         }
     }
 }
