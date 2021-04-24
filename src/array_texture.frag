@@ -314,14 +314,30 @@ vec3 reinhard_extended_luminance(vec3 color, float max_white_l) {
 
 #endif
 
+highp float rand(vec2 co)
+{
+    highp float a = 12.9898;
+    highp float b = 78.233;
+    highp float c = 43758.5453;
+    highp float dt= dot(co.xy ,vec2(a,b));
+    highp float sn= mod(dt,3.14);
+    return fract(sin(sn) * c);
+}
+
 void main() {
     vec4 output_color = base_color;
 #ifdef FADEUNIFORM_FADE_IN
     // alpha is 0 at fade_remaining == fade_duration and 1 at fade_remaining == 0
-    output_color.a *= (fade_duration - fade_remaining) / fade_duration;
+    if (rand(gl_FragCoord.xy) > (fade_duration - fade_remaining) / fade_duration) {
+        discard;
+        return;
+    }
 #else
     // alpha is 1 at fade_remaining == fade_duration and 0 at fade_remaining == 0
-    output_color.a *= 1.0 - (fade_duration - fade_remaining) / fade_duration;
+    if (rand(gl_FragCoord.xy) < (fade_duration - fade_remaining) / fade_duration) {
+        discard;
+        return;
+    }
 #endif
 #ifdef STANDARDMATERIAL_BASE_COLOR_TEXTURE
     output_color *= texture(sampler2DArray(StandardMaterial_base_color_texture,

@@ -22,7 +22,7 @@ impl Default for FadeUniform {
     }
 }
 
-const FADE_DURATION: f32 = 0.25;
+const FADE_DURATION: f32 = 1.0;
 pub const FADE_IN: FadeUniform = FadeUniform {
     duration: FADE_DURATION,
     remaining: FADE_DURATION,
