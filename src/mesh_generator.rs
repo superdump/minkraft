@@ -25,7 +25,7 @@
  */
 
 use crate::{
-    mesh_fade::FadeUniform,
+    mesh_fade::{FadeUniform, FADE_IN, FADE_OUT},
     utilities::bevy_util::thread_local_resource::ThreadLocalResource,
     voxel_map::{Voxel, VoxelMap},
 };
@@ -251,11 +251,7 @@ fn apply_mesh_commands(
                             if let Some((entity, _mesh, _body)) =
                                 chunk_meshes.entities.get(&split.old_chunk)
                             {
-                                commands.entity(*entity).insert(FadeUniform {
-                                    duration: 1.0,
-                                    remaining: 1.0,
-                                    fade_in: false,
-                                });
+                                commands.entity(*entity).insert(FADE_OUT);
                             }
                             for &lod_key in split.new_chunks.iter() {
                                 if !chunk_meshes.entities.contains_key(&lod_key) {
@@ -278,11 +274,7 @@ fn apply_mesh_commands(
                                 if let Some((entity, _mesh, _body)) =
                                     chunk_meshes.entities.get(lod_key)
                                 {
-                                    commands.entity(*entity).insert(FadeUniform {
-                                        duration: 1.0,
-                                        remaining: 1.0,
-                                        fade_in: false,
-                                    });
+                                    commands.entity(*entity).insert(FADE_OUT);
                                 }
                             }
                             if !chunk_meshes.entities.contains_key(&merge.new_chunk) {
@@ -443,11 +435,7 @@ fn spawn_mesh_entities(
                         material: array_texture_material.0.clone(),
                         ..Default::default()
                     })
-                    .insert(FadeUniform {
-                        duration: 1.0,
-                        remaining: 1.0,
-                        fade_in: true,
-                    })
+                    .insert(FADE_IN)
                     .insert(lod_chunk_key)
                     .id();
 
@@ -484,11 +472,7 @@ fn spawn_mesh_entities(
             chunk_meshes.entities.remove(&lod_chunk_key)
         };
         if let Some((entity, _mesh, _body)) = old_mesh {
-            commands.entity(entity).insert(FadeUniform {
-                duration: 1.0,
-                remaining: 1.0,
-                fade_in: false,
-            });
+            commands.entity(entity).insert(FADE_OUT);
         }
     }
 }
