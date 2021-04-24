@@ -155,6 +155,10 @@ impl VoxelMap {
         mut mesh_commands: ResMut<MeshCommandQueue>,
         lod0_center: Point3i,
     ) -> VoxelMap {
+        println!(
+            "Generating map with {} LODs of {:?} chunks...",
+            voxel_map_config.num_lods, voxel_map_config.chunk_shape
+        );
         // Generate a voxel map from noise.
         let map = generate_map(
             pool,
@@ -162,6 +166,7 @@ impl VoxelMap {
             noise_config,
             voxel_map_config,
         );
+        println!("...DONE!!!");
 
         // Queue up commands to initialize the chunk meshes to their appropriate LODs given the starting camera position.
         map.index.active_clipmap_lod_chunks(
@@ -307,37 +312,33 @@ pub fn voxel_map_config_changed_system(
     mut colliders: ResMut<ColliderSet>,
     mut joints: ResMut<JointSet>,
 ) {
-    if !voxel_map_config.is_changed() {
-        return;
+    if voxel_map_config.is_changed() && !voxel_map_config.is_added() {
+        chunk_meshes.clear_entities(
+            &mut commands,
+            &mut meshes,
+            &mut bodies,
+            &mut colliders,
+            &mut joints,
+        );
+        mesh_commands.clear();
+
+        let mut camera_position = if let Some((_camera, tfm)) = cameras.iter().next() {
+            tfm.translation
+        } else {
+            return;
+        };
+
+        let lod0_center = Point3f::from(camera_position).in_voxel() >> voxel_map_config.chunk_log2;
+
+        *voxel_map = VoxelMap::new(
+            &pool,
+            &voxel_map_config,
+            &noise_config,
+            mesh_commands,
+            lod0_center,
+        );
+        lod_state.old_lod0_center = lod0_center;
     }
-
-    chunk_meshes.clear_entities(
-        &mut commands,
-        &mut meshes,
-        &mut bodies,
-        &mut colliders,
-        &mut joints,
-    );
-    mesh_commands.clear();
-
-    let mut camera_position = if let Some((_camera, tfm)) = cameras.iter().next() {
-        tfm.translation
-    } else {
-        return;
-    };
-    // TODO: Remove this when no longer debugging
-    camera_position.y = 0.0f32;
-
-    let lod0_center = Point3f::from(camera_position).in_voxel() >> voxel_map_config.chunk_log2;
-
-    *voxel_map = VoxelMap::new(
-        &pool,
-        &voxel_map_config,
-        &noise_config,
-        mesh_commands,
-        lod0_center,
-    );
-    lod_state.old_lod0_center = lod0_center;
 }
 
 pub fn generate_map(
