@@ -322,7 +322,7 @@ pub fn voxel_map_config_changed_system(
         );
         mesh_commands.clear();
 
-        let mut camera_position = if let Some((_camera, tfm)) = cameras.iter().next() {
+        let camera_position = if let Some((_camera, tfm)) = cameras.iter().next() {
             tfm.translation
         } else {
             return;
