@@ -144,12 +144,21 @@ fn setup_graphics(
     let pipeline = pipelines.add(pipeline_descriptor);
 
     // Create a new material
-    let material = sky_materials.add(PhysicalSkyMaterial::default());
+    let mut sky_material = PhysicalSkyMaterial::default();
+    sky_material.set_sun_position(
+        std::f32::consts::PI * (0.4983 - 0.5),
+        2.0 * std::f32::consts::PI * 0.1979,
+        400000.0,
+    );
+    let material = sky_materials.add(sky_material);
 
     // Sky box cube
     commands
         .spawn_bundle(MeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 4000.0 })),
+            mesh: meshes.add(Mesh::from(shape::Icosphere {
+                radius: 4900.0,
+                subdivisions: 5,
+            })),
             render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(pipeline)]),
             transform: Transform::from_xyz(SPAWN_POINT[0], SPAWN_POINT[1], SPAWN_POINT[2]),
             ..Default::default()
@@ -312,11 +321,12 @@ fn setup_world(
     commands.spawn_bundle(UiCameraBundle::default());
     commands.spawn_bundle(LightBundle {
         transform: Transform::from_translation(Vec3::new(
-            SPAWN_POINT[0] + 512.0,
+            SPAWN_POINT[0] + 1000.0,
             SPAWN_POINT[1] + 512.0,
-            SPAWN_POINT[2] + 512.0,
+            SPAWN_POINT[2] + 3200.0,
         )),
         light: Light {
+            color: Color::hex("FFA734").unwrap(),
             intensity: 1000000.0,
             depth: 0.1..1000000.0,
             range: 1000000.0,
