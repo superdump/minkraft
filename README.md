@@ -2,7 +2,7 @@
 
 Currently a playground for Rust [bevy](https://bevyengine.org/) voxel stuff.
 
-![Terrain](https://github.com/superdump/minkraft/blob/gh-pages/images/Screenshot%202021-04-22%20at%2014.32.48.png)
+![Terrain](https://github.com/superdump/minkraft/blob/gh-pages/images/Screenshot%202021-04-25%20at%2001.21.47.png)
 
 ## Key Dependencies
 
