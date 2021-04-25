@@ -28,7 +28,7 @@ use minkraft::{
     level_of_detail::LodState,
     mesh_fade::FadeUniform,
     mesh_generator::{ArrayTextureMaterial, ArrayTexturePipelines, ChunkMeshes, MeshCommandQueue},
-    shaders::{FRAGMENT_SHADER, VERTEX_SHADER},
+    shaders::{ARRAY_TEXTURE_FRAGMENT_SHADER, ARRAY_TEXTURE_VERTEX_SHADER},
     voxel_map::{NoiseConfig, VoxelMap, VoxelMapConfig, VoxelMapPlugin},
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
@@ -142,12 +142,12 @@ fn setup_graphics(
 
     let pipeline = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
         vertex: shaders.add(Shader::from_glsl(
-            bevy::render::shader::ShaderStage::Vertex,
-            VERTEX_SHADER,
+            ShaderStage::Vertex,
+            ARRAY_TEXTURE_VERTEX_SHADER,
         )),
         fragment: Some(shaders.add(Shader::from_glsl(
-            bevy::render::shader::ShaderStage::Fragment,
-            FRAGMENT_SHADER,
+            ShaderStage::Fragment,
+            ARRAY_TEXTURE_FRAGMENT_SHADER,
         ))),
     }));
 
