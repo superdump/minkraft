@@ -12,8 +12,8 @@ use bevy::{
     tasks::ComputeTaskPool,
 };
 use bevy_physical_sky::{
-    PhysicalSkyMaterial, PhysicalSkyPlugin, PHYSICAL_SKY_FRAGMENT_SHADER,
-    PHYSICAL_SKY_SETUP_SYSTEM, PHYSICAL_SKY_VERTEX_SHADER,
+    PhysicalSkyCameraTag, PhysicalSkyMaterial, PhysicalSkyPlugin, PHYSICAL_SKY_FRAGMENT_SHADER,
+    PHYSICAL_SKY_VERTEX_SHADER,
 };
 use bevy_prototype_character_controller::{
     controller::{BodyTag, CameraTag, CharacterController, HeadTag, YawTag},
@@ -89,10 +89,7 @@ fn main() {
         .add_system_set(SystemSet::on_enter(AppState::Loading).with_system(load_assets.system()))
         .add_system_set(SystemSet::on_update(AppState::Loading).with_system(check_loaded.system()))
         .add_plugin(PhysicalSkyPlugin)
-        .add_system_set(
-            SystemSet::on_enter(AppState::Running)
-                .with_system(setup_graphics.system().after(PHYSICAL_SKY_SETUP_SYSTEM)),
-        )
+        .add_system_set(SystemSet::on_enter(AppState::Running).with_system(setup_graphics.system()))
         .add_system_set(
             SystemSet::on_enter(AppState::Running)
                 .with_system(setup_world.system().label("setup_world")),
@@ -276,7 +273,12 @@ fn setup_player(
             },
             ..Default::default()
         })
-        .insert_bundle((LookDirection::default(), CameraTag, WorldAxesCameraTag))
+        .insert_bundle((
+            LookDirection::default(),
+            CameraTag,
+            PhysicalSkyCameraTag,
+            WorldAxesCameraTag,
+        ))
         .id();
     commands
         .entity(body)

@@ -7,9 +7,11 @@ use bevy::{
         renderer::{RenderResource, RenderResources},
         shader::ShaderDefs,
     },
+    transform::TransformSystem,
 };
 
 pub const PHYSICAL_SKY_SETUP_SYSTEM: &str = "physical_sky_setup";
+pub const PHYSICAL_SKY_TRACK_CAMERA_SYSTEM: &str = "physical_sky_track_camera";
 pub const PHYSICAL_SKY_RENDER_NODE: &str = "physical_sky";
 pub const PHYSICAL_SKY_VERTEX_SHADER: &str = include_str!("../assets/shaders/physical_sky.vert");
 pub const PHYSICAL_SKY_FRAGMENT_SHADER: &str = include_str!("../assets/shaders/physical_sky.frag");
@@ -19,7 +21,14 @@ pub struct PhysicalSkyPlugin;
 impl Plugin for PhysicalSkyPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_asset::<PhysicalSkyMaterial>()
-            .add_startup_system(setup.system().label(PHYSICAL_SKY_SETUP_SYSTEM));
+            .add_startup_system(setup.system().label(PHYSICAL_SKY_SETUP_SYSTEM))
+            .add_system_to_stage(
+                CoreStage::PostUpdate,
+                track_camera
+                    .system()
+                    .label(PHYSICAL_SKY_TRACK_CAMERA_SYSTEM)
+                    .after(TransformSystem::ParentUpdate),
+            );
     }
 }
 
@@ -90,6 +99,8 @@ impl PhysicalSkyMaterial {
     }
 }
 
+pub struct PhysicalSkyCameraTag;
+
 pub fn setup(mut render_graph: ResMut<RenderGraph>) {
     // Add an AssetRenderResourcesNode to our Render Graph. This will bind
     // PhysicalSkyMaterial resources to our shader
@@ -104,4 +115,18 @@ pub fn setup(mut render_graph: ResMut<RenderGraph>) {
     render_graph
         .add_node_edge(PHYSICAL_SKY_RENDER_NODE, base::node::MAIN_PASS)
         .unwrap();
+}
+
+pub fn track_camera(
+    transforms: QuerySet<(
+        Query<&GlobalTransform, With<PhysicalSkyCameraTag>>,
+        Query<&mut GlobalTransform, With<Handle<PhysicalSkyMaterial>>>,
+    )>,
+) {
+    let mut cam_temp = transforms.q0().iter();
+    if let Some(camera_transform) = cam_temp.next() {
+        transforms
+            .q1()
+            .for_each_mut(|mut mesh_transform| *mesh_transform = *camera_transform);
+    }
 }

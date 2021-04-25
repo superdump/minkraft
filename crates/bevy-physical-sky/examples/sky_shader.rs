@@ -7,7 +7,7 @@ use bevy::{
     },
 };
 use bevy_physical_sky::{
-    PhysicalSkyMaterial, PhysicalSkyPlugin, PHYSICAL_SKY_FRAGMENT_SHADER,
+    PhysicalSkyCameraTag, PhysicalSkyMaterial, PhysicalSkyPlugin, PHYSICAL_SKY_FRAGMENT_SHADER,
     PHYSICAL_SKY_SETUP_SYSTEM, PHYSICAL_SKY_VERTEX_SHADER,
 };
 
@@ -48,16 +48,18 @@ fn setup(
     // plane
     commands
         .spawn_bundle(MeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Plane { size: 15.0 })),
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 15.0 })),
             render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(pipeline)]),
-            transform: Transform::from_rotation(Quat::from_rotation_x(-0.5 * std::f32::consts::PI)),
+            transform: Transform::default(),
             ..Default::default()
         })
         .insert(material);
 
     // camera
-    commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_xyz(0.0, 0.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..Default::default()
-    });
+    commands
+        .spawn_bundle(PerspectiveCameraBundle {
+            transform: Transform::from_xyz(0.0, 0.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
+            ..Default::default()
+        })
+        .insert(PhysicalSkyCameraTag);
 }
