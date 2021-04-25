@@ -162,7 +162,7 @@ impl VoxelMap {
         // Generate a voxel map from noise.
         let map = generate_map(
             pool,
-            voxel_map_config.world_chunks_extent,
+            voxel_map_config.visible_chunks_extent,
             noise_config,
             voxel_map_config,
         );
@@ -170,7 +170,7 @@ impl VoxelMap {
 
         // Queue up commands to initialize the chunk meshes to their appropriate LODs given the starting camera position.
         map.index.active_clipmap_lod_chunks(
-            &voxel_map_config.world_voxel_extent,
+            &voxel_map_config.visible_voxel_extent,
             voxel_map_config.clip_box_radius,
             lod0_center,
             |chunk_key| mesh_commands.enqueue(MeshCommand::Create(chunk_key)),
@@ -201,54 +201,53 @@ impl Default for NoiseConfig {
     }
 }
 
+const VISIBLE_SIZE_VOXELS: i32 = 4096;
+
 pub struct VoxelMapConfig {
     pub chunk_log2: i32,
     pub chunk_shape: Point3i,
     pub num_lods: u8,
     pub superchunk_shape: Point3i,
     pub clip_box_radius: i32,
-    pub world_chunks_extent: Extent3i,
-    pub world_voxel_extent: Extent3i,
+    pub visible_chunks_extent: Extent3i,
+    pub visible_voxel_extent: Extent3i,
 }
-
-const CHUNKS_MINIMUM_XZ: i32 = -50;
-const CHUNKS_MINIMUM_Y: i32 = 0;
-const CHUNKS_SHAPE: i32 = 100;
-const CHUNKS_THICKNESS: i32 = 1;
 
 impl Default for VoxelMapConfig {
     fn default() -> Self {
         let chunk_log2 = 5;
         let num_lods = 6;
         let clip_box_radius = 8;
-        VoxelMapConfig::new(chunk_log2, num_lods, clip_box_radius)
+        VoxelMapConfig::new(
+            chunk_log2,
+            num_lods,
+            clip_box_radius,
+            Extent3i::from_min_and_shape(
+                PointN([-VISIBLE_SIZE_VOXELS / 2, 0, -VISIBLE_SIZE_VOXELS / 2]),
+                PointN([VISIBLE_SIZE_VOXELS, 1, VISIBLE_SIZE_VOXELS]),
+            ),
+        )
     }
 }
 
 impl VoxelMapConfig {
-    pub fn new(chunk_log2: i32, num_lods: u8, clip_box_radius: i32) -> VoxelMapConfig {
+    pub fn new(
+        chunk_log2: i32,
+        num_lods: u8,
+        clip_box_radius: i32,
+        visible_voxel_extent: Extent3i,
+    ) -> VoxelMapConfig {
         VoxelMapConfig {
             chunk_log2,
             chunk_shape: PointN([1 << chunk_log2; 3]),
             num_lods,
             superchunk_shape: PointN([1 << (chunk_log2 + num_lods as i32 - 1); 3]),
             clip_box_radius,
-            world_chunks_extent: Extent3i {
-                minimum: PointN([CHUNKS_MINIMUM_XZ, CHUNKS_MINIMUM_Y, CHUNKS_MINIMUM_XZ]),
-                shape: PointN([CHUNKS_SHAPE, CHUNKS_THICKNESS, CHUNKS_SHAPE]),
+            visible_chunks_extent: Extent3i {
+                minimum: visible_voxel_extent.minimum >> chunk_log2,
+                shape: visible_voxel_extent.shape >> chunk_log2,
             },
-            world_voxel_extent: Extent3i {
-                minimum: PointN([
-                    CHUNKS_MINIMUM_XZ << chunk_log2,
-                    CHUNKS_MINIMUM_Y << chunk_log2,
-                    CHUNKS_MINIMUM_XZ << chunk_log2,
-                ]),
-                shape: PointN([
-                    CHUNKS_SHAPE << chunk_log2,
-                    CHUNKS_THICKNESS << chunk_log2,
-                    CHUNKS_SHAPE << chunk_log2,
-                ]),
-            },
+            visible_voxel_extent,
         }
     }
 }
@@ -281,6 +280,7 @@ pub fn voxel_map_config_update_system(
             voxel_map_config.chunk_log2,
             voxel_map_config.num_lods,
             voxel_map_config.clip_box_radius,
+            voxel_map_config.visible_voxel_extent,
         );
     }
     if keyboard_input.just_pressed(KeyCode::L) {
@@ -293,6 +293,7 @@ pub fn voxel_map_config_update_system(
             voxel_map_config.chunk_log2,
             voxel_map_config.num_lods,
             voxel_map_config.clip_box_radius,
+            voxel_map_config.visible_voxel_extent,
         );
     }
 }

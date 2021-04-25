@@ -174,7 +174,7 @@ pub fn chunk_detection_system(
     let mut camera_center =
         Point3f::from(camera_position).in_voxel() >> voxel_map_config.chunk_log2;
     *camera_center.y_mut() = 0;
-    let visible_extent = voxel_map_config.world_chunks_extent + camera_center;
+    let visible_extent = voxel_map_config.visible_chunks_extent + camera_center;
 
     let lod0 = voxel_map.pyramid.level(0);
     let lod0_voxel_extent = lod0.bounding_extent();
