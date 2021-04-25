@@ -4,12 +4,16 @@ use bevy::{
     prelude::*,
     render::{
         camera::PerspectiveProjection,
-        pipeline::{PipelineDescriptor, RenderPipeline},
+        pipeline::{FrontFace, PipelineDescriptor, RenderPipeline},
         render_graph::{base, RenderGraph, RenderResourcesNode},
-        shader::{shader_defs_system, ShaderStages},
+        shader::{shader_defs_system, ShaderStage, ShaderStages},
         texture::{AddressMode, SamplerDescriptor},
     },
     tasks::ComputeTaskPool,
+};
+use bevy_physical_sky::{
+    PhysicalSkyMaterial, PhysicalSkyPlugin, PHYSICAL_SKY_FRAGMENT_SHADER,
+    PHYSICAL_SKY_SETUP_SYSTEM, PHYSICAL_SKY_VERTEX_SHADER,
 };
 use bevy_prototype_character_controller::{
     controller::{BodyTag, CameraTag, CharacterController, HeadTag, YawTag},
@@ -84,7 +88,11 @@ fn main() {
         // Minkraft
         .add_system_set(SystemSet::on_enter(AppState::Loading).with_system(load_assets.system()))
         .add_system_set(SystemSet::on_update(AppState::Loading).with_system(check_loaded.system()))
-        .add_system_set(SystemSet::on_enter(AppState::Running).with_system(setup_graphics.system()))
+        .add_plugin(PhysicalSkyPlugin)
+        .add_system_set(
+            SystemSet::on_enter(AppState::Running)
+                .with_system(setup_graphics.system().after(PHYSICAL_SKY_SETUP_SYSTEM)),
+        )
         .add_system_set(
             SystemSet::on_enter(AppState::Running)
                 .with_system(setup_world.system().label("setup_world")),
@@ -117,10 +125,40 @@ fn setup_graphics(
     texture_handle: Res<Loading>,
     mut textures: ResMut<Assets<Texture>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut sky_materials: ResMut<Assets<PhysicalSkyMaterial>>,
     mut pipelines: ResMut<Assets<PipelineDescriptor>>,
     mut shaders: ResMut<Assets<Shader>>,
     mut render_graph: ResMut<RenderGraph>,
 ) {
+    // Create a new shader pipeline
+    let mut pipeline_descriptor = PipelineDescriptor::default_config(ShaderStages {
+        vertex: shaders.add(Shader::from_glsl(
+            ShaderStage::Vertex,
+            PHYSICAL_SKY_VERTEX_SHADER,
+        )),
+        fragment: Some(shaders.add(Shader::from_glsl(
+            ShaderStage::Fragment,
+            PHYSICAL_SKY_FRAGMENT_SHADER,
+        ))),
+    });
+    // Reverse the winding so we can see the faces from the inside
+    pipeline_descriptor.primitive.front_face = FrontFace::Cw;
+    let pipeline = pipelines.add(pipeline_descriptor);
+
+    // Create a new material
+    let material = sky_materials.add(PhysicalSkyMaterial::default());
+
+    // Sky box cube
+    commands
+        .spawn_bundle(MeshBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 4000.0 })),
+            render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(pipeline)]),
+            transform: Transform::from_xyz(SPAWN_POINT[0], SPAWN_POINT[1], SPAWN_POINT[2]),
+            ..Default::default()
+        })
+        .insert(material);
+
     let mut texture = textures.get_mut(&texture_handle.0).unwrap();
     // Set the texture to tile over the entire quad
     texture.sampler = SamplerDescriptor {
