@@ -1,0 +1,9 @@
+[package]
+name = "bevy-physical-sky"
+version = "0.1.0"
+authors = ["Robert Swain <robert.swain@gmail.com>"]
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+bevy = "0.5"
