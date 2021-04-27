@@ -30,6 +30,7 @@ use crate::{
     voxel_map::{Voxel, VoxelMap},
 };
 
+use bevy_mod_bounding::obb::Obb;
 use bevy_rapier3d::{
     physics::{ColliderHandleComponent, RigidBodyHandleComponent},
     rapier::{
@@ -448,8 +449,11 @@ fn spawn_mesh_entities(
                         material: array_texture_material.0.clone(),
                         ..Default::default()
                     })
-                    .insert(FADE_IN)
-                    .insert(lod_chunk_key)
+                    .insert_bundle((
+                        FADE_IN,
+                        lod_chunk_key,
+                        Obb::default(),
+                    ))
                     .id();
 
                 let body_handle = if lod_chunk_key.lod == 0 {

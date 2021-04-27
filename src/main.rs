@@ -11,6 +11,8 @@ use bevy::{
     },
     tasks::ComputeTaskPool,
 };
+use bevy_frustum_culling::*;
+use bevy_mod_bounding::*;
 use bevy_physical_sky::{
     PhysicalSkyCameraTag, PhysicalSkyMaterial, PhysicalSkyPlugin, PHYSICAL_SKY_FRAGMENT_SHADER,
     PHYSICAL_SKY_VERTEX_SHADER,
@@ -36,6 +38,7 @@ use minkraft::{
     voxel_map::{NoiseConfig, VoxelMap, VoxelMapConfig, VoxelMapPlugin},
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
+use obb::Obb;
 
 struct Loading(Handle<Texture>);
 
@@ -85,6 +88,9 @@ fn main() {
             shader_defs_system::<FadeUniform>.system(),
         )
         .add_plugin(VoxelMapPlugin)
+        // Frustum culling
+        .add_plugin(BoundingVolumePlugin::<Obb>::default())
+        .add_plugin(FrustumCullingPlugin::<Obb>::default())
         // Minkraft
         .add_system_set(SystemSet::on_enter(AppState::Loading).with_system(load_assets.system()))
         .add_system_set(SystemSet::on_update(AppState::Loading).with_system(check_loaded.system()))
@@ -283,8 +289,9 @@ fn setup_player(
             ..Default::default()
         })
         .insert_bundle((
-            LookDirection::default(),
             CameraTag,
+            FrustumCulling,
+            LookDirection::default(),
             PhysicalSkyCameraTag,
             WorldAxesCameraTag,
         ))
