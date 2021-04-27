@@ -1,5 +1,5 @@
 use bevy::{
-    diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
+    diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     prelude::*,
 };
 use bevy_prototype_character_controller::look::MouseSettings;
@@ -28,6 +28,7 @@ impl Plugin for DebugPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.init_resource::<Debug>()
             .add_plugin(FrameTimeDiagnosticsPlugin::default())
+            .add_plugin(LogDiagnosticsPlugin::default())
             .add_startup_system(debug_setup.system())
             .add_system(debug_toggle_system.system())
             .add_system(debug_system.system());
