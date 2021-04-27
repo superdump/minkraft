@@ -24,8 +24,7 @@ use bevy_prototype_character_controller::{
 };
 use bevy_rapier3d::{
     physics::{PhysicsInterpolationComponent, RapierConfiguration, RapierPhysicsPlugin},
-    rapier::dynamics::RigidBodyBuilder,
-    rapier::geometry::ColliderBuilder,
+    rapier::{dynamics::RigidBodyBuilder, geometry::ColliderBuilder},
 };
 use building_blocks::core::prelude::*;
 use minkraft::{
@@ -42,7 +41,9 @@ use obb::Obb;
 
 struct Loading(Handle<Texture>);
 
-const SPAWN_POINT: [f32; 3] = [128.0, 512.0, 128.0];
+const SPAWN_POINT: [f32; 3] = [8.5, 641.0, -3.5];
+const NO_GRAVITY: [f32; 3] = [0.0, 0.0, 0.0];
+const GRAVITY: [f32; 3] = [0.0, -9.81, 0.0];
 
 fn main() {
     env_logger::builder().format_timestamp_micros().init();
@@ -72,10 +73,15 @@ fn main() {
             bevy::app::CoreStage::PreUpdate,
             toggle_debug_system.system(),
         )
+        .add_system_to_stage(
+            bevy::app::CoreStage::PreUpdate,
+            toggle_gravity_system.system(),
+        )
         // Physics - Rapier
         .add_plugin(RapierPhysicsPlugin)
         // NOTE: This overridden configuration must come after the plugin to override the defaults
         .insert_resource(RapierConfiguration {
+            gravity: NO_GRAVITY.into(),
             time_dependent_number_of_timesteps: true,
             ..Default::default()
         })
@@ -353,5 +359,18 @@ fn toggle_debug_system(
         let new_state = !debug.enabled;
         debug.enabled = new_state;
         world_axes.enabled = new_state;
+    }
+}
+
+fn toggle_gravity_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut rapier_config: ResMut<RapierConfiguration>,
+) {
+    if keyboard_input.just_pressed(KeyCode::G) {
+        rapier_config.gravity = if rapier_config.gravity.y == GRAVITY[1] {
+            NO_GRAVITY.into()
+        } else {
+            GRAVITY.into()
+        };
     }
 }
