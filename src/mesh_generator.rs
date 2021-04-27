@@ -449,11 +449,7 @@ fn spawn_mesh_entities(
                         material: array_texture_material.0.clone(),
                         ..Default::default()
                     })
-                    .insert_bundle((
-                        FADE_IN,
-                        lod_chunk_key,
-                        Obb::default(),
-                    ))
+                    .insert_bundle((FADE_IN, lod_chunk_key, Obb::default()))
                     .id();
 
                 let body_handle = if lod_chunk_key.lod == 0 {
