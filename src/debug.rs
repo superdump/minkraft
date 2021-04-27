@@ -4,6 +4,8 @@ use bevy::{
 };
 use bevy_prototype_character_controller::look::MouseSettings;
 
+use crate::mesh_diagnostics::MeshDiagnosticsPlugin;
+
 pub struct Debug {
     pub enabled: bool,
     font_handle: Option<Handle<Font>>,
@@ -28,10 +30,11 @@ impl Plugin for DebugPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.init_resource::<Debug>()
             .add_plugin(FrameTimeDiagnosticsPlugin::default())
+            .add_plugin(MeshDiagnosticsPlugin::default())
             .add_plugin(LogDiagnosticsPlugin::default())
             .add_startup_system(debug_setup.system())
-            .add_system(debug_toggle_system.system())
-            .add_system(debug_system.system());
+            .add_system(debug_toggle_system.system().label("debug_toggle"))
+            .add_system(debug_system.system().label("debug").after("debug_toggle"));
     }
 }
 
