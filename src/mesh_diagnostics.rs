@@ -1,7 +1,6 @@
 use bevy::{
     diagnostic::{Diagnostic, DiagnosticId, Diagnostics},
     prelude::*,
-    render::draw::OutsideFrustum,
 };
 
 /// Adds "frame time" diagnostic to an App, specifically "frame time", "fps" and "frame count"

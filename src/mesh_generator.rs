@@ -30,7 +30,7 @@ use crate::{
     voxel_map::{Voxel, VoxelMap},
 };
 
-use bevy_mod_bounding::obb::Obb;
+use bevy_mod_bounding::{aabb::Aabb, obb::Obb};
 use bevy_rapier3d::{
     physics::{ColliderHandleComponent, RigidBodyHandleComponent},
     rapier::{
@@ -154,13 +154,27 @@ fn clear_up_entity(
 }
 
 // Utility struct for building the mesh
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 struct MeshBuf {
     pub positions: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
     pub tex_coords: Vec<[f32; 2]>,
     pub layer: Vec<u32>,
     pub indices: Vec<u32>,
+    pub extent: Extent3i,
+}
+
+impl Default for MeshBuf {
+    fn default() -> Self {
+        Self {
+            positions: Vec::new(),
+            normals: Vec::new(),
+            tex_coords: Vec::new(),
+            layer: Vec::new(),
+            indices: Vec::new(),
+            extent: Extent3i::from_min_and_shape(PointN([0, 0, 0]), PointN([0, 0, 0])),
+        }
+    }
 }
 
 impl MeshBuf {
@@ -383,6 +397,7 @@ fn create_mesh_for_chunk(
         None
     } else {
         let mut mesh_buf = MeshBuf::default();
+        mesh_buf.extent = chunk_extent * voxel_map.pyramid.chunk_shape();
         for group in mesh_buffer.quad_groups.iter() {
             for quad in group.quads.iter() {
                 let mat = neighborhood_buffer.get(quad.minimum);
@@ -432,6 +447,7 @@ fn spawn_mesh_entities(
                     tex_coords,
                     layer,
                     indices,
+                    extent,
                 } = mesh_buf;
 
                 render_mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions.clone());
@@ -442,6 +458,16 @@ fn spawn_mesh_entities(
 
                 let mesh_handle = mesh_assets.add(render_mesh);
 
+                let minimum = Vec3::new(
+                    extent.minimum.0[0] as f32,
+                    extent.minimum.0[1] as f32,
+                    extent.minimum.0[2] as f32,
+                );
+                let maximum = Vec3::new(
+                    extent.max().0[0] as f32,
+                    extent.max().0[1] as f32,
+                    extent.max().0[2] as f32,
+                );
                 let entity = commands
                     .spawn_bundle(PbrBundle {
                         mesh: mesh_handle.clone(),
@@ -449,7 +475,14 @@ fn spawn_mesh_entities(
                         material: array_texture_material.0.clone(),
                         ..Default::default()
                     })
-                    .insert_bundle((FADE_IN, lod_chunk_key, Obb::default()))
+                    .insert_bundle((
+                        FADE_IN,
+                        lod_chunk_key,
+                        Obb::from_aabb_orientation(
+                            Aabb::from_extents(minimum, maximum),
+                            Quat::IDENTITY,
+                        ),
+                    ))
                     .id();
 
                 let body_handle = if lod_chunk_key.lod == 0 {

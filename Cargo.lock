@@ -408,6 +408,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_frustum_culling"
+version = "0.1.0"
+source = "git+https://github.com/aevyrie/bevy_frustum_culling?rev=1828259235e7dbc191a731f36c15395789ed2c3f#1828259235e7dbc191a731f36c15395789ed2c3f"
+dependencies = [
+ "bevy",
+ "bevy_mod_bounding",
+]
+
+[[package]]
 name = "bevy_gilrs"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -511,6 +520,15 @@ checksum = "bb36a879cdc96f554b62dd7c7c02392a9a10e94082e4bc686a8242e1d674e7cc"
 dependencies = [
  "bevy_reflect",
  "glam",
+]
+
+[[package]]
+name = "bevy_mod_bounding"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "500131fec86cd66057089520b6bfbdc1f7eaa80c4710ed627ce0f542819ddb24"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]
@@ -2263,9 +2281,9 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
 name = "libc"
-version = "0.2.93"
+version = "0.2.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9385f66bf6105b241aa65a61cb923ef20efc665cb9f9bb50ac2f0c4b7f378d41"
+checksum = "18794a8ad5b29321f790b55d93dfba91e125cb1a9edbd4f8e3150acc771c1a5e"
 
 [[package]]
 name = "libloading"
@@ -2472,6 +2490,8 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy-physical-sky",
+ "bevy_frustum_culling",
+ "bevy_mod_bounding",
  "bevy_prototype_character_controller",
  "bevy_rapier3d",
  "building-blocks",
@@ -3023,9 +3043,9 @@ dependencies = [
 
 [[package]]
 name = "pathfinding"
-version = "2.1.2"
+version = "2.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3eba8a4960713d2880e05b0dca675bd747ab1fb67249639f21e7cec9f51fa98"
+checksum = "d1dcdd920c7280ca99a20cdee430ffb9883fcd890867da058d9d9a5af5cc179d"
 dependencies = [
  "fixedbitset 0.4.0",
  "indexmap",
