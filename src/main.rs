@@ -53,6 +53,7 @@ fn main() {
             width: 1600.0,
             height: 900.0,
             title: env!("CARGO_PKG_NAME").to_string(),
+            vsync: false,
             ..Default::default()
         })
         .insert_resource(ClearColor(Color::BLACK))

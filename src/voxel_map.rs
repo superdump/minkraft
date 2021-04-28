@@ -407,7 +407,7 @@ pub fn generate_chunk_stack(
 
     let min_y_chunk = (scale_noise(min_y, &noise_config) as i32) >> voxel_map_config.chunk_log2;
     let max_y_chunk = (scale_noise(max_y, &noise_config) as i32) >> voxel_map_config.chunk_log2;
-    for y_min_chunk in min_y_chunk..=max_y_chunk {
+    for y_min_chunk in (min_y_chunk - 1)..=max_y_chunk {
         let y_min = y_min_chunk << voxel_map_config.chunk_log2;
         let y_chunk_min = PointN([chunk_min.x(), y_min, chunk_min.z()]);
         let y_chunk_voxel_extent =
