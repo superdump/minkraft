@@ -4,12 +4,12 @@ use bevy::{
     prelude::*,
     reflect::TypeUuid,
     render::{
-        camera::Camera,
         mesh::Indices,
         pipeline::{PipelineDescriptor, PipelineSpecialization, PrimitiveTopology, RenderPipeline},
-        render_graph::{base, AssetRenderResourcesNode, RenderGraph, RenderResourcesNode},
+        render_graph::{base, RenderGraph, RenderResourcesNode},
         renderer::{RenderResource, RenderResources},
         shader::{ShaderStage, ShaderStages},
+        texture::{AddressMode, SamplerDescriptor},
     },
 };
 use bevy_prototype_character_controller::{
@@ -24,49 +24,22 @@ use bevy_rapier3d::{
         geometry::{ColliderBuilder, ColliderHandle, ColliderSet},
     },
 };
+use minkraft::{
+    app_state::AppState,
+    mesh_fade::FadeUniform,
+};
 use noise::{MultiFractal, NoiseFn, RidgedMulti, Seedable};
 
+struct Loading(Handle<Texture>);
+
 const VERTEX_SHADER: &str = include_str!("../assets/shaders/voxel.vert");
-
 const FRAGMENT_SHADER: &str = include_str!("../assets/shaders/voxel.frag");
-
-#[derive(Debug, RenderResources, RenderResource, TypeUuid)]
-#[uuid = "c63fd9ae-3847-4c7e-a33d-29f2dea49501"]
-#[render_resources(from_self)]
-pub struct VoxelUBO {
-    camera_position: Vec4,
-    center_to_edge: Vec4,
-}
-
-unsafe impl Byteable for VoxelUBO {}
-
-impl Default for VoxelUBO {
-    fn default() -> Self {
-        Self {
-            camera_position: Vec3::ZERO.extend(1.0),
-            center_to_edge: Vec4::splat(0.5),
-        }
-    }
-}
-
-pub fn voxel_ubo_update_camera_position(
-    mut voxel_ubos: ResMut<Assets<VoxelUBO>>,
-    query: Query<(&Camera, &GlobalTransform, &Handle<VoxelUBO>)>,
-) {
-    for (camera, transform, voxel_ubo_handle) in query.iter() {
-        if let Some(name) = camera.name.as_ref() {
-            if name == "Camera3d" {
-                let voxel_ubo = voxel_ubos.get_mut(voxel_ubo_handle).unwrap();
-                voxel_ubo.camera_position = transform.translation.extend(1.0);
-            }
-        }
-    }
-}
 
 #[derive(Debug, RenderResource)]
 pub struct VoxelData {
     pub position: Vec4,
-    pub color: Vec4,
+    pub center_to_edge: f32,
+    pub texture_layer: u32,
 }
 
 unsafe impl Byteable for VoxelData {}
@@ -75,7 +48,8 @@ impl Default for VoxelData {
     fn default() -> Self {
         Self {
             position: Vec4::ZERO,
-            color: Vec4::ONE,
+            center_to_edge: 0.5f32,
+            texture_layer: 0,
         }
     }
 }
@@ -138,50 +112,78 @@ fn main() {
             time_dependent_number_of_timesteps: true,
             ..Default::default()
         })
-        .add_asset::<VoxelUBO>()
-        .add_startup_system(setup.system())
         // Physics - Rapier
         .add_plugin(RapierPhysicsPlugin)
         // Character Controller
         .add_plugin(RapierDynamicImpulseCharacterControllerPlugin)
-        .add_system_to_stage(
-            CoreStage::PostUpdate,
-            voxel_ubo_update_camera_position.system(),
+        .add_system(exit_on_esc_system.system())
+        // States
+        .insert_resource(State::new(AppState::Loading))
+        .add_state(AppState::Loading)
+        // Voxel Render
+        .add_system_set(SystemSet::on_enter(AppState::Loading).with_system(load_assets.system()))
+        .add_system_set(SystemSet::on_update(AppState::Loading).with_system(check_loaded.system()))
+        .add_system_set(
+            SystemSet::on_enter(AppState::Running)
+                .with_system(setup.system().label("setup")),
         )
-        .add_system(exit_on_esc_system.system());
+        .add_system_set(
+            SystemSet::on_enter(AppState::Running)
+                .with_system(setup_player.system().after("setup")),
+        )
+        .run();
+}
 
-    #[cfg(feature = "profiler")]
-    app_builder.add_plugins(minkraft::diagnostics::DiagnosticPlugins);
+fn load_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let handle = asset_server.load("textures/voxel-pack/array_texture.png");
+    commands.insert_resource(Loading(handle));
+}
 
-    app_builder.run();
+/// Make sure that our texture is loaded so we can change some settings on it later
+fn check_loaded(
+    mut state: ResMut<State<AppState>>,
+    handle: Res<Loading>,
+    asset_server: Res<AssetServer>,
+) {
+    if let bevy::asset::LoadState::Loaded = asset_server.get_load_state(&handle.0) {
+        state.set(AppState::Running).unwrap();
+    }
 }
 
 fn setup(
     mut commands: Commands,
+    texture_handle: Res<Loading>,
+    mut textures: ResMut<Assets<Texture>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     mut pipelines: ResMut<Assets<PipelineDescriptor>>,
     mut shaders: ResMut<Assets<Shader>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut render_graph: ResMut<RenderGraph>,
-    mut voxel_ubos: ResMut<Assets<VoxelUBO>>,
     mut bodies: ResMut<RigidBodySet>,
     mut colliders: ResMut<ColliderSet>,
-    materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    render_graph.add_system_node(
-        "voxel_ubo",
-        AssetRenderResourcesNode::<VoxelUBO>::new(false),
-    );
-    render_graph
-        .add_node_edge("voxel_ubo", base::node::MAIN_PASS)
-        .unwrap();
-
     render_graph.add_system_node("voxel_map", RenderResourcesNode::<VoxelMap>::new(false));
     render_graph
         .add_node_edge("voxel_map", base::node::MAIN_PASS)
         .unwrap();
 
-    // Create a new voxel uniform buffer object
-    let voxel_ubo = voxel_ubos.add(VoxelUBO::default());
+    let mut texture = textures.get_mut(&texture_handle.0).unwrap();
+    // Set the texture to tile over the entire quad
+    texture.sampler = SamplerDescriptor {
+        address_mode_u: AddressMode::Repeat,
+        address_mode_v: AddressMode::Repeat,
+        ..Default::default()
+    };
+    texture.reinterpret_stacked_2d_as_array(6);
+    let material = materials.add(texture_handle.0.clone().into());
+
+    render_graph.add_system_node(
+        "fade_uniform",
+        RenderResourcesNode::<FadeUniform>::new(true),
+    );
+    render_graph
+        .add_node_edge("fade_uniform", base::node::MAIN_PASS)
+        .expect("Failed to add fade_uniform as dependency of main pass");
 
     // Create a mesh of only indices
     let indices = generate_index_buffer_data(NUM_CUBES as usize);
@@ -200,14 +202,6 @@ fn setup(
         .set_frequency(0.008)
         .set_octaves(5);
     let mut voxels = Vec::with_capacity(NUM_CUBES as usize);
-    let colors = [
-        Vec4::new(0.275, 0.51, 0.706, 1.0),  // Blue
-        Vec4::new(1.0, 0.98, 0.804, 1.0),    // Yellow
-        Vec4::new(0.604, 0.804, 0.196, 1.0), // Green
-        Vec4::new(0.545, 0.271, 0.075, 1.0), // Brown
-        Vec4::new(0.502, 0.502, 0.502, 1.0), // Grey
-        Vec4::new(1.0, 0.98, 0.98, 1.0),     // White
-    ];
 
     let body_handle = bodies.insert(RigidBodyBuilder::new_static().build());
     let mut collider_handles = Vec::with_capacity(NUM_COLLIDERS);
@@ -234,14 +228,15 @@ fn setup(
             }
             voxels.push(VoxelData {
                 position,
-                color: colors[match y {
-                    y if y < -0.5 => 0, // Blue
-                    y if y < -0.4 => 1, // Yellow
-                    y if y < -0.2 => 2, // Green
-                    y if y < -0.1 => 3, // Brown
-                    y if y < 0.6 => 4,  // Grey
-                    _ => 5,             // White
-                }],
+                center_to_edge: 0.5f32,
+                texture_layer: match y {
+                    y if y < -0.5 => 1, // Blue
+                    y if y < -0.4 => 2, // Yellow
+                    y if y < -0.2 => 3, // Green
+                    y if y < -0.1 => 4, // Brown
+                    y if y < 0.6 => 5,  // Grey
+                    _ => 6,             // White
+                },
             });
         }
     }
@@ -263,8 +258,9 @@ fn setup(
 
     // Setup our world
     commands
-        .spawn_bundle(MeshBundle {
-            mesh: meshes.add(mesh), // use our mesh
+        .spawn_bundle(PbrBundle {
+            mesh: meshes.add(mesh),
+            material,
             render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::specialized(
                 pipeline_handle,
                 PipelineSpecialization::default(),
@@ -272,19 +268,23 @@ fn setup(
             transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
             ..Default::default()
         })
-        .insert_bundle((voxel_ubo.clone(), voxel_map));
-
-    // Calling this from here to pass voxel_ubo to add to the camera
-    setup_player(&mut commands, meshes, materials, voxel_ubo);
+        .insert_bundle((
+            FadeUniform {
+                duration: 1.0,
+                remaining: 1.0,
+                delay: 0.0,
+                fade_in: true,
+            },
+            voxel_map,
+        ));
 }
 
 pub struct PlayerTag;
 
 fn setup_player(
-    commands: &mut Commands,
+    mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    voxel_ubo: Handle<VoxelUBO>,
 ) {
     let spawn_pos = Vec3::new(1.1, 50.0, 1.1);
     let obj_scale = Vec3::new(0.465, 1.75, 0.25);
@@ -349,7 +349,7 @@ fn setup_player(
             transform: Transform::from_matrix(camera_transform),
             ..Default::default()
         })
-        .insert_bundle((LookDirection::default(), CameraTag, voxel_ubo))
+        .insert_bundle((LookDirection::default(), CameraTag))
         .id();
     commands
         .entity(body)
