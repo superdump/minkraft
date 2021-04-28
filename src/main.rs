@@ -37,7 +37,6 @@ use minkraft::{
     voxel_map::{NoiseConfig, VoxelMap, VoxelMapConfig, VoxelMapPlugin},
     world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
-use obb::Obb;
 
 struct Loading(Handle<Texture>);
 
@@ -95,8 +94,8 @@ fn main() {
         )
         .add_plugin(VoxelMapPlugin)
         // Frustum culling
-        .add_plugin(BoundingVolumePlugin::<Obb>::default())
-        .add_plugin(FrustumCullingPlugin::<Obb>::default())
+        .add_plugin(BoundingVolumePlugin::<obb::Obb>::default())
+        .add_plugin(FrustumCullingPlugin::<obb::Obb>::default())
         // Minkraft
         .add_system_set(SystemSet::on_enter(AppState::Loading).with_system(load_assets.system()))
         .add_system_set(SystemSet::on_update(AppState::Loading).with_system(check_loaded.system()))
