@@ -6,7 +6,9 @@ edition = "2018"
 license = "MIT"
 
 [dependencies]
-bevy = "0.5"
+# bevy = "0.5"
+# https://github.com/bevyengine/bevy/pull/2036 is needed for voxel_render example
+bevy = { path = "../bevy" }
 bevy_frustum_culling = { git = "https://github.com/aevyrie/bevy_frustum_culling", rev = "1828259235e7dbc191a731f36c15395789ed2c3f" }
 bevy_mod_bounding = "0.1"
 bevy-physical-sky = { path = "crates/bevy-physical-sky" }
@@ -17,6 +19,12 @@ env_logger = "0.8"
 log = "0.4.11"
 simdnoise = "3.1.6"
 thread_local = "1.1"
+
+[patch.crates-io]
+bevy = { path = "../bevy" }
+
+[dev-dependencies]
+noise = "0.7.0"
 
 [features]
 default = []
