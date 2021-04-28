@@ -77,9 +77,12 @@ void main() {
     v_LocalPos = pos.xyz * voxels[instance].center_to_edge;
 
     v_WorldPosition = voxels[instance].position.xyz;
+    // FIXME
     v_WorldNormal = mat3(Model) * v_LocalPos;
+    // FIXME
     v_Uv = vec3(0.5, 0.5, voxels[instance].texture_layer);
 #ifdef STANDARDMATERIAL_NORMAL_MAP
+    // FIXME
     v_WorldTangent = vec4(mat3(Model) * vec3(1.0), 1.0);
 #endif
 
