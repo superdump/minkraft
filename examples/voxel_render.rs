@@ -25,10 +25,7 @@ use bevy_rapier3d::{
         geometry::{ColliderBuilder, ColliderHandle, ColliderSet},
     },
 };
-use minkraft::{
-    app_state::AppState,
-    mesh_fade::FadeUniform,
-};
+use minkraft::{app_state::AppState, mesh_fade::FadeUniform};
 use noise::{MultiFractal, NoiseFn, RidgedMulti, Seedable};
 
 struct Loading(Handle<Texture>);
@@ -125,8 +122,7 @@ fn main() {
         .add_system_set(SystemSet::on_enter(AppState::Loading).with_system(load_assets.system()))
         .add_system_set(SystemSet::on_update(AppState::Loading).with_system(check_loaded.system()))
         .add_system_set(
-            SystemSet::on_enter(AppState::Running)
-                .with_system(setup.system().label("setup")),
+            SystemSet::on_enter(AppState::Running).with_system(setup.system().label("setup")),
         )
         .add_system_set(
             SystemSet::on_enter(AppState::Running)
