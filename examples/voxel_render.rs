@@ -4,6 +4,7 @@ use bevy::{
     prelude::*,
     reflect::TypeUuid,
     render::{
+        camera::PerspectiveProjection,
         mesh::Indices,
         pipeline::{PipelineDescriptor, PipelineSpecialization, PrimitiveTopology, RenderPipeline},
         render_graph::{base, RenderGraph, RenderResourcesNode},
@@ -347,6 +348,10 @@ fn setup_player(
     let camera = commands
         .spawn_bundle(PerspectiveCameraBundle {
             transform: Transform::from_matrix(camera_transform),
+            perspective_projection: PerspectiveProjection {
+                far: 10000.0,
+                ..Default::default()
+            },
             ..Default::default()
         })
         .insert_bundle((LookDirection::default(), CameraTag))
@@ -357,4 +362,17 @@ fn setup_player(
         .push_children(&[yaw]);
     commands.entity(yaw).push_children(&[body_model, head]);
     commands.entity(head).push_children(&[head_model, camera]);
+
+    commands.spawn_bundle(LightBundle {
+        transform: Transform::from_xyz(0.0, 512.0, 0.0),
+        light: Light {
+            // color: Color::hex("FFA734").unwrap(),
+            color: Color::ANTIQUE_WHITE,
+            intensity: 1000000.0,
+            depth: 0.1..1000000.0,
+            range: 1000000.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    });
 }
