@@ -185,7 +185,9 @@ fn setup_graphics(
         ..Default::default()
     };
     texture.reinterpret_stacked_2d_as_array(6);
-    let material_handle = materials.add(texture_handle.0.clone().into());
+    let mut material = StandardMaterial::from(texture_handle.0.clone());
+    material.roughness = 0.6;
+    let material_handle = materials.add(material);
     commands.insert_resource(ArrayTextureMaterial(material_handle));
 
     render_graph.add_system_node(
