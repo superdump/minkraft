@@ -256,13 +256,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy-voxel-world"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "bevy_app"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -566,7 +559,7 @@ checksum = "d0b7e83f5df0bda955e65a48d3845e4d715d6955a2de69cf81bf2a261d55b51e"
 dependencies = [
  "bevy",
  "concurrent-queue",
- "nalgebra",
+ "nalgebra 0.25.4",
  "rapier3d",
 ]
 
@@ -877,7 +870,7 @@ checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
 [[package]]
 name = "building-blocks"
 version = "0.6.0"
-source = "git+https://github.com/bonsairobo/building-blocks?branch=main#1f07493fd4278a9eddb2252ade88ffefae37d53e"
+source = "git+https://github.com/bonsairobo/building-blocks?branch=main#7cf3cb157c6e91cae15a3f03b48fd3e9f7e59f6f"
 dependencies = [
  "building_blocks_core",
  "building_blocks_mesh",
@@ -888,12 +881,12 @@ dependencies = [
 [[package]]
 name = "building_blocks_core"
 version = "0.6.0"
-source = "git+https://github.com/bonsairobo/building-blocks?branch=main#1f07493fd4278a9eddb2252ade88ffefae37d53e"
+source = "git+https://github.com/bonsairobo/building-blocks?branch=main#7cf3cb157c6e91cae15a3f03b48fd3e9f7e59f6f"
 dependencies = [
  "glam",
  "itertools",
  "mint",
- "nalgebra",
+ "nalgebra 0.26.2",
  "num",
  "sdfu",
  "serde",
@@ -902,7 +895,7 @@ dependencies = [
 [[package]]
 name = "building_blocks_mesh"
 version = "0.6.0"
-source = "git+https://github.com/bonsairobo/building-blocks?branch=main#1f07493fd4278a9eddb2252ade88ffefae37d53e"
+source = "git+https://github.com/bonsairobo/building-blocks?branch=main#7cf3cb157c6e91cae15a3f03b48fd3e9f7e59f6f"
 dependencies = [
  "building_blocks_core",
  "building_blocks_storage",
@@ -911,13 +904,13 @@ dependencies = [
 [[package]]
 name = "building_blocks_search"
 version = "0.6.0"
-source = "git+https://github.com/bonsairobo/building-blocks?branch=main#1f07493fd4278a9eddb2252ade88ffefae37d53e"
+source = "git+https://github.com/bonsairobo/building-blocks?branch=main#7cf3cb157c6e91cae15a3f03b48fd3e9f7e59f6f"
 dependencies = [
  "building_blocks_core",
  "building_blocks_storage",
  "indexmap",
  "itertools",
- "nalgebra",
+ "nalgebra 0.26.2",
  "ncollide3d",
  "pathfinding",
 ]
@@ -925,7 +918,7 @@ dependencies = [
 [[package]]
 name = "building_blocks_storage"
 version = "0.6.0"
-source = "git+https://github.com/bonsairobo/building-blocks?branch=main#1f07493fd4278a9eddb2252ade88ffefae37d53e"
+source = "git+https://github.com/bonsairobo/building-blocks?branch=main#7cf3cb157c6e91cae15a3f03b48fd3e9f7e59f6f"
 dependencies = [
  "ahash 0.7.2",
  "auto_impl",
@@ -2056,6 +2049,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "heck"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87cbf45460356b7deeb5e3415b5563308c0a9b057c85e12b06ad551f98d0a6ac"
+dependencies = [
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2606,16 +2608,31 @@ dependencies = [
 ]
 
 [[package]]
-name = "ncollide3d"
-version = "0.28.0"
+name = "nalgebra"
+version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62b22c062f4f3a84ca13878fe48b79f4c0445d964c3dc81bad52c9189fe5142f"
+checksum = "476d1d59fe02fe54c86356e91650cd892f392782a1cb9fc524ec84f7aa9e1d06"
+dependencies = [
+ "approx",
+ "matrixmultiply",
+ "num-complex",
+ "num-rational",
+ "num-traits",
+ "simba",
+ "typenum",
+]
+
+[[package]]
+name = "ncollide3d"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57e1b8b0e8696557b00224e92289ad279c7c12679a904bdc640be5c3eabdaa36"
 dependencies = [
  "approx",
  "bitflags",
  "downcast-rs",
  "either",
- "nalgebra",
+ "nalgebra 0.26.2",
  "num-traits",
  "petgraph",
  "simba",
@@ -3007,7 +3024,7 @@ dependencies = [
  "bitflags",
  "downcast-rs",
  "either",
- "nalgebra",
+ "nalgebra 0.25.4",
  "num-derive",
  "num-traits",
  "rustc-hash",
@@ -3233,7 +3250,7 @@ dependencies = [
  "crossbeam",
  "downcast-rs",
  "instant",
- "nalgebra",
+ "nalgebra 0.25.4",
  "num-derive",
  "num-traits",
  "parry3d",
@@ -3291,9 +3308,9 @@ checksum = "831eb2fcb5b72b09c72a3f2d24c09a28d79886512827cd4674d9bac10557f16a"
 
 [[package]]
 name = "redox_syscall"
-version = "0.2.6"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8270314b5ccceb518e7e578952f0b72b88222d02e8f77f5ecf7abbb673539041"
+checksum = "85dd92e586f7355c633911e11f77f3d12f04b1b1bd76a198bd34ae3af8341ef2"
 dependencies = [
  "bitflags",
 ]
@@ -3596,24 +3613,34 @@ dependencies = [
 
 [[package]]
 name = "spirv-std"
-version = "0.4.0-alpha.5"
+version = "0.4.0-alpha.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84eade459bc111a931804e49afdd1935fb115fff42afaccb35777b4a1bbad9c4"
+checksum = "905b2357c12bd92af238ed9989164f799298bda47aa6d01cbdac603c6ff6a0a9"
 dependencies = [
+ "bitflags",
  "num-traits",
  "spirv-std-macros",
+ "spirv-types",
 ]
 
 [[package]]
 name = "spirv-std-macros"
-version = "0.4.0-alpha.5"
+version = "0.4.0-alpha.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "789e03eacd37ed496c7648bb7866a5ed6ae8959bf222bfde4c8afc23e28de7c6"
+checksum = "379a627d0ef2408f2414e0392ab1cf9b4d962a5f4df457f457f2cb0478694031"
 dependencies = [
+ "heck",
  "proc-macro2",
  "quote",
+ "spirv-types",
  "syn",
 ]
+
+[[package]]
+name = "spirv-types"
+version = "0.4.0-alpha.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4debcdf63b65440f7e19aa95e25f8e608bfd30ab0e2723b6b1c177733addada8"
 
 [[package]]
 name = "spirv_cross"
@@ -3945,6 +3972,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879f6906492a7cd215bfa4cf595b600146ccfac0c79bcbd1f3000162af5e8b06"
 
 [[package]]
+name = "unicode-segmentation"
+version = "1.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb0d2e7be6ae3a5fa87eed5fb451aff96f2573d2694942e40543ae0bbe19c796"
+
+[[package]]
 name = "unicode-xid"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3977,10 +4010,6 @@ name = "version_check"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
-
-[[package]]
-name = "voxel-world"
-version = "0.1.0"
 
 [[package]]
 name = "waker-fn"
