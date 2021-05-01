@@ -10,11 +10,19 @@ use bevy::{
     transform::TransformSystem,
 };
 
+pub mod solar_position;
+
+pub use chrono::prelude::*;
+pub use solar_position::*;
+
 pub const PHYSICAL_SKY_SETUP_SYSTEM: &str = "physical_sky_setup";
+pub const PHYSICAL_SKY_PASS_TIME_SYSTEM: &str = "physical_sky_pass_time";
 pub const PHYSICAL_SKY_TRACK_CAMERA_SYSTEM: &str = "physical_sky_track_camera";
 pub const PHYSICAL_SKY_RENDER_NODE: &str = "physical_sky";
 pub const PHYSICAL_SKY_VERTEX_SHADER: &str = include_str!("../assets/shaders/physical_sky.vert");
 pub const PHYSICAL_SKY_FRAGMENT_SHADER: &str = include_str!("../assets/shaders/physical_sky.frag");
+
+const SUN_DISTANCE: f32 = 400000.0;
 
 pub struct PhysicalSkyPlugin;
 
@@ -22,6 +30,8 @@ impl Plugin for PhysicalSkyPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_asset::<PhysicalSkyMaterial>()
             .add_startup_system(setup.system().label(PHYSICAL_SKY_SETUP_SYSTEM))
+            .add_startup_system(pass_time.system())
+            .add_system(pass_time.system().label(PHYSICAL_SKY_PASS_TIME_SYSTEM))
             .add_system_to_stage(
                 CoreStage::PostUpdate,
                 track_camera
@@ -54,6 +64,8 @@ pub struct PhysicalSkyMaterial {
     pub sun_intensity_falloff_steepness: f32,
     pub tonemap_weighting: f32,
     pub turbidity: f32,
+    #[render_resources(ignore)]
+    pub update_sun_position: bool,
 }
 
 unsafe impl Byteable for PhysicalSkyMaterial {}
@@ -80,11 +92,12 @@ impl Default for PhysicalSkyMaterial {
             sun_intensity_falloff_steepness: 1.5,
             tonemap_weighting: 9.50,
             turbidity: 4.7,
+            update_sun_position: false,
         };
         sky.set_sun_position(
             std::f32::consts::PI * (0.4983 - 0.5),
             2.0 * std::f32::consts::PI * (0.1979 - 0.5),
-            400000.0,
+            SUN_DISTANCE,
         );
         sky
     }
@@ -128,5 +141,29 @@ pub fn track_camera(
         transforms
             .q1()
             .for_each_mut(|mut mesh_transform| *mesh_transform = *camera_transform);
+    }
+}
+
+const DEGREES_TO_RADIANS: f64 = std::f64::consts::PI / 180.0;
+
+pub fn pass_time(
+    time: Res<Time>,
+    mut solar_position: ResMut<SolarPosition>,
+    query: Query<&Handle<PhysicalSkyMaterial>>,
+    mut materials: ResMut<Assets<PhysicalSkyMaterial>>,
+) {
+    solar_position.tick(time.delta_seconds_f64());
+
+    let (azimuth, inclination) = solar_position.get_azimuth_inclination();
+    let (azimuth_radians, inclination_radians) = (
+        (azimuth * DEGREES_TO_RADIANS - std::f64::consts::PI) as f32,
+        (inclination * DEGREES_TO_RADIANS) as f32,
+    );
+
+    for handle in query.iter() {
+        let material = materials.get_mut(handle).unwrap();
+        if material.update_sun_position {
+            material.set_sun_position(inclination_radians, azimuth_radians, SUN_DISTANCE);
+        }
     }
 }
