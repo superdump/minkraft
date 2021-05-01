@@ -14,8 +14,8 @@ use bevy::{
 use bevy_frustum_culling::*;
 use bevy_mod_bounding::*;
 use bevy_physical_sky::{
-    PhysicalSkyCameraTag, PhysicalSkyMaterial, PhysicalSkyPlugin, PHYSICAL_SKY_FRAGMENT_SHADER,
-    PHYSICAL_SKY_VERTEX_SHADER,
+    PhysicalSkyCameraTag, PhysicalSkyMaterial, PhysicalSkyPlugin, SolarPosition,
+    PHYSICAL_SKY_FRAGMENT_SHADER, PHYSICAL_SKY_PASS_TIME_SYSTEM, PHYSICAL_SKY_VERTEX_SHADER,
 };
 use bevy_prototype_character_controller::{
     controller::{BodyTag, CameraTag, CharacterController, HeadTag, YawTag},
@@ -100,7 +100,21 @@ fn main() {
         // Minkraft
         .add_system_set(SystemSet::on_enter(AppState::Loading).with_system(load_assets.system()))
         .add_system_set(SystemSet::on_update(AppState::Loading).with_system(check_loaded.system()))
+        .insert_resource(SolarPosition {
+            // Stockholm
+            latitude: 59.33258,
+            longitude: 18.0649,
+            // one day per 8 minutes of real time
+            simulation_seconds_per_second: 24.0 * 60.0 * 60.0 / (8.0 * 60.0),
+            ..Default::default()
+        })
         .add_plugin(PhysicalSkyPlugin)
+        .add_system(
+            update_sun_light_position
+                .system()
+                .label("update_sun_light_position")
+                .after(PHYSICAL_SKY_PASS_TIME_SYSTEM),
+        )
         .add_system_set(SystemSet::on_enter(AppState::Running).with_system(setup_graphics.system()))
         .add_system_set(
             SystemSet::on_enter(AppState::Running)
@@ -156,13 +170,7 @@ fn setup_graphics(
     let pipeline = pipelines.add(pipeline_descriptor);
 
     // Create a new material
-    let mut sky_material = PhysicalSkyMaterial::default();
-    sky_material.set_sun_position(
-        std::f32::consts::PI * (0.4983 - 0.5),
-        2.0 * std::f32::consts::PI * 0.1979,
-        400000.0,
-    );
-    let material = sky_materials.add(sky_material);
+    let material = sky_materials.add(PhysicalSkyMaterial::stellar_dawn(true));
 
     // Sky box cube
     commands
@@ -341,14 +349,38 @@ fn setup_world(
             SPAWN_POINT[2] + 3200.0,
         )),
         light: Light {
-            color: Color::hex("FFA734").unwrap(),
-            intensity: 1000000.0,
+            // color: Color::hex("FFA734").unwrap(),
+            color: Color::ANTIQUE_WHITE,
+            intensity: 10000000.0,
             depth: 0.1..1000000.0,
             range: 1000000.0,
             ..Default::default()
         },
         ..Default::default()
     });
+}
+
+const DEGREES_TO_RADIANS: f64 = std::f64::consts::PI / 180.0;
+
+fn update_sun_light_position(
+    solar_position: Res<SolarPosition>,
+    mut query: Query<&mut Transform, With<Light>>,
+) {
+    let (azimuth, inclination) = solar_position.get_azimuth_inclination();
+    let (azimuth_radians, inclination_radians) = (
+        ((azimuth * DEGREES_TO_RADIANS) - std::f64::consts::PI) as f32,
+        (inclination * DEGREES_TO_RADIANS) as f32,
+    );
+    let translation = Vec3::new(
+        azimuth_radians.cos(),
+        azimuth_radians.sin() * inclination_radians.sin(),
+        azimuth_radians.sin() * inclination_radians.cos(),
+    )
+    .normalize()
+        * 4500.0;
+    for mut transform in query.iter_mut() {
+        *transform = Transform::from_translation(translation);
+    }
 }
 
 fn toggle_debug_system(
