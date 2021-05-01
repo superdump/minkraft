@@ -253,6 +253,8 @@ name = "bevy-physical-sky"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "chrono",
+ "spa",
 ]
 
 [[package]]
@@ -1017,6 +1019,7 @@ dependencies = [
  "libc",
  "num-integer",
  "num-traits",
+ "time 0.1.43",
  "winapi 0.3.9",
 ]
 
@@ -2163,7 +2166,7 @@ checksum = "61124eeebbd69b8190558df225adf7e4caafce0d743919e5d6b19652314ec5ec"
 dependencies = [
  "cfg-if 1.0.0",
  "js-sys",
- "time",
+ "time 0.2.26",
  "wasm-bindgen",
  "web-sys",
 ]
@@ -3598,6 +3601,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc725476a1398f0480d56cd0ad381f6f32acf2642704456f8f59a35df464b59a"
 
 [[package]]
+name = "spa"
+version = "0.2.0"
+source = "git+https://github.com/frehberg/spa-rs?rev=9b0216a6970fdc9b459cc43b76e7b6867a089f9c#9b0216a6970fdc9b459cc43b76e7b6867a089f9c"
+dependencies = [
+ "chrono",
+]
+
+[[package]]
 name = "spirv-reflect"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3824,6 +3835,16 @@ dependencies = [
  "jpeg-decoder",
  "miniz_oxide 0.4.4",
  "weezl",
+]
+
+[[package]]
+name = "time"
+version = "0.1.43"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca8a50ef2360fbd1eeb0ecd46795a87a19024eb4b53c5dc916ca1fd95fe62438"
+dependencies = [
+ "libc",
+ "winapi 0.3.9",
 ]
 
 [[package]]
