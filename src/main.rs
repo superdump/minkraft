@@ -8,8 +8,10 @@ use bevy::{
         render_graph::{base, RenderGraph, RenderResourcesNode},
         shader::{shader_defs_system, ShaderStage, ShaderStages},
         texture::{AddressMode, SamplerDescriptor},
+        wireframe::{WireframeConfig, WireframePlugin},
     },
     tasks::ComputeTaskPool,
+    wgpu::{WgpuFeature, WgpuFeatures, WgpuOptions},
 };
 use bevy_frustum_culling::*;
 use bevy_mod_bounding::*;
@@ -58,7 +60,15 @@ fn main() {
         })
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa { samples: 4 })
+        .insert_resource(WgpuOptions {
+            features: WgpuFeatures {
+                // The Wireframe requires NonFillPolygonMode feature
+                features: vec![WgpuFeature::NonFillPolygonMode],
+            },
+            ..Default::default()
+        })
         .add_plugins(DefaultPlugins)
+        .add_plugin(WireframePlugin)
         .insert_resource(AssetServerSettings {
             asset_folder: env!("CARGO_MANIFEST_DIR").to_string(),
         })
@@ -76,6 +86,10 @@ fn main() {
         .add_system_to_stage(
             bevy::app::CoreStage::PreUpdate,
             toggle_gravity_system.system(),
+        )
+        .add_system_to_stage(
+            bevy::app::CoreStage::PreUpdate,
+            toggle_wireframe_system.system(),
         )
         // Physics - Rapier
         .add_plugin(RapierPhysicsPlugin)
@@ -404,5 +418,14 @@ fn toggle_gravity_system(
         } else {
             GRAVITY.into()
         };
+    }
+}
+
+fn toggle_wireframe_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut wireframe_config: ResMut<WireframeConfig>,
+) {
+    if keyboard_input.just_pressed(KeyCode::M) {
+        wireframe_config.global = !wireframe_config.global;
     }
 }
