@@ -79,6 +79,8 @@ layout(location = 2) in vec3 v_Uv;
 layout(location = 3) in vec4 v_WorldTangent;
 #endif
 
+layout(location = 4) in float v_AO;
+
 layout(location = 0) out vec4 o_Target;
 
 layout(set = 0, binding = 0) uniform CameraViewProj {
@@ -437,7 +439,7 @@ void main() {
     vec3 specular_ambient = EnvBRDFApprox(F0, perceptual_roughness, NdotV);
 
     output_color.rgb = light_accum;
-    output_color.rgb += (diffuse_ambient + specular_ambient) * AmbientColor.xyz * occlusion;
+    output_color.rgb += (diffuse_ambient + specular_ambient) * AmbientColor.xyz * occlusion * (1.0 - v_AO);
     output_color.rgb += emissive.rgb * output_color.a;
 
     // tone_mapping

@@ -34,19 +34,22 @@ layout(location = 2) in vec2 Vertex_Uv;
 layout(location = 3) in vec4 Vertex_Tangent;
 #endif
 
-layout(location = 4) in uint Vertex_Layer; // New thing
+layout(location = 4) in uint Vertex_Layer;
+layout(location = 5) in float Vertex_AO;
 
 layout(location = 0) out vec3 v_WorldPosition;
 layout(location = 1) out vec3 v_WorldNormal;
 layout(location = 2) out vec3 v_Uv;
 
-layout(set = 0, binding = 0) uniform CameraViewProj {
-    mat4 ViewProj;
-};
-
 #ifdef STANDARDMATERIAL_NORMAL_MAP
 layout(location = 3) out vec4 v_WorldTangent;
 #endif
+
+layout(location = 4) out float v_AO;
+
+layout(set = 0, binding = 0) uniform CameraViewProj {
+    mat4 ViewProj;
+};
 
 layout(set = 2, binding = 0) uniform Transform {
     mat4 Model;
@@ -62,4 +65,18 @@ void main() {
     v_WorldTangent = vec4(mat3(Model) * Vertex_Tangent.xyz, Vertex_Tangent.w);
 #endif
     gl_Position = ViewProj * world_position;
+
+    vec4 ao_curve = vec4(0.0, 0.65, 0.75, 0.9);
+    if (Vertex_AO == 0.0) {
+        v_AO = ao_curve.x;
+    }
+    if (Vertex_AO == 1.0) {
+        v_AO = ao_curve.y;
+    }
+    if (Vertex_AO == 2.0) {
+        v_AO = ao_curve.z;
+    }
+    if (Vertex_AO == 3.0) {
+        v_AO = ao_curve.w;
+    }
 }

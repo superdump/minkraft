@@ -159,6 +159,7 @@ struct MeshBuf {
     pub positions: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
     pub tex_coords: Vec<[f32; 2]>,
+    pub ambient_occlusion: Vec<f32>,
     pub layer: Vec<u32>,
     pub indices: Vec<u32>,
     pub extent: Extent3i,
@@ -170,6 +171,7 @@ impl Default for MeshBuf {
             positions: Vec::new(),
             normals: Vec::new(),
             tex_coords: Vec::new(),
+            ambient_occlusion: Vec::new(),
             layer: Vec::new(),
             indices: Vec::new(),
             extent: Extent3i::from_min_and_shape(PointN([0, 0, 0]), PointN([0, 0, 0])),
@@ -184,6 +186,7 @@ impl MeshBuf {
         quad: &UnorientedQuad,
         voxel_size: f32,
         u_flip_face: Axis3,
+        ambient_occlusions: &[f32; 4],
         layer: u32,
     ) {
         let start_index = self.positions.len() as u32;
@@ -195,6 +198,7 @@ impl MeshBuf {
         self.tex_coords
             .extend_from_slice(&face.tex_coords(u_flip_face, flip_v, quad));
 
+        self.ambient_occlusion.extend_from_slice(ambient_occlusions);
         self.layer.extend_from_slice(&[layer; 4]);
         self.indices
             .extend_from_slice(&face.quad_mesh_indices(start_index));
@@ -391,7 +395,12 @@ fn create_mesh_for_chunk(
     copy_extent(&chunk_extent, chunks, neighborhood_buffer);
 
     let voxel_size = (1 << key.lod) as f32;
-    greedy_quads(neighborhood_buffer, &padded_chunk_extent, &mut *mesh_buffer);
+    // greedy_quads(neighborhood_buffer, &padded_chunk_extent, &mut *mesh_buffer);
+    greedy_quads_with_merge_strategy::<_, _, VoxelAOMerger<Voxel>>(
+        neighborhood_buffer,
+        &padded_chunk_extent,
+        &mut *mesh_buffer,
+    );
 
     if mesh_buffer.num_quads() == 0 {
         None
@@ -400,18 +409,69 @@ fn create_mesh_for_chunk(
         mesh_buf.extent = chunk_extent * voxel_map.pyramid.chunk_shape();
         for group in mesh_buffer.quad_groups.iter() {
             for quad in group.quads.iter() {
+                let mut ambient_occlusions = [0f32; 4];
+                for (i, vertex) in group.face.quad_corners(quad).iter().enumerate() {
+                    ambient_occlusions[i] =
+                        get_ao_at_vert(*vertex, &*neighborhood_buffer, &padded_chunk_extent) as f32;
+                }
                 let mat = neighborhood_buffer.get(quad.minimum);
                 mesh_buf.add_quad(
                     &group.face,
                     quad,
                     voxel_size,
                     RIGHT_HANDED_Y_UP_CONFIG.u_flip_face,
+                    &ambient_occlusions,
                     mat.0 as u32 - 1,
                 );
             }
         }
 
         Some(mesh_buf)
+    }
+}
+
+fn get_ao_at_vert(
+    v: Point3i,
+    padded_chunk: &Array3x1<Voxel>,
+    padded_chunk_extent: &Extent3i,
+) -> i32 {
+    let loc: Point3i = v;
+
+    let top0_loc = PointN([loc.x() - 1, loc.y(), loc.z()]);
+    let top1_loc: Point3i = PointN([loc.x(), loc.y(), loc.z() - 1]);
+    let top2_loc: Point3i = PointN([loc.x(), loc.y(), loc.z()]);
+    let top3_loc: Point3i = PointN([loc.x() - 1, loc.y(), loc.z() - 1]);
+
+    let bot0_loc: Point3i = PointN([loc.x() - 1, loc.y() - 1, loc.z()]);
+    let bot1_loc: Point3i = PointN([loc.x(), loc.y() - 1, loc.z() - 1]);
+    let bot2_loc: Point3i = PointN([loc.x(), loc.y() - 1, loc.z()]);
+    let bot3_loc: Point3i = PointN([loc.x() - 1, loc.y() - 1, loc.z() - 1]);
+
+    let top0 = padded_chunk_extent.contains(top0_loc) && !padded_chunk.get(top0_loc).is_empty();
+    let top1 = padded_chunk_extent.contains(top1_loc) && !padded_chunk.get(top1_loc).is_empty();
+    let top2 = padded_chunk_extent.contains(top2_loc) && !padded_chunk.get(top2_loc).is_empty();
+    let top3 = padded_chunk_extent.contains(top3_loc) && !padded_chunk.get(top3_loc).is_empty();
+    let bot0 = padded_chunk_extent.contains(bot0_loc) && !padded_chunk.get(bot0_loc).is_empty();
+    let bot1 = padded_chunk_extent.contains(bot1_loc) && !padded_chunk.get(bot1_loc).is_empty();
+    let bot2 = padded_chunk_extent.contains(bot2_loc) && !padded_chunk.get(bot2_loc).is_empty();
+    let bot3 = padded_chunk_extent.contains(bot3_loc) && !padded_chunk.get(bot3_loc).is_empty();
+
+    let (side0, side1, corner) = if !top0 && bot0 {
+        (top2, top3, top1)
+    } else if !top1 && bot1 {
+        (top2, top3, top0)
+    } else if !top2 && bot2 {
+        (top0, top1, top3)
+    } else if !top3 && bot3 {
+        (top0, top1, top2)
+    } else {
+        return 0;
+    };
+
+    if side0 && side1 {
+        return 3;
+    } else {
+        return side0 as i32 + side1 as i32 + corner as i32;
     }
 }
 
@@ -445,6 +505,7 @@ fn spawn_mesh_entities(
                     positions,
                     normals,
                     tex_coords,
+                    ambient_occlusion,
                     layer,
                     indices,
                     extent,
@@ -453,6 +514,7 @@ fn spawn_mesh_entities(
                 render_mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions.clone());
                 render_mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
                 render_mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, tex_coords);
+                render_mesh.set_attribute("Vertex_AO", ambient_occlusion);
                 render_mesh.set_attribute("Vertex_Layer", layer);
                 render_mesh.set_indices(Some(Indices::U32(indices.clone())));
 
