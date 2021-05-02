@@ -232,9 +232,7 @@ fn setup_player(
     let spawn_pos = SPAWN_POINT.into();
     let obj_scale = Vec3::new(0.465, 1.75, 0.25);
 
-    let eye = Vec3::new(0.0, 4.0, 8.0);
-    let center = Vec3::ZERO;
-    let camera_transform = Mat4::face_toward(eye, center, Vec3::Y);
+    let camera_transform = Mat4::face_toward(Vec3::ZERO, -Vec3::Z, Vec3::Y);
 
     let red = materials.add(Color::hex("DC143C").unwrap().into());
     let cuboid = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
