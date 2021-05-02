@@ -200,8 +200,11 @@ impl MeshBuf {
 
         self.ambient_occlusion.extend_from_slice(ambient_occlusions);
         self.layer.extend_from_slice(&[layer; 4]);
-        self.indices
-            .extend_from_slice(&face.quad_mesh_indices(start_index));
+        self.indices.extend_from_slice(&face.quad_mesh_indices(
+            start_index,
+            ambient_occlusions[0] + ambient_occlusions[3]
+                > ambient_occlusions[1] + ambient_occlusions[2],
+        ));
     }
 }
 
