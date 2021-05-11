@@ -14,6 +14,10 @@ use bevy::{
     wgpu::{WgpuFeature, WgpuFeatures, WgpuOptions},
 };
 use bevy_frustum_culling::*;
+use bevy_hud_pass::{
+    world_axes::{WorldAxes, WorldAxesPlugin, WorldAxesPositionTag, WorldAxesRotationTag},
+    HUDCameraBundle, HUDPassPlugin,
+};
 use bevy_mod_bounding::*;
 use bevy_physical_sky::{
     PhysicalSkyCameraTag, PhysicalSkyMaterial, PhysicalSkyPlugin, SolarPosition,
@@ -37,7 +41,6 @@ use minkraft::{
     mesh_generator::{ArrayTextureMaterial, ArrayTexturePipelines, ChunkMeshes, MeshCommandQueue},
     shaders::{ARRAY_TEXTURE_FRAGMENT_SHADER, ARRAY_TEXTURE_VERTEX_SHADER},
     voxel_map::{NoiseConfig, VoxelMap, VoxelMapConfig, VoxelMapPlugin},
-    world_axes::{WorldAxes, WorldAxesCameraTag, WorldAxesPlugin},
 };
 
 struct Loading(Handle<Texture>);
@@ -78,7 +81,12 @@ fn main() {
         .add_state(AppState::Loading)
         // Debug
         .add_plugin(DebugPlugin)
+        .add_plugin(HUDPassPlugin)
         .add_plugin(WorldAxesPlugin)
+        .insert_resource(WorldAxes {
+            enabled: false,
+            ..Default::default()
+        })
         .add_system_to_stage(
             bevy::app::CoreStage::PreUpdate,
             toggle_debug_system.system(),
@@ -272,7 +280,6 @@ fn setup_player(
             },
             BodyTag,
             PlayerTag,
-            // GeneratedVoxelsTag,
             DebugTransformTag,
         ))
         .id();
@@ -321,7 +328,7 @@ fn setup_player(
             FrustumCulling,
             LookDirection::default(),
             PhysicalSkyCameraTag,
-            WorldAxesCameraTag,
+            WorldAxesRotationTag,
         ))
         .id();
     commands
@@ -353,6 +360,9 @@ fn setup_world(
     commands.insert_resource(map);
     commands.insert_resource(ChunkMeshes::default());
 
+    commands
+        .spawn_bundle(HUDCameraBundle::default())
+        .insert(WorldAxesPositionTag);
     commands.spawn_bundle(UiCameraBundle::default());
     commands.spawn_bundle(LightBundle {
         transform: Transform::from_translation(Vec3::new(
@@ -361,7 +371,6 @@ fn setup_world(
             SPAWN_POINT[2] + 3200.0,
         )),
         light: Light {
-            // color: Color::hex("FFA734").unwrap(),
             color: Color::ANTIQUE_WHITE,
             intensity: 10000000.0,
             depth: 0.1..1000000.0,

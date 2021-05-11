@@ -8,6 +8,7 @@ license = "MIT"
 [dependencies]
 bevy = "0.5"
 bevy_frustum_culling = { git = "https://github.com/aevyrie/bevy_frustum_culling", rev = "1828259235e7dbc191a731f36c15395789ed2c3f" }
+bevy-hud-pass = { git = "https://github.com/superdump/bevy-hud-pass", branch = "main" }
 bevy_mod_bounding = "0.1"
 bevy-physical-sky = { path = "crates/bevy-physical-sky" }
 bevy_prototype_character_controller = { git = "https://github.com/superdump/bevy_prototype_character_controller", branch = "main", features = [ "use_rapier" ] }

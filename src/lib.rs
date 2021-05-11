@@ -6,7 +6,5 @@ pub mod mesh_diagnostics;
 pub mod mesh_fade;
 pub mod mesh_generator;
 pub mod shaders;
-pub mod shapes;
 pub mod utilities;
 pub mod voxel_map;
-pub mod world_axes;
