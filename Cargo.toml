@@ -13,7 +13,7 @@ bevy_mod_bounding = "0.1"
 bevy-physical-sky = { path = "crates/bevy-physical-sky" }
 bevy_prototype_character_controller = { git = "https://github.com/superdump/bevy_prototype_character_controller", branch = "main", features = [ "use_rapier" ] }
 bevy_rapier3d = { version = "0.9", features = [ "parallel", "simd-stable" ] }
-building-blocks = { git = "https://github.com/bonsairobo/building-blocks", branch = "main" }
+building-blocks = { git = "https://github.com/bonsairobo/building-blocks", rev = "4977a3c5e6fbccfab31ab026dc79bd6d943e2c3c" }
 env_logger = "0.8"
 log = "0.4.11"
 simdnoise = "3.1.6"
