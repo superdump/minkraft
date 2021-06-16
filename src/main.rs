@@ -50,9 +50,16 @@ use minkraft::{
 
 struct Loading(Handle<Texture>);
 
+struct ThirdPerson {
+    pub is_third_person: bool,
+    pub body: Entity,
+    pub head: Entity,
+}
+
 const SPAWN_POINT: [f32; 3] = [8.5, 641.0, -3.5];
 const NO_GRAVITY: [f32; 3] = [0.0, 0.0, 0.0];
 const GRAVITY: [f32; 3] = [0.0, -9.81, 0.0];
+const RENDER_BODY: bool = false;
 
 fn main() {
     env_logger::builder().format_timestamp_micros().init();
@@ -98,7 +105,7 @@ fn main() {
         )
         .add_system_to_stage(
             bevy::app::CoreStage::PreUpdate,
-            toggle_gravity_system.system(),
+            toggle_third_person.system(),
         )
         .add_system_to_stage(
             bevy::app::CoreStage::PreUpdate,
@@ -315,6 +322,10 @@ fn setup_player(
                 Quat::IDENTITY,
                 -0.5 * head_scale * Vec3::Y,
             )),
+            visible: Visible {
+                is_visible: RENDER_BODY,
+                ..Default::default()
+            },
             ..Default::default()
         })
         .insert(FogConfig::default())
@@ -332,6 +343,10 @@ fn setup_player(
             material: red,
             mesh: cuboid,
             transform: Transform::from_scale(Vec3::splat(head_scale)),
+            visible: Visible {
+                is_visible: RENDER_BODY,
+                ..Default::default()
+            },
             ..Default::default()
         })
         .insert(FogConfig::default())
@@ -351,6 +366,11 @@ fn setup_player(
             LookDirection::default(),
             PhysicalSkyCameraTag,
             WorldAxesRotationTag,
+            ThirdPerson {
+                is_third_person: RENDER_BODY,
+                body: body_model,
+                head: head_model,
+            },
         ))
         .id();
     commands
@@ -439,24 +459,42 @@ fn toggle_debug_system(
     }
 }
 
-fn toggle_gravity_system(
-    keyboard_input: Res<Input<KeyCode>>,
-    mut rapier_config: ResMut<RapierConfiguration>,
-) {
-    if keyboard_input.just_pressed(KeyCode::G) {
-        rapier_config.gravity = if rapier_config.gravity.y == GRAVITY[1] {
-            NO_GRAVITY.into()
-        } else {
-            GRAVITY.into()
-        };
-    }
-}
-
 fn toggle_wireframe_system(
     keyboard_input: Res<Input<KeyCode>>,
     mut wireframe_config: ResMut<WireframeConfig>,
 ) {
     if keyboard_input.just_pressed(KeyCode::M) {
         wireframe_config.global = !wireframe_config.global;
+    }
+}
+
+fn toggle_third_person(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut camera_transforms: Query<(&mut Transform, &mut ThirdPerson)>,
+    mut models: Query<&mut Visible>,
+) {
+    if keyboard_input.just_pressed(KeyCode::T) {
+        for (mut camera_transform, mut third_person) in camera_transforms.iter_mut() {
+            third_person.is_third_person = !third_person.is_third_person;
+            *camera_transform = Transform::from_matrix(if third_person.is_third_person {
+                if let Ok(mut visible) = models.get_mut(third_person.body) {
+                    visible.is_visible = true;
+                }
+                if let Ok(mut visible) = models.get_mut(third_person.head) {
+                    visible.is_visible = true;
+                }
+                let eye = Vec3::new(0.0, 4.0, 8.0);
+                let center = Vec3::ZERO;
+                Mat4::face_toward(eye, center, Vec3::Y)
+            } else {
+                if let Ok(mut visible) = models.get_mut(third_person.body) {
+                    visible.is_visible = false;
+                }
+                if let Ok(mut visible) = models.get_mut(third_person.head) {
+                    visible.is_visible = false;
+                }
+                Mat4::face_toward(Vec3::ZERO, -Vec3::Z, Vec3::Y)
+            });
+        }
     }
 }
