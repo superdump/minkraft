@@ -25,6 +25,7 @@
  */
 
 use crate::{
+    fog::FogConfig,
     mesh_fade::{FadeUniform, FADE_IN, FADE_OUT},
     utilities::bevy_util::thread_local_resource::ThreadLocalResource,
     voxel_map::{Voxel, VoxelMap},
@@ -434,6 +435,7 @@ fn spawn_mesh_entities(
                             Aabb::from_extents(minimum, maximum),
                             Quat::IDENTITY,
                         ),
+                        FogConfig::default(),
                     ))
                     .id();
 

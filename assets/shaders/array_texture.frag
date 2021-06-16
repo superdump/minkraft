@@ -153,6 +153,16 @@ layout(set = 2, binding = 2) uniform FadeUniform_remaining {
     float fade_remaining;
 };
 
+struct FogConfig_t {
+    vec4 color;
+    float near;
+    float far;
+};
+
+layout(set = 2, binding = 3) uniform FogConfig {
+    FogConfig_t fog;
+};
+
 #    define saturate(x) clamp(x, 0.0, 1.0)
 const float PI = 3.141592653589793;
 
@@ -324,6 +334,10 @@ highp float rand(vec2 co)
     return fract(sin(sn) * c);
 }
 
+float get_fog_factor(float d) {
+    return smoothstep(fog.near, fog.far, d);
+}
+
 void main() {
     vec4 output_color = base_color;
 #ifdef FADEUNIFORM_FADE_IN
@@ -446,6 +460,10 @@ void main() {
     // Not needed with sRGB buffer
     // output_color.rgb = pow(output_color.rgb, vec3(1.0 / 2.2));
 #endif
+
+    // FIXME - use the depth texture?
+    float depth = length(v_WorldPosition.xyz - CameraPos.xyz);
+    output_color = mix(output_color, fog.color, get_fog_factor(depth));
 
     o_Target = output_color;
 }

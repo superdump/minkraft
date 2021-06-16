@@ -40,6 +40,7 @@ use building_blocks::core::prelude::*;
 use minkraft::{
     app_state::AppState,
     debug::{Debug, DebugPlugin, DebugTransformTag},
+    fog::{FogConfig, FogPlugin},
     level_of_detail::LodState,
     mesh_fade::FadeUniform,
     mesh_generator::{ArrayTextureMaterial, ArrayTexturePipelines, ChunkMeshes, MeshCommandQueue},
@@ -150,6 +151,7 @@ fn main() {
             SystemSet::on_enter(AppState::Running)
                 .with_system(setup_player.system().after("setup_world")),
         )
+        .add_plugin(FogPlugin)
         .run();
 }
 
@@ -315,6 +317,7 @@ fn setup_player(
             )),
             ..Default::default()
         })
+        .insert(FogConfig::default())
         .id();
     let head = commands
         .spawn_bundle((
@@ -331,6 +334,7 @@ fn setup_player(
             transform: Transform::from_scale(Vec3::splat(head_scale)),
             ..Default::default()
         })
+        .insert(FogConfig::default())
         .id();
     let camera = commands
         .spawn_bundle(PerspectiveCameraBundle {
