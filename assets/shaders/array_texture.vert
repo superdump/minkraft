@@ -21,8 +21,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// Default bevy PBR shaders with added vertex attribute for texture layer
-// and using an array texture for the base colour
+// Default bevy PBR shaders with:
+// - added vertex attribute for texture layer
+// - array texture for the base colour
+//
+// NOTE: These must be updated when bevy is updated!
 
 #version 450
 
@@ -34,19 +37,19 @@ layout(location = 2) in vec2 Vertex_Uv;
 layout(location = 3) in vec4 Vertex_Tangent;
 #endif
 
-layout(location = 4) in uint Vertex_Layer; // New thing
+layout(location = 4) in uint Vertex_Layer;
 
 layout(location = 0) out vec3 v_WorldPosition;
 layout(location = 1) out vec3 v_WorldNormal;
 layout(location = 2) out vec3 v_Uv;
 
-layout(set = 0, binding = 0) uniform CameraViewProj {
-    mat4 ViewProj;
-};
-
 #ifdef STANDARDMATERIAL_NORMAL_MAP
 layout(location = 3) out vec4 v_WorldTangent;
 #endif
+
+layout(set = 0, binding = 0) uniform CameraViewProj {
+    mat4 ViewProj;
+};
 
 layout(set = 2, binding = 0) uniform Transform {
     mat4 Model;

@@ -18,7 +18,6 @@ use bevy_hud_pass::{
     world_axes::{WorldAxes, WorldAxesPlugin, WorldAxesPositionTag, WorldAxesRotationTag},
     HUDCameraBundle, HUDPassPlugin,
 };
-use bevy_mod_bounding::*;
 use bevy_physical_sky::{
     PhysicalSkyCameraTag, PhysicalSkyMaterial, PhysicalSkyPlugin, SolarPosition,
     PHYSICAL_SKY_FRAGMENT_SHADER, PHYSICAL_SKY_PASS_TIME_SYSTEM, PHYSICAL_SKY_VERTEX_SHADER,
@@ -422,16 +421,16 @@ fn setup_world(
         .spawn_bundle(HUDCameraBundle::default())
         .insert(WorldAxesPositionTag);
     commands.spawn_bundle(UiCameraBundle::default());
-    commands.spawn_bundle(LightBundle {
+    commands.spawn_bundle(PointLightBundle {
         transform: Transform::from_translation(Vec3::new(
             SPAWN_POINT[0] + 1000.0,
             SPAWN_POINT[1] + 512.0,
             SPAWN_POINT[2] + 3200.0,
         )),
-        light: Light {
+        point_light: PointLight {
             color: Color::ANTIQUE_WHITE,
             intensity: 10000000.0,
-            depth: 0.1..1000000.0,
+            radius: 1000000.0,
             range: 1000000.0,
             ..Default::default()
         },
@@ -441,7 +440,7 @@ fn setup_world(
 
 fn update_sun_light_position(
     solar_position: Res<SolarPosition>,
-    mut query: Query<&mut Transform, With<Light>>,
+    mut query: Query<&mut Transform, With<PointLight>>,
 ) {
     let (azimuth, inclination) = solar_position.get_azimuth_inclination();
     let (azimuth_radians, inclination_radians) = (

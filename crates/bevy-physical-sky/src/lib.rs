@@ -1,5 +1,4 @@
 use bevy::{
-    core::Byteable,
     prelude::*,
     reflect::TypeUuid,
     render::{
@@ -9,6 +8,7 @@ use bevy::{
     },
     transform::TransformSystem,
 };
+use bytemuck::{Pod, Zeroable};
 
 pub mod solar_position;
 
@@ -42,9 +42,12 @@ impl Plugin for PhysicalSkyPlugin {
     }
 }
 
-#[derive(Debug, RenderResource, RenderResources, ShaderDefs, TypeUuid)]
+#[derive(
+    Debug, Clone, Copy, Pod, RenderResource, RenderResources, ShaderDefs, TypeUuid, Zeroable,
+)]
 #[uuid = "3035b6eb-0716-4980-8ed9-6d4308900e30"]
 #[render_resources(from_self)]
+#[repr(C)]
 pub struct PhysicalSkyMaterial {
     pub mie_k_coefficient: Vec4,
     pub primaries: Vec4,
@@ -64,11 +67,8 @@ pub struct PhysicalSkyMaterial {
     pub sun_intensity_falloff_steepness: f32,
     pub tonemap_weighting: f32,
     pub turbidity: f32,
-    #[render_resources(ignore)]
-    pub update_sun_position: bool,
+    pub update_sun_position: u32,
 }
-
-unsafe impl Byteable for PhysicalSkyMaterial {}
 
 // Defaults to the red sunset preset from https://tw1ddle.github.io/Sky-Shader/
 impl Default for PhysicalSkyMaterial {
@@ -92,7 +92,7 @@ impl Default for PhysicalSkyMaterial {
             sun_intensity_falloff_steepness: 1.5,
             tonemap_weighting: 9.50,
             turbidity: 4.7,
-            update_sun_position: false,
+            update_sun_position: 0,
         };
         sky.set_sun_position(
             std::f32::consts::PI * (0.4983 - 0.5),
@@ -130,7 +130,7 @@ impl PhysicalSkyMaterial {
             sun_intensity_falloff_steepness: 0.98,
             tonemap_weighting: 9.50,
             turbidity: 1.25,
-            update_sun_position,
+            update_sun_position: if update_sun_position { 1 } else { 0 },
             ..Default::default()
         }
     }
@@ -154,7 +154,7 @@ impl PhysicalSkyMaterial {
             sun_intensity_falloff_steepness: 1.5,
             sun_angular_diameter_degrees: 0.00933,
             tonemap_weighting: 9.50,
-            update_sun_position,
+            update_sun_position: if update_sun_position { 1 } else { 0 },
             ..Default::default()
         }
     }
@@ -178,7 +178,7 @@ impl PhysicalSkyMaterial {
             sun_intensity_falloff_steepness: 1.4,
             sun_angular_diameter_degrees: 0.006,
             tonemap_weighting: 9.50,
-            update_sun_position,
+            update_sun_position: if update_sun_position { 1 } else { 0 },
             ..Default::default()
         }
     }
@@ -202,7 +202,7 @@ impl PhysicalSkyMaterial {
             sun_intensity_falloff_steepness: 1.22,
             sun_angular_diameter_degrees: 0.00639,
             tonemap_weighting: 9.50,
-            update_sun_position,
+            update_sun_position: if update_sun_position { 1 } else { 0 },
             ..Default::default()
         }
     }
@@ -226,7 +226,7 @@ impl PhysicalSkyMaterial {
             sun_intensity_falloff_steepness: 1.5,
             sun_angular_diameter_degrees: 0.00933,
             tonemap_weighting: 9.50,
-            update_sun_position,
+            update_sun_position: if update_sun_position { 1 } else { 0 },
             ..Default::default()
         }
     }
@@ -250,7 +250,7 @@ impl PhysicalSkyMaterial {
             sun_intensity_falloff_steepness: 2.26,
             sun_angular_diameter_degrees: 0.01487,
             tonemap_weighting: 9.50,
-            update_sun_position,
+            update_sun_position: if update_sun_position { 1 } else { 0 },
             ..Default::default()
         }
     }
@@ -275,16 +275,16 @@ pub fn setup(mut render_graph: ResMut<RenderGraph>) {
 }
 
 pub fn track_camera(
-    transforms: QuerySet<(
+    mut transforms: QuerySet<(
         Query<&GlobalTransform, With<PhysicalSkyCameraTag>>,
         Query<&mut GlobalTransform, With<Handle<PhysicalSkyMaterial>>>,
     )>,
 ) {
     let mut cam_temp = transforms.q0().iter();
-    if let Some(camera_transform) = cam_temp.next() {
+    if let Some(camera_transform) = cam_temp.next().map_or(None, |c| Some(c.clone())) {
         transforms
-            .q1()
-            .for_each_mut(|mut mesh_transform| *mesh_transform = *camera_transform);
+            .q1_mut()
+            .for_each_mut(|mut mesh_transform| *mesh_transform = camera_transform);
     }
 }
 
@@ -304,7 +304,7 @@ pub fn pass_time(
 
     for handle in query.iter() {
         let material = materials.get_mut(handle).unwrap();
-        if material.update_sun_position {
+        if material.update_sun_position == 1 {
             material.set_sun_position(inclination_radians, azimuth_radians, SUN_DISTANCE);
         }
     }

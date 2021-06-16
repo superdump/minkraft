@@ -61,7 +61,7 @@ pub fn level_of_detail_system(
         return;
     };
 
-    let lod0_center = Point3f::from(camera_position).in_voxel() >> voxel_map_config.chunk_log2;
+    let lod0_center = PointN(camera_position.to_array()).in_voxel() >> voxel_map_config.chunk_log2;
 
     if lod0_center == lod_state.old_lod0_center {
         return;

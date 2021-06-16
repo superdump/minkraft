@@ -1,11 +1,11 @@
 use bevy::{
-    core::Byteable,
     prelude::*,
     render::{
         render_graph::{base, RenderGraph, RenderResourcesNode},
         renderer::{RenderResource, RenderResources},
     },
 };
+use bytemuck::{Pod, Zeroable};
 
 const FOG_RENDER_NODE: &str = "fog";
 pub const FOG_SETUP_SYSTEM: &str = "fog_setup";
@@ -18,7 +18,7 @@ impl Plugin for FogPlugin {
     }
 }
 
-#[derive(Debug, Clone, Copy, RenderResource, RenderResources)]
+#[derive(Debug, Clone, Copy, Pod, RenderResource, RenderResources, Zeroable)]
 #[render_resources(from_self)]
 #[repr(C)]
 pub struct FogConfig {
@@ -26,8 +26,6 @@ pub struct FogConfig {
     pub near: f32,
     pub far: f32,
 }
-
-unsafe impl Byteable for FogConfig {}
 
 impl Default for FogConfig {
     fn default() -> Self {

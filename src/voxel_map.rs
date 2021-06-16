@@ -316,7 +316,8 @@ pub fn voxel_map_config_changed_system(
             return;
         };
 
-        let lod0_center = Point3f::from(camera_position).in_voxel() >> voxel_map_config.chunk_log2;
+        let lod0_center =
+            PointN(camera_position.to_array()).in_voxel() >> voxel_map_config.chunk_log2;
 
         *voxel_map = VoxelMap::new(
             &pool,

@@ -40,15 +40,15 @@ pub fn create_mesh_handle(mesh: &PosNormMesh, meshes: &mut Assets<Mesh>) -> Hand
     let mut render_mesh = Mesh::new(PrimitiveTopology::TriangleList);
     render_mesh.set_attribute(
         "Vertex_Position",
-        VertexAttributeValues::Float3(mesh.positions.clone()),
+        VertexAttributeValues::Float32x3(mesh.positions.clone()),
     );
     render_mesh.set_attribute(
         "Vertex_Normal",
-        VertexAttributeValues::Float3(mesh.normals.clone()),
+        VertexAttributeValues::Float32x3(mesh.normals.clone()),
     );
     render_mesh.set_attribute(
         "Vertex_Uv",
-        VertexAttributeValues::Float2(vec![[0.0; 2]; num_vertices]),
+        VertexAttributeValues::Float32x2(vec![[0.0; 2]; num_vertices]),
     );
     render_mesh.set_indices(Some(Indices::U32(mesh.indices.clone())));
 

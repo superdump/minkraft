@@ -53,7 +53,7 @@ fn setup(
 
     // Create a new material
     let material = sky_materials.add(PhysicalSkyMaterial {
-        update_sun_position: true,
+        update_sun_position: 1,
         ..Default::default()
     });
 

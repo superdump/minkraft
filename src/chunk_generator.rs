@@ -128,7 +128,7 @@ pub fn chunk_generator_system(
                     num_edits += 1;
                     lod0.write_chunk(chunk_key, chunk);
                 }
-                ChunkCommand::Remove(chunk_key) => {
+                ChunkCommand::Remove(_chunk_key) => {
                     num_removes += 1;
                 }
             }
@@ -172,7 +172,7 @@ pub fn chunk_detection_system(
     };
 
     let mut camera_center =
-        Point3f::from(camera_position).in_voxel() >> voxel_map_config.chunk_log2;
+        PointN(camera_position.to_array()).in_voxel() >> voxel_map_config.chunk_log2;
     *camera_center.y_mut() = 0;
     let visible_extent = voxel_map_config.visible_chunks_extent + camera_center;
 

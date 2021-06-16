@@ -6,18 +6,24 @@ edition = "2018"
 license = "MIT"
 
 [dependencies]
-bevy = "0.5"
-bevy_frustum_culling = { git = "https://github.com/aevyrie/bevy_frustum_culling", rev = "1828259235e7dbc191a731f36c15395789ed2c3f" }
-bevy-hud-pass = { git = "https://github.com/superdump/bevy-hud-pass", branch = "main" }
-bevy_mod_bounding = "0.1"
+bevy = { git = "https://github.com/superdump/bevy", branch = "main-naga" }
+bevy_frustum_culling = { git = "https://github.com/superdump/bevy_frustum_culling", branch = "bevy-main-naga" }
+bevy-hud-pass = { git = "https://github.com/superdump/bevy-hud-pass", branch = "bevy-main" }
+bevy_mod_bounding = { git = "https://github.com/superdump/bevy_mod_bounding", branch = "bevy-main" }
 bevy-physical-sky = { path = "crates/bevy-physical-sky" }
 bevy_prototype_character_controller = { git = "https://github.com/superdump/bevy_prototype_character_controller", branch = "bevy-main", features = [ "use_rapier" ] }
-bevy_rapier3d = { git = "https://github.com/dimforge/bevy_rapier", rev = "bb1abd2903080e9d88f6d6f0712ebfb14c2a93e9", features = [ "parallel", "simd-stable" ] }
+bevy_rapier3d = { git = "https://github.com/superdump/bevy_rapier", branch = "bevy-main", features = [ "parallel", "simd-stable" ] }
 building-blocks = { git = "https://github.com/bonsairobo/building-blocks", rev = "4977a3c5e6fbccfab31ab026dc79bd6d943e2c3c" }
+bytemuck = "1.7"
 env_logger = "0.8"
 log = "0.4.11"
 simdnoise = "3.1.6"
 thread_local = "1.1"
+
+[patch.crates-io]
+bevy = { git = "https://github.com/superdump/bevy", branch = "main-naga" }
+bevy_mod_bounding = { git = "https://github.com/superdump/bevy_mod_bounding", branch = "bevy-main" }
+bevy_rapier3d = { git = "https://github.com/superdump/bevy_rapier", branch = "bevy-main", features = [ "parallel", "simd-stable" ] }
 
 [features]
 default = []

@@ -7,5 +7,6 @@ license = "MIT"
 
 [dependencies]
 bevy = "0.5"
+bytemuck = "1.7"
 chrono = "0.4.19"
 spa = { git = "https://github.com/frehberg/spa-rs", rev = "9b0216a6970fdc9b459cc43b76e7b6867a089f9c" }
