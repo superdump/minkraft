@@ -41,14 +41,17 @@ use minkraft::{
     app_state::AppState,
     debug::{Debug, DebugPlugin, DebugTransformTag},
     fog::{FogConfig, FogPlugin},
-    level_of_detail::LodState,
+    level_of_detail::{level_of_detail_system, LodState},
     mesh_fade::FadeUniform,
-    mesh_generator::{ArrayTextureMaterial, ArrayTexturePipelines, ChunkMeshes, MeshCommandQueue},
+    mesh_generator::{
+        mesh_generator_system, ArrayTextureMaterial, ArrayTexturePipelines, ChunkMeshes,
+        MeshCommandQueue,
+    },
     shaders::{ARRAY_TEXTURE_FRAGMENT_SHADER, ARRAY_TEXTURE_VERTEX_SHADER},
     voxel_map::{NoiseConfig, VoxelMap, VoxelMapConfig, VoxelMapPlugin},
 };
 
-struct Loading(Handle<Texture>);
+struct ArrayTexture(Handle<Texture>);
 
 struct ThirdPerson {
     pub is_third_person: bool,
@@ -149,14 +152,26 @@ fn main() {
                 .label("update_sun_light_position")
                 .after(PHYSICAL_SKY_PASS_TIME_SYSTEM),
         )
-        .add_system_set(SystemSet::on_enter(AppState::Running).with_system(setup_graphics.system()))
+        .add_system_set(SystemSet::on_exit(AppState::Loading).with_system(setup_graphics.system()))
         .add_system_set(
-            SystemSet::on_enter(AppState::Running)
+            SystemSet::on_exit(AppState::Loading)
                 .with_system(setup_world.system().label("setup_world")),
         )
+        .add_system_set(SystemSet::on_exit(AppState::Loading).with_system(setup_player.system()))
         .add_system_set(
-            SystemSet::on_enter(AppState::Running)
-                .with_system(setup_player.system().after("setup_world")),
+            SystemSet::on_enter(AppState::Preparing).with_system(
+                level_of_detail_system
+                    .system()
+                    .label("level_of_detail_system"),
+            ),
+        )
+        .add_system_set(
+            SystemSet::on_enter(AppState::Preparing).with_system(
+                mesh_generator_system
+                    .system()
+                    .label("mesh_generator_system")
+                    .after("level_of_detail_system"),
+            ),
         )
         .add_plugin(FogPlugin)
         .run();
@@ -164,23 +179,24 @@ fn main() {
 
 fn load_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
     let handle = asset_server.load("textures/voxel-pack/array_texture.png");
-    commands.insert_resource(Loading(handle));
+    commands.insert_resource(ArrayTexture(handle));
 }
 
 /// Make sure that our texture is loaded so we can change some settings on it later
 fn check_loaded(
     mut state: ResMut<State<AppState>>,
-    handle: Res<Loading>,
+    handle: Res<ArrayTexture>,
     asset_server: Res<AssetServer>,
 ) {
     if let bevy::asset::LoadState::Loaded = asset_server.get_load_state(&handle.0) {
-        state.set(AppState::Running).unwrap();
+        println!("-> AppState::Preparing");
+        state.set(AppState::Preparing).unwrap();
     }
 }
 
 fn setup_graphics(
     mut commands: Commands,
-    texture_handle: Res<Loading>,
+    texture_handle: Res<ArrayTexture>,
     mut textures: ResMut<Assets<Texture>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,

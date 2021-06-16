@@ -25,6 +25,7 @@
  */
 
 use crate::{
+    app_state::AppState,
     fog::FogConfig,
     mesh_fade::{FadeUniform, FADE_IN, FADE_OUT},
     utilities::bevy_util::thread_local_resource::ThreadLocalResource,
@@ -185,7 +186,9 @@ pub fn mesh_generator_system(
     mut chunk_meshes: ResMut<ChunkMeshes>,
     array_texture_pipelines: Res<ArrayTexturePipelines>,
     array_texture_material: Res<ArrayTextureMaterial>,
+    mut state: ResMut<State<AppState>>,
 ) {
+    let first_run = chunk_meshes.entities.is_empty();
     let new_chunk_meshes = apply_mesh_commands(
         &*voxel_map,
         &*local_mesh_buffers,
@@ -193,6 +196,7 @@ pub fn mesh_generator_system(
         &mut *mesh_commands,
         &mut *chunk_meshes,
         &mut commands,
+        first_run,
     );
     spawn_mesh_entities(
         new_chunk_meshes,
@@ -202,6 +206,10 @@ pub fn mesh_generator_system(
         &*array_texture_pipelines,
         &*array_texture_material,
     );
+    if first_run {
+        println!("MESHES GENERATED!\n-> AppState::Running");
+        state.set(AppState::Running).unwrap();
+    }
 }
 
 fn apply_mesh_commands(
@@ -211,6 +219,7 @@ fn apply_mesh_commands(
     mesh_commands: &mut MeshCommandQueue,
     chunk_meshes: &mut ChunkMeshes,
     commands: &mut Commands,
+    first_run: bool,
 ) -> Vec<(LodChunkKey3, Option<MeshBuf>)> {
     let num_chunks_to_mesh = mesh_commands.len().min(max_mesh_creations_per_frame(pool));
 
@@ -285,7 +294,7 @@ fn apply_mesh_commands(
                     }
                 }
             }
-            if num_meshes_created >= num_chunks_to_mesh {
+            if !first_run && num_meshes_created >= num_chunks_to_mesh {
                 break;
             }
         }
