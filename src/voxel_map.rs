@@ -26,10 +26,6 @@
 
 use bevy::{prelude::*, render::camera::Camera, tasks::ComputeTaskPool};
 use bevy_prototype_character_controller::controller::CameraTag;
-use bevy_rapier3d::rapier::{
-    dynamics::{JointSet, RigidBodySet},
-    geometry::ColliderSet,
-};
 use building_blocks::{
     prelude::*,
     storage::{ChunkHashMapPyramid3, OctreeChunkIndex, SmallKeyHashMap},
@@ -309,18 +305,9 @@ pub fn voxel_map_config_changed_system(
     mut mesh_commands: ResMut<MeshCommandQueue>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut bodies: ResMut<RigidBodySet>,
-    mut colliders: ResMut<ColliderSet>,
-    mut joints: ResMut<JointSet>,
 ) {
     if voxel_map_config.is_changed() && !voxel_map_config.is_added() {
-        chunk_meshes.clear_entities(
-            &mut commands,
-            &mut meshes,
-            &mut bodies,
-            &mut colliders,
-            &mut joints,
-        );
+        chunk_meshes.clear_entities(&mut commands, &mut meshes);
         mesh_commands.clear();
 
         let camera_position = if let Some((_camera, tfm)) = cameras.iter().next() {

@@ -29,8 +29,12 @@ use bevy_prototype_character_controller::{
     rapier::RapierDynamicImpulseCharacterControllerPlugin,
 };
 use bevy_rapier3d::{
-    physics::{PhysicsInterpolationComponent, RapierConfiguration, RapierPhysicsPlugin},
-    rapier::{dynamics::RigidBodyBuilder, geometry::ColliderBuilder},
+    physics::TimestepMode,
+    prelude::{
+        ColliderBundle, ColliderMassProps, ColliderShape, NoUserData, RapierConfiguration,
+        RapierPhysicsPlugin, RigidBodyActivation, RigidBodyBundle, RigidBodyMassPropsFlags,
+        RigidBodyPosition, RigidBodyPositionSync, RigidBodyType,
+    },
 };
 use building_blocks::core::prelude::*;
 use minkraft::{
@@ -100,11 +104,11 @@ fn main() {
             toggle_wireframe_system.system(),
         )
         // Physics - Rapier
-        .add_plugin(RapierPhysicsPlugin)
+        .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         // NOTE: This overridden configuration must come after the plugin to override the defaults
         .insert_resource(RapierConfiguration {
-            gravity: NO_GRAVITY.into(),
-            time_dependent_number_of_timesteps: true,
+            gravity: GRAVITY.into(),
+            timestep_mode: TimestepMode::InterpolatedTimestep,
             ..Default::default()
         })
         // Character Controller
@@ -265,15 +269,6 @@ fn setup_player(
         .spawn_bundle((
             GlobalTransform::identity(),
             Transform::from_translation(spawn_pos),
-            RigidBodyBuilder::new_dynamic()
-                .translation(spawn_pos.x, spawn_pos.y, spawn_pos.z)
-                .lock_rotations(),
-            ColliderBuilder::capsule_y(
-                0.5 * (obj_scale.y - obj_scale.x.max(obj_scale.z)),
-                0.5 * obj_scale.x.max(obj_scale.z),
-            )
-            .density(200.0),
-            PhysicsInterpolationComponent::new(spawn_pos, Quat::IDENTITY),
             CharacterController {
                 run_speed: 40.0f32,
                 ..Default::default()
@@ -282,6 +277,29 @@ fn setup_player(
             PlayerTag,
             DebugTransformTag,
         ))
+        .insert_bundle(RigidBodyBundle {
+            activation: RigidBodyActivation {
+                sleeping: true,
+                ..Default::default()
+            },
+            body_type: RigidBodyType::Dynamic,
+            mass_properties: RigidBodyMassPropsFlags::ROTATION_LOCKED.into(),
+            position: RigidBodyPosition {
+                position: spawn_pos.into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert_bundle(ColliderBundle {
+            mass_properties: ColliderMassProps::Density(200.0),
+            shape: ColliderShape::capsule(
+                (-0.5 * (obj_scale.y - obj_scale.x.max(obj_scale.z)) * Vec3::Y).into(),
+                (0.5 * (obj_scale.y - obj_scale.x.max(obj_scale.z)) * Vec3::Y).into(),
+                0.5 * obj_scale.x.max(obj_scale.z),
+            ),
+            ..Default::default()
+        })
+        .insert(RigidBodyPositionSync::Interpolated { prev_pos: None })
         .id();
     let yaw = commands
         .spawn_bundle((GlobalTransform::identity(), Transform::identity(), YawTag))

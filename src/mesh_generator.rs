@@ -31,13 +31,7 @@ use crate::{
 };
 
 use bevy_mod_bounding::{aabb::Aabb, obb::Obb};
-use bevy_rapier3d::{
-    physics::{ColliderHandleComponent, RigidBodyHandleComponent},
-    rapier::{
-        dynamics::{JointSet, RigidBodyBuilder, RigidBodyHandle, RigidBodySet},
-        geometry::{ColliderBuilder, ColliderSet},
-    },
-};
+use bevy_rapier3d::prelude::{ColliderBundle, ColliderShape, RigidBodyBundle, RigidBodyType};
 use building_blocks::{
     mesh::*,
     prelude::*,
@@ -90,29 +84,18 @@ pub enum MeshCommand {
 #[derive(Default)]
 pub struct ChunkMeshes {
     // Map from chunk key to mesh entity.
-    entities: SmallKeyHashMap<LodChunkKey3, (Entity, Handle<Mesh>, Option<RigidBodyHandle>)>,
-    remove_queue: SmallKeyHashMap<LodChunkKey3, (Entity, Handle<Mesh>, Option<RigidBodyHandle>)>,
+    entities: SmallKeyHashMap<LodChunkKey3, (Entity, Handle<Mesh>)>,
+    remove_queue: SmallKeyHashMap<LodChunkKey3, (Entity, Handle<Mesh>)>,
 }
 
 impl ChunkMeshes {
-    pub fn clear_entities(
-        &mut self,
-        commands: &mut Commands,
-        meshes: &mut Assets<Mesh>,
-        bodies: &mut RigidBodySet,
-        colliders: &mut ColliderSet,
-        joints: &mut JointSet,
-    ) {
-        self.entities.retain(|_, (entity, mesh, body)| {
-            clear_up_entity(
-                entity, mesh, body, commands, meshes, bodies, colliders, joints,
-            );
+    pub fn clear_entities(&mut self, commands: &mut Commands, meshes: &mut Assets<Mesh>) {
+        self.entities.retain(|_, (entity, mesh)| {
+            clear_up_entity(entity, mesh, commands, meshes);
             false
         });
-        self.remove_queue.retain(|_, (entity, mesh, body)| {
-            clear_up_entity(
-                entity, mesh, body, commands, meshes, bodies, colliders, joints,
-            );
+        self.remove_queue.retain(|_, (entity, mesh)| {
+            clear_up_entity(entity, mesh, commands, meshes);
             false
         });
     }
@@ -122,14 +105,9 @@ impl ChunkMeshes {
         lod_chunk_key: &LodChunkKey3,
         commands: &mut Commands,
         meshes: &mut Assets<Mesh>,
-        bodies: &mut RigidBodySet,
-        colliders: &mut ColliderSet,
-        joints: &mut JointSet,
     ) {
-        if let Some((entity, mesh, body)) = self.entities.remove(lod_chunk_key) {
-            clear_up_entity(
-                &entity, &mesh, &body, commands, meshes, bodies, colliders, joints,
-            );
+        if let Some((entity, mesh)) = self.entities.remove(lod_chunk_key) {
+            clear_up_entity(&entity, &mesh, commands, meshes);
         }
     }
 }
@@ -137,20 +115,11 @@ impl ChunkMeshes {
 fn clear_up_entity(
     entity: &Entity,
     mesh: &Handle<Mesh>,
-    body: &Option<RigidBodyHandle>,
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    bodies: &mut RigidBodySet,
-    colliders: &mut ColliderSet,
-    joints: &mut JointSet,
 ) {
     commands.entity(*entity).despawn();
     meshes.remove(mesh);
-    if let Some(body) = body {
-        // NOTE: This removes the body, as well as its colliders and
-        // joints from the simulation so it's the only thing we need to call
-        bodies.remove(*body, &mut *colliders, &mut *joints);
-    }
 }
 
 // Utility struct for building the mesh
@@ -213,8 +182,6 @@ pub fn mesh_generator_system(
     mut mesh_commands: ResMut<MeshCommandQueue>,
     mut mesh_assets: ResMut<Assets<Mesh>>,
     mut chunk_meshes: ResMut<ChunkMeshes>,
-    mut bodies: ResMut<RigidBodySet>,
-    mut colliders: ResMut<ColliderSet>,
     array_texture_pipelines: Res<ArrayTexturePipelines>,
     array_texture_material: Res<ArrayTextureMaterial>,
 ) {
@@ -231,8 +198,6 @@ pub fn mesh_generator_system(
         &mut commands,
         &mut *mesh_assets,
         &mut *chunk_meshes,
-        &mut *bodies,
-        &mut *colliders,
         &*array_texture_pipelines,
         &*array_texture_material,
     );
@@ -270,12 +235,12 @@ fn apply_mesh_commands(
                     num_updates += 1;
                     match update {
                         LodChunkUpdate3::Split(split) => {
-                            if let Some((entity, mesh, body)) =
+                            if let Some((entity, mesh)) =
                                 chunk_meshes.entities.remove(&split.old_chunk)
                             {
                                 chunk_meshes
                                     .remove_queue
-                                    .insert(split.old_chunk, (entity, mesh, body));
+                                    .insert(split.old_chunk, (entity, mesh));
                                 commands.entity(entity).insert(FADE_OUT);
                             }
                             for &lod_key in split.new_chunks.iter() {
@@ -296,12 +261,9 @@ fn apply_mesh_commands(
                         }
                         LodChunkUpdate3::Merge(merge) => {
                             for lod_key in merge.old_chunks.iter() {
-                                if let Some((entity, mesh, body)) =
-                                    chunk_meshes.entities.remove(lod_key)
+                                if let Some((entity, mesh)) = chunk_meshes.entities.remove(lod_key)
                                 {
-                                    chunk_meshes
-                                        .remove_queue
-                                        .insert(*lod_key, (entity, mesh, body));
+                                    chunk_meshes.remove_queue.insert(*lod_key, (entity, mesh));
                                     commands.entity(entity).insert(FADE_OUT);
                                 }
                             }
@@ -336,21 +298,13 @@ pub fn mesh_despawn_system(
     mut commands: Commands,
     mut chunk_meshes: ResMut<ChunkMeshes>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut bodies: ResMut<RigidBodySet>,
-    mut colliders: ResMut<ColliderSet>,
-    mut joints: ResMut<JointSet>,
     query: Query<(&FadeUniform, &LodChunkKey3), With<Handle<Mesh>>>,
 ) {
     for (fade, lod_chunk_key) in query.iter() {
         if !fade.fade_in && fade.remaining == 0.0 {
-            if let Some((entity, mesh, body)) = chunk_meshes.remove_queue.remove(lod_chunk_key) {
+            if let Some((entity, mesh)) = chunk_meshes.remove_queue.remove(lod_chunk_key) {
                 commands.entity(entity).despawn();
                 meshes.remove(&mesh);
-                if let Some(body) = body {
-                    // NOTE: This removes the body, as well as its colliders and
-                    // joints from the simulation so it's the only thing we need to call
-                    bodies.remove(body, &mut *colliders, &mut *joints);
-                }
             }
         }
     }
@@ -429,8 +383,6 @@ fn spawn_mesh_entities(
     commands: &mut Commands,
     mesh_assets: &mut Assets<Mesh>,
     chunk_meshes: &mut ChunkMeshes,
-    mut bodies: &mut RigidBodySet,
-    colliders: &mut ColliderSet,
     array_texture_pipelines: &ArrayTexturePipelines,
     array_texture_material: &ArrayTextureMaterial,
 ) {
@@ -485,7 +437,7 @@ fn spawn_mesh_entities(
                     ))
                     .id();
 
-                let body_handle = if lod_chunk_key.lod == 0 {
+                if lod_chunk_key.lod == 0 {
                     let collider_vertices = positions
                         .iter()
                         .cloned()
@@ -494,30 +446,25 @@ fn spawn_mesh_entities(
                     let collider_indices: Vec<[u32; 3]> =
                         indices.chunks(3).map(|i| [i[0], i[1], i[2]]).collect();
 
-                    let body_handle = bodies.insert(RigidBodyBuilder::new_static().build());
-                    let collider_handle = colliders.insert(
-                        ColliderBuilder::trimesh(collider_vertices, collider_indices).build(),
-                        body_handle,
-                        &mut bodies,
-                    );
-
-                    commands.entity(entity).insert_bundle((
-                        RigidBodyHandleComponent::from(body_handle),
-                        ColliderHandleComponent::from(collider_handle),
-                    ));
-
-                    Some(body_handle)
-                } else {
-                    None
-                };
+                    commands
+                        .entity(entity)
+                        .insert_bundle(RigidBodyBundle {
+                            body_type: RigidBodyType::Static,
+                            ..Default::default()
+                        })
+                        .insert_bundle(ColliderBundle {
+                            shape: ColliderShape::trimesh(collider_vertices, collider_indices),
+                            ..Default::default()
+                        });
+                }
                 chunk_meshes
                     .entities
-                    .insert(lod_chunk_key, (entity, mesh_handle, body_handle))
+                    .insert(lod_chunk_key, (entity, mesh_handle))
             }
         } else {
             chunk_meshes.entities.remove(&lod_chunk_key)
         };
-        if let Some((entity, _mesh, _body)) = old_mesh {
+        if let Some((entity, _mesh)) = old_mesh {
             commands.entity(entity).insert(FADE_OUT);
         }
     }
