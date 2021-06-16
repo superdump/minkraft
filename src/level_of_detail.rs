@@ -32,7 +32,7 @@ use crate::{
 use bevy_prototype_character_controller::controller::CameraTag;
 use building_blocks::core::prelude::*;
 
-use bevy::{prelude::*, render::camera::Camera};
+use bevy::{ecs::prelude::*, prelude::GlobalTransform, render2::camera::Camera};
 
 #[derive(Default)]
 pub struct LodState {

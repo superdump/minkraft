@@ -26,13 +26,13 @@
 
 use crate::{
     app_state::AppState,
-    fog::FogConfig,
-    mesh_fade::{FadeUniform, FADE_IN, FADE_OUT},
+    // fog::FogConfig,
+    // mesh_fade::{FadeUniform, FADE_IN, FADE_OUT},
     utilities::bevy_util::thread_local_resource::ThreadLocalResource,
     voxel_map::{Voxel, VoxelMap},
 };
 
-use bevy_mod_bounding::{aabb::Aabb, obb::Obb};
+// use bevy_mod_bounding::{aabb::Aabb, obb::Obb};
 use bevy_rapier3d::prelude::{ColliderBundle, ColliderShape, RigidBodyBundle, RigidBodyType};
 use building_blocks::{
     mesh::*,
@@ -42,9 +42,13 @@ use building_blocks::{
 
 use bevy::{
     asset::prelude::*,
-    ecs,
-    prelude::*,
-    render::{mesh::Indices, pipeline::PrimitiveTopology},
+    ecs::prelude::*,
+    math::{Quat, Vec3},
+    pbr2::{PbrBundle, StandardMaterial},
+    render2::{
+        mesh::{Indices, Mesh},
+        pipeline::PrimitiveTopology,
+    },
     tasks::ComputeTaskPool,
 };
 use std::{cell::RefCell, collections::VecDeque};
@@ -173,18 +177,18 @@ impl MeshBuf {
 }
 
 pub struct ArrayTextureMaterial(pub Handle<StandardMaterial>);
-pub struct ArrayTexturePipelines(pub RenderPipelines);
+// pub struct ArrayTexturePipelines(pub RenderPipelines);
 
 /// Generates new meshes for all dirty chunks.
 pub fn mesh_generator_system(
     mut commands: Commands,
     pool: Res<ComputeTaskPool>,
     voxel_map: Res<VoxelMap>,
-    local_mesh_buffers: ecs::system::Local<ThreadLocalMeshBuffers>,
+    local_mesh_buffers: bevy::ecs::system::Local<ThreadLocalMeshBuffers>,
     mut mesh_commands: ResMut<MeshCommandQueue>,
     mut mesh_assets: ResMut<Assets<Mesh>>,
     mut chunk_meshes: ResMut<ChunkMeshes>,
-    array_texture_pipelines: Res<ArrayTexturePipelines>,
+    // array_texture_pipelines: Res<ArrayTexturePipelines>,
     array_texture_material: Res<ArrayTextureMaterial>,
     mut state: ResMut<State<AppState>>,
 ) {
@@ -197,13 +201,14 @@ pub fn mesh_generator_system(
         &mut *chunk_meshes,
         &mut commands,
         first_run,
+        &mut *mesh_assets,
     );
     spawn_mesh_entities(
         new_chunk_meshes,
         &mut commands,
         &mut *mesh_assets,
         &mut *chunk_meshes,
-        &*array_texture_pipelines,
+        // &*array_texture_pipelines,
         &*array_texture_material,
     );
     if first_run {
@@ -220,6 +225,7 @@ fn apply_mesh_commands(
     chunk_meshes: &mut ChunkMeshes,
     commands: &mut Commands,
     first_run: bool,
+    mut meshes: &mut Assets<Mesh>,
 ) -> Vec<(LodChunkKey3, Option<MeshBuf>)> {
     let num_chunks_to_mesh = mesh_commands.len().min(max_mesh_creations_per_frame(pool));
 
@@ -248,10 +254,12 @@ fn apply_mesh_commands(
                             if let Some((entity, mesh)) =
                                 chunk_meshes.entities.remove(&split.old_chunk)
                             {
-                                chunk_meshes
-                                    .remove_queue
-                                    .insert(split.old_chunk, (entity, mesh));
-                                commands.entity(entity).insert(FADE_OUT);
+                                // chunk_meshes
+                                //     .remove_queue
+                                //     .insert(split.old_chunk, (entity, mesh));
+                                // commands.entity(entity).insert(FADE_OUT);
+                                commands.entity(entity).despawn();
+                                meshes.remove(&mesh);
                             }
                             for &lod_key in split.new_chunks.iter() {
                                 if !chunk_meshes.entities.contains_key(&lod_key) {
@@ -273,8 +281,10 @@ fn apply_mesh_commands(
                             for lod_key in merge.old_chunks.iter() {
                                 if let Some((entity, mesh)) = chunk_meshes.entities.remove(lod_key)
                                 {
-                                    chunk_meshes.remove_queue.insert(*lod_key, (entity, mesh));
-                                    commands.entity(entity).insert(FADE_OUT);
+                                    // chunk_meshes.remove_queue.insert(*lod_key, (entity, mesh));
+                                    // commands.entity(entity).insert(FADE_OUT);
+                                    commands.entity(entity).despawn();
+                                    meshes.remove(&mesh);
                                 }
                             }
                             if !chunk_meshes.entities.contains_key(&merge.new_chunk) {
@@ -304,21 +314,21 @@ fn apply_mesh_commands(
     })
 }
 
-pub fn mesh_despawn_system(
-    mut commands: Commands,
-    mut chunk_meshes: ResMut<ChunkMeshes>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    query: Query<(&FadeUniform, &LodChunkKey3), With<Handle<Mesh>>>,
-) {
-    for (fade, lod_chunk_key) in query.iter() {
-        if !fade.fade_in && fade.remaining == 0.0 {
-            if let Some((entity, mesh)) = chunk_meshes.remove_queue.remove(lod_chunk_key) {
-                commands.entity(entity).despawn();
-                meshes.remove(&mesh);
-            }
-        }
-    }
-}
+// pub fn mesh_despawn_system(
+//     mut commands: Commands,
+//     mut chunk_meshes: ResMut<ChunkMeshes>,
+//     mut meshes: ResMut<Assets<Mesh>>,
+//     query: Query<(&FadeUniform, &LodChunkKey3), With<Handle<Mesh>>>,
+// ) {
+//     for (fade, lod_chunk_key) in query.iter() {
+//         if !fade.fade_in && fade.remaining == 0.0 {
+//             if let Some((entity, mesh)) = chunk_meshes.remove_queue.remove(lod_chunk_key) {
+//                 commands.entity(entity).despawn();
+//                 meshes.remove(&mesh);
+//             }
+//         }
+//     }
+// }
 
 fn create_mesh_for_chunk(
     key: LodChunkKey3,
@@ -393,7 +403,7 @@ fn spawn_mesh_entities(
     commands: &mut Commands,
     mesh_assets: &mut Assets<Mesh>,
     chunk_meshes: &mut ChunkMeshes,
-    array_texture_pipelines: &ArrayTexturePipelines,
+    // array_texture_pipelines: &ArrayTexturePipelines,
     array_texture_material: &ArrayTextureMaterial,
 ) {
     for (lod_chunk_key, item) in new_chunk_meshes.into_iter() {
@@ -433,18 +443,18 @@ fn spawn_mesh_entities(
                 let entity = commands
                     .spawn_bundle(PbrBundle {
                         mesh: mesh_handle.clone(),
-                        render_pipelines: array_texture_pipelines.0.clone(),
+                        // render_pipelines: array_texture_pipelines.0.clone(),
                         material: array_texture_material.0.clone(),
                         ..Default::default()
                     })
                     .insert_bundle((
-                        FADE_IN,
+                        // FADE_IN,
                         lod_chunk_key,
-                        Obb::from_aabb_orientation(
-                            Aabb::from_extents(minimum, maximum),
-                            Quat::IDENTITY,
-                        ),
-                        FogConfig::default(),
+                        // Obb::from_aabb_orientation(
+                        //     Aabb::from_extents(minimum, maximum),
+                        //     Quat::IDENTITY,
+                        // ),
+                        // FogConfig::default(),
                     ))
                     .id();
 
@@ -475,8 +485,10 @@ fn spawn_mesh_entities(
         } else {
             chunk_meshes.entities.remove(&lod_chunk_key)
         };
-        if let Some((entity, _mesh)) = old_mesh {
-            commands.entity(entity).insert(FADE_OUT);
+        if let Some((entity, mesh)) = old_mesh {
+            // commands.entity(entity).insert(FADE_OUT);
+            commands.entity(entity).despawn();
+            mesh_assets.remove(&mesh);
         }
     }
 }

@@ -1,6 +1,12 @@
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    prelude::*,
+    ecs::prelude::*,
+    math::Size,
+    prelude::{App, AssetServer, Assets, Handle, NodeBundle, Plugin},
+    render2::color::Color,
+    sprite2::Rect,
+    text::Font,
+    ui::{FlexDirection, JustifyContent, Style, Val},
 };
 use bevy_prototype_character_controller::look::MouseSettings;
 
@@ -10,7 +16,7 @@ pub struct Debug {
     pub enabled: bool,
     font_handle: Option<Handle<Font>>,
     pub text_entity: Option<Entity>,
-    pub transparent_material: Option<Handle<ColorMaterial>>,
+    // pub transparent_material: Option<Handle<ColorMaterial>>,
 }
 
 impl Default for Debug {
@@ -19,7 +25,7 @@ impl Default for Debug {
             enabled: false,
             font_handle: None,
             text_entity: None,
-            transparent_material: None,
+            // transparent_material: None,
         }
     }
 }
@@ -27,7 +33,7 @@ impl Default for Debug {
 pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.init_resource::<Debug>()
             .add_plugin(FrameTimeDiagnosticsPlugin::default())
             .add_plugin(MeshDiagnosticsPlugin::default())

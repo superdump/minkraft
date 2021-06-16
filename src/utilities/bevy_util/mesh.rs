@@ -26,9 +26,9 @@
 use building_blocks::mesh::PosNormMesh;
 
 use bevy::{
-    prelude::*,
-    render::{
-        mesh::{Indices, VertexAttributeValues},
+    prelude::{Assets, Handle},
+    render2::{
+        mesh::{Indices, Mesh, VertexAttributeValues},
         pipeline::PrimitiveTopology,
     },
 };

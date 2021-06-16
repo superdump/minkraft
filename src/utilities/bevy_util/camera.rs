@@ -23,7 +23,10 @@
  *
  */
 
-use bevy::{prelude::*, render::camera::PerspectiveProjection};
+use bevy::{
+    prelude::Transform,
+    render2::camera::{PerspectiveCameraBundle, PerspectiveProjection},
+};
 
 pub fn create_camera_bundle(transform: Transform) -> PerspectiveCameraBundle {
     PerspectiveCameraBundle {

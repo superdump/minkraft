@@ -27,7 +27,7 @@ const SUN_DISTANCE: f32 = 400000.0;
 pub struct PhysicalSkyPlugin;
 
 impl Plugin for PhysicalSkyPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_asset::<PhysicalSkyMaterial>()
             .add_startup_system(setup.system().label(PHYSICAL_SKY_SETUP_SYSTEM))
             .add_startup_system(pass_time.system())

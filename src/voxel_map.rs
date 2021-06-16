@@ -24,7 +24,13 @@
  *
  */
 
-use bevy::{prelude::*, render::camera::Camera, tasks::ComputeTaskPool};
+use bevy::{
+    ecs::prelude::*,
+    input::Input,
+    prelude::{App, Assets, GlobalTransform, KeyCode, Plugin},
+    render2::{camera::Camera, mesh::Mesh},
+    tasks::ComputeTaskPool,
+};
 use bevy_prototype_character_controller::controller::CameraTag;
 use building_blocks::{
     prelude::*,
@@ -38,16 +44,17 @@ use crate::{
     app_state::AppState,
     chunk_generator::{chunk_detection_system, chunk_generator_system, ChunkCommandQueue},
     level_of_detail::{level_of_detail_system, LodState},
-    mesh_fade::mesh_fade_update_system,
+    // mesh_fade::mesh_fade_update_system,
     mesh_generator::{
-        mesh_despawn_system, mesh_generator_system, ChunkMeshes, MeshCommand, MeshCommandQueue,
+        /*mesh_despawn_system,*/ mesh_generator_system, ChunkMeshes, MeshCommand,
+        MeshCommandQueue,
     },
 };
 
 pub struct VoxelMapPlugin;
 
 impl Plugin for VoxelMapPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.insert_resource(NoiseConfig::default())
             .insert_resource(VoxelMapConfig::default())
             .insert_resource(ChunkCommandQueue::default())
@@ -89,18 +96,18 @@ impl Plugin for VoxelMapPlugin {
                             .label("mesh_generator")
                             .after("level_of_detail"),
                     )
-                    .with_system(
-                        mesh_fade_update_system
-                            .system()
-                            .label("mesh_fade_update")
-                            .before("mesh_generator"),
-                    )
-                    .with_system(
-                        mesh_despawn_system
-                            .system()
-                            .label("mesh_despawn")
-                            .after("mesh_fade_update"),
-                    ),
+                    // .with_system(
+                    //     mesh_fade_update_system
+                    //         .system()
+                    //         .label("mesh_fade_update")
+                    //         .before("mesh_generator"),
+                    // )
+                    // .with_system(
+                    //     mesh_despawn_system
+                    //         .system()
+                    //         .label("mesh_despawn")
+                    //         .after("mesh_fade_update"),
+                    // ),
             );
     }
 }

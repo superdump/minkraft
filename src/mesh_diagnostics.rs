@@ -1,6 +1,8 @@
 use bevy::{
     diagnostic::{Diagnostic, DiagnosticId, Diagnostics},
-    prelude::*,
+    ecs::prelude::*,
+    prelude::{App, Handle, Plugin, ResMut},
+    render2::mesh::Mesh,
 };
 
 /// Adds "frame time" diagnostic to an App, specifically "frame time", "fps" and "frame count"
@@ -8,7 +10,7 @@ use bevy::{
 pub struct MeshDiagnosticsPlugin;
 
 impl Plugin for MeshDiagnosticsPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_startup_system(Self::setup_system.system())
             .add_system(Self::diagnostic_system.system());
     }
@@ -40,18 +42,16 @@ impl MeshDiagnosticsPlugin {
         ));
     }
 
-    pub fn diagnostic_system(
-        mut diagnostics: ResMut<Diagnostics>,
-        query: Query<&Visible, With<Handle<Mesh>>>,
-    ) {
+    pub fn diagnostic_system(mut diagnostics: ResMut<Diagnostics>, query: Query<&Handle<Mesh>>) {
         let (mut culled_mesh_count, mut drawn_mesh_count) = (0.0, 0.0);
-        for visible in query.iter() {
-            if visible.is_visible {
-                drawn_mesh_count += 1.0;
-            } else {
-                culled_mesh_count += 1.0;
-            }
-        }
+        drawn_mesh_count = query.iter().count() as f64;
+        // for visible in query.iter() {
+        //     if visible.is_visible {
+        //         drawn_mesh_count += 1.0;
+        //     } else {
+        //         culled_mesh_count += 1.0;
+        //     }
+        // }
         diagnostics.add_measurement(
             Self::MESH_ENTITY_COUNT,
             culled_mesh_count + drawn_mesh_count,

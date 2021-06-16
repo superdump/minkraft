@@ -1,27 +1,35 @@
 use bevy::{
     asset::AssetServerSettings,
-    input::{keyboard::KeyCode, system::exit_on_esc_system},
-    prelude::*,
-    render::{
-        camera::PerspectiveProjection,
-        pipeline::{FrontFace, PipelineDescriptor, RenderPipeline},
-        render_graph::{base, RenderGraph, RenderResourcesNode},
-        shader::{shader_defs_system, ShaderStage, ShaderStages},
-        texture::{AddressMode, SamplerDescriptor},
-        wireframe::{WireframeConfig, WireframePlugin},
+    ecs::prelude::*,
+    input::{keyboard::KeyCode, system::exit_on_esc_system, Input},
+    math::{FaceToward, Mat4, Quat, Vec3},
+    pbr2::{PbrBundle, PointLight, PointLightBundle, StandardMaterial},
+    prelude::{
+        App, AssetServer, Assets, BuildChildren, CoreStage, GlobalTransform, Handle, Msaa,
+        Transform, Visible,
+    },
+    render2::{
+        camera::{PerspectiveCameraBundle, PerspectiveProjection},
+        color::Color,
+        mesh::{shape, Mesh},
+        pass::ClearColor,
+        render_graph::RenderGraph,
+        texture::Texture,
     },
     tasks::ComputeTaskPool,
-    wgpu::{WgpuFeature, WgpuFeatures, WgpuOptions},
+    wgpu2::{WgpuFeature, WgpuFeatures, WgpuOptions},
+    window::WindowDescriptor,
+    PipelinedDefaultPlugins,
 };
-use bevy_frustum_culling::*;
-use bevy_hud_pass::{
-    world_axes::{WorldAxes, WorldAxesPlugin, WorldAxesPositionTag, WorldAxesRotationTag},
-    HUDCameraBundle, HUDPassPlugin,
-};
-use bevy_physical_sky::{
-    PhysicalSkyCameraTag, PhysicalSkyMaterial, PhysicalSkyPlugin, SolarPosition,
-    PHYSICAL_SKY_FRAGMENT_SHADER, PHYSICAL_SKY_PASS_TIME_SYSTEM, PHYSICAL_SKY_VERTEX_SHADER,
-};
+// use bevy_frustum_culling::*;
+// use bevy_hud_pass::{
+//     world_axes::{WorldAxes, WorldAxesPlugin, WorldAxesPositionTag, WorldAxesRotationTag},
+//     HUDCameraBundle, HUDPassPlugin,
+// };
+// use bevy_physical_sky::{
+//     PhysicalSkyCameraTag, PhysicalSkyMaterial, PhysicalSkyPlugin, SolarPosition,
+//     PHYSICAL_SKY_FRAGMENT_SHADER, PHYSICAL_SKY_PASS_TIME_SYSTEM, PHYSICAL_SKY_VERTEX_SHADER,
+// };
 use bevy_prototype_character_controller::{
     controller::{BodyTag, CameraTag, CharacterController, HeadTag, YawTag},
     look::{LookDirection, LookEntity},
@@ -38,12 +46,12 @@ use bevy_rapier3d::{
 use building_blocks::core::prelude::*;
 use minkraft::{
     app_state::AppState,
-    debug::{Debug, DebugPlugin, DebugTransformTag},
-    fog::{FogConfig, FogPlugin},
+    // debug::{Debug, DebugPlugin, DebugTransformTag},
+    // fog::{FogConfig, FogPlugin},
     level_of_detail::{level_of_detail_system, LodState},
-    mesh_fade::FadeUniform,
+    // mesh_fade::FadeUniform,
     mesh_generator::{
-        mesh_generator_system, ArrayTextureMaterial, ArrayTexturePipelines, ChunkMeshes,
+        mesh_generator_system, ArrayTextureMaterial, /*ArrayTexturePipelines,*/ ChunkMeshes,
         MeshCommandQueue,
     },
     shaders::{ARRAY_TEXTURE_FRAGMENT_SHADER, ARRAY_TEXTURE_VERTEX_SHADER},
@@ -66,7 +74,7 @@ const RENDER_BODY: bool = false;
 fn main() {
     env_logger::builder().format_timestamp_micros().init();
 
-    App::build()
+    App::new()
         // Generic
         .insert_resource(WindowDescriptor {
             width: 1600.0,
@@ -84,8 +92,8 @@ fn main() {
             },
             ..Default::default()
         })
-        .add_plugins(DefaultPlugins)
-        .add_plugin(WireframePlugin)
+        .add_plugins(PipelinedDefaultPlugins)
+        // .add_plugin(WireframePlugin)
         .insert_resource(AssetServerSettings {
             asset_folder: env!("CARGO_MANIFEST_DIR").to_string(),
         })
@@ -94,25 +102,25 @@ fn main() {
         .insert_resource(State::new(AppState::Loading))
         .add_state(AppState::Loading)
         // Debug
-        .add_plugin(DebugPlugin)
-        .add_plugin(HUDPassPlugin)
-        .add_plugin(WorldAxesPlugin)
-        .insert_resource(WorldAxes {
-            enabled: false,
-            ..Default::default()
-        })
-        .add_system_to_stage(
-            bevy::app::CoreStage::PreUpdate,
-            toggle_debug_system.system(),
-        )
+        // .add_plugin(DebugPlugin)
+        // .add_plugin(HUDPassPlugin)
+        // .add_plugin(WorldAxesPlugin)
+        // .insert_resource(WorldAxes {
+        //     enabled: false,
+        //     ..Default::default()
+        // })
+        // .add_system_to_stage(
+        //     bevy::app::CoreStage::PreUpdate,
+        //     toggle_debug_system.system(),
+        // )
         .add_system_to_stage(
             bevy::app::CoreStage::PreUpdate,
             toggle_third_person.system(),
         )
-        .add_system_to_stage(
-            bevy::app::CoreStage::PreUpdate,
-            toggle_wireframe_system.system(),
-        )
+        // .add_system_to_stage(
+        //     bevy::app::CoreStage::PreUpdate,
+        //     toggle_wireframe_system.system(),
+        // )
         // Physics - Rapier
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         // NOTE: This overridden configuration must come after the plugin to override the defaults
@@ -124,27 +132,27 @@ fn main() {
         // Character Controller
         .add_plugin(RapierDynamicImpulseCharacterControllerPlugin)
         // Terrain
-        // For fade in/out
-        .add_system_to_stage(
-            CoreStage::PostUpdate,
-            shader_defs_system::<FadeUniform>.system(),
-        )
+        // // For fade in/out
+        // .add_system_to_stage(
+        //     CoreStage::PostUpdate,
+        //     shader_defs_system::<FadeUniform>.system(),
+        // )
         .add_plugin(VoxelMapPlugin)
-        // Frustum culling
-        .add_plugin(BoundingVolumePlugin::<obb::Obb>::default())
-        .add_plugin(FrustumCullingPlugin::<obb::Obb>::default())
+        // // Frustum culling
+        // .add_plugin(BoundingVolumePlugin::<obb::Obb>::default())
+        // .add_plugin(FrustumCullingPlugin::<obb::Obb>::default())
         // Minkraft
         .add_system_set(SystemSet::on_enter(AppState::Loading).with_system(load_assets.system()))
         .add_system_set(SystemSet::on_update(AppState::Loading).with_system(check_loaded.system()))
-        .insert_resource(SolarPosition {
-            // Stockholm
-            latitude: 59.33258,
-            longitude: 18.0649,
-            // one day per 8 minutes of real time
-            simulation_seconds_per_second: 24.0 * 60.0 * 60.0 / (8.0 * 60.0),
-            ..Default::default()
-        })
-        .add_plugin(PhysicalSkyPlugin)
+        // .insert_resource(SolarPosition {
+        //     // Stockholm
+        //     latitude: 59.33258,
+        //     longitude: 18.0649,
+        //     // one day per 8 minutes of real time
+        //     simulation_seconds_per_second: 24.0 * 60.0 * 60.0 / (8.0 * 60.0),
+        //     ..Default::default()
+        // })
+        // .add_plugin(PhysicalSkyPlugin)
         .add_system_set(SystemSet::on_exit(AppState::Loading).with_system(setup_graphics.system()))
         .add_system_set(
             SystemSet::on_exit(AppState::Loading)
@@ -166,13 +174,13 @@ fn main() {
                     .after("level_of_detail_system"),
             ),
         )
-        .add_system(
-            update_sun_light_direction
-                .system()
-                .label("update_sun_light_direction")
-                .after(PHYSICAL_SKY_PASS_TIME_SYSTEM),
-        )
-        .add_plugin(FogPlugin)
+        // .add_system(
+        //     update_sun_light_direction
+        //         .system()
+        //         .label("update_sun_light_direction")
+        //         .after(PHYSICAL_SKY_PASS_TIME_SYSTEM),
+        // )
+        // .add_plugin(FogPlugin)
         .run();
 }
 
@@ -195,81 +203,81 @@ fn check_loaded(
 
 fn setup_graphics(
     mut commands: Commands,
-    texture_handle: Res<ArrayTexture>,
-    mut textures: ResMut<Assets<Texture>>,
+    // texture_handle: Res<ArrayTexture>,
+    // mut textures: ResMut<Assets<Texture>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut sky_materials: ResMut<Assets<PhysicalSkyMaterial>>,
-    mut pipelines: ResMut<Assets<PipelineDescriptor>>,
-    mut shaders: ResMut<Assets<Shader>>,
-    mut render_graph: ResMut<RenderGraph>,
+    // mut meshes: ResMut<Assets<Mesh>>,
+    // mut sky_materials: ResMut<Assets<PhysicalSkyMaterial>>,
+    // mut pipelines: ResMut<Assets<PipelineDescriptor>>,
+    // mut shaders: ResMut<Assets<Shader>>,
+    // mut render_graph: ResMut<RenderGraph>,
 ) {
-    // Create a new shader pipeline
-    let mut pipeline_descriptor = PipelineDescriptor::default_config(ShaderStages {
-        vertex: shaders.add(Shader::from_glsl(
-            ShaderStage::Vertex,
-            PHYSICAL_SKY_VERTEX_SHADER,
-        )),
-        fragment: Some(shaders.add(Shader::from_glsl(
-            ShaderStage::Fragment,
-            PHYSICAL_SKY_FRAGMENT_SHADER,
-        ))),
-    });
-    // Reverse the winding so we can see the faces from the inside
-    pipeline_descriptor.primitive.front_face = FrontFace::Cw;
-    let pipeline = pipelines.add(pipeline_descriptor);
+    // // Create a new shader pipeline
+    // let mut pipeline_descriptor = PipelineDescriptor::default_config(ShaderStages {
+    //     vertex: shaders.add(Shader::from_glsl(
+    //         ShaderStage::Vertex,
+    //         PHYSICAL_SKY_VERTEX_SHADER,
+    //     )),
+    //     fragment: Some(shaders.add(Shader::from_glsl(
+    //         ShaderStage::Fragment,
+    //         PHYSICAL_SKY_FRAGMENT_SHADER,
+    //     ))),
+    // });
+    // // Reverse the winding so we can see the faces from the inside
+    // pipeline_descriptor.primitive.front_face = FrontFace::Cw;
+    // let pipeline = pipelines.add(pipeline_descriptor);
 
-    // Create a new material
-    let material = sky_materials.add(PhysicalSkyMaterial::stellar_dawn(true));
+    // // Create a new material
+    // let material = sky_materials.add(PhysicalSkyMaterial::stellar_dawn(true));
 
-    // Sky box cube
-    commands
-        .spawn_bundle(MeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Icosphere {
-                radius: 4900.0,
-                subdivisions: 5,
-            })),
-            render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(pipeline)]),
-            transform: Transform::from_xyz(SPAWN_POINT[0], SPAWN_POINT[1], SPAWN_POINT[2]),
-            ..Default::default()
-        })
-        .insert(material);
+    // // Sky box cube
+    // commands
+    //     .spawn_bundle(MeshBundle {
+    //         mesh: meshes.add(Mesh::from(shape::Icosphere {
+    //             radius: 4900.0,
+    //             subdivisions: 5,
+    //         })),
+    //         render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(pipeline)]),
+    //         transform: Transform::from_xyz(SPAWN_POINT[0], SPAWN_POINT[1], SPAWN_POINT[2]),
+    //         ..Default::default()
+    //     })
+    //     .insert(material);
 
-    let mut texture = textures.get_mut(&texture_handle.0).unwrap();
-    // Set the texture to tile over the entire quad
-    texture.sampler = SamplerDescriptor {
-        address_mode_u: AddressMode::Repeat,
-        address_mode_v: AddressMode::Repeat,
-        ..Default::default()
-    };
-    texture.reinterpret_stacked_2d_as_array(6);
-    let mut material = StandardMaterial::from(texture_handle.0.clone());
-    material.roughness = 0.6;
-    let material_handle = materials.add(material);
+    // let mut texture = textures.get_mut(&texture_handle.0).unwrap();
+    // // Set the texture to tile over the entire quad
+    // texture.sampler = SamplerDescriptor {
+    //     address_mode_u: AddressMode::Repeat,
+    //     address_mode_v: AddressMode::Repeat,
+    //     ..Default::default()
+    // };
+    // texture.reinterpret_stacked_2d_as_array(6);
+    // let mut material = StandardMaterial::from(texture_handle.0.clone());
+    // material.roughness = 0.6;
+    let material_handle = materials.add(Color::LIME_GREEN.into());
     commands.insert_resource(ArrayTextureMaterial(material_handle));
 
-    render_graph.add_system_node(
-        "fade_uniform",
-        RenderResourcesNode::<FadeUniform>::new(true),
-    );
-    render_graph
-        .add_node_edge("fade_uniform", base::node::MAIN_PASS)
-        .expect("Failed to add fade_uniform as dependency of main pass");
+    // render_graph.add_system_node(
+    //     "fade_uniform",
+    //     RenderResourcesNode::<FadeUniform>::new(true),
+    // );
+    // render_graph
+    //     .add_node_edge("fade_uniform", base::node::MAIN_PASS)
+    //     .expect("Failed to add fade_uniform as dependency of main pass");
 
-    let pipeline = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
-        vertex: shaders.add(Shader::from_glsl(
-            ShaderStage::Vertex,
-            ARRAY_TEXTURE_VERTEX_SHADER,
-        )),
-        fragment: Some(shaders.add(Shader::from_glsl(
-            ShaderStage::Fragment,
-            ARRAY_TEXTURE_FRAGMENT_SHADER,
-        ))),
-    }));
+    // let pipeline = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
+    //     vertex: shaders.add(Shader::from_glsl(
+    //         ShaderStage::Vertex,
+    //         ARRAY_TEXTURE_VERTEX_SHADER,
+    //     )),
+    //     fragment: Some(shaders.add(Shader::from_glsl(
+    //         ShaderStage::Fragment,
+    //         ARRAY_TEXTURE_FRAGMENT_SHADER,
+    //     ))),
+    // }));
 
-    commands.insert_resource(ArrayTexturePipelines(RenderPipelines::from_pipelines(
-        vec![RenderPipeline::new(pipeline)],
-    )));
+    // commands.insert_resource(ArrayTexturePipelines(RenderPipelines::from_pipelines(
+    //     vec![RenderPipeline::new(pipeline)],
+    // )));
 }
 
 pub struct PlayerTag;
@@ -299,7 +307,7 @@ fn setup_player(
             },
             BodyTag,
             PlayerTag,
-            DebugTransformTag,
+            // DebugTransformTag,
         ))
         .insert_bundle(RigidBodyBundle {
             activation: RigidBodyActivation {
@@ -337,13 +345,13 @@ fn setup_player(
                 Quat::IDENTITY,
                 -0.5 * head_scale * Vec3::Y,
             )),
-            visible: Visible {
-                is_visible: RENDER_BODY,
-                ..Default::default()
-            },
+            // visible: Visible {
+            //     is_visible: RENDER_BODY,
+            //     ..Default::default()
+            // },
             ..Default::default()
         })
-        .insert(FogConfig::default())
+        // .insert(FogConfig::default())
         .id();
     let head = commands
         .spawn_bundle((
@@ -358,13 +366,13 @@ fn setup_player(
             material: red,
             mesh: cuboid,
             transform: Transform::from_scale(Vec3::splat(head_scale)),
-            visible: Visible {
-                is_visible: RENDER_BODY,
-                ..Default::default()
-            },
+            // visible: Visible {
+            //     is_visible: RENDER_BODY,
+            //     ..Default::default()
+            // },
             ..Default::default()
         })
-        .insert(FogConfig::default())
+        // .insert(FogConfig::default())
         .id();
     let camera = commands
         .spawn_bundle(PerspectiveCameraBundle {
@@ -378,10 +386,10 @@ fn setup_player(
         })
         .insert_bundle((
             CameraTag,
-            FrustumCulling,
+            // FrustumCulling,
             LookDirection::default(),
-            PhysicalSkyCameraTag,
-            WorldAxesRotationTag,
+            // PhysicalSkyCameraTag,
+            // WorldAxesRotationTag,
             ThirdPerson {
                 is_third_person: RENDER_BODY,
                 body: body_model,
@@ -418,62 +426,77 @@ fn setup_world(
     commands.insert_resource(map);
     commands.insert_resource(ChunkMeshes::default());
 
-    commands
-        .spawn_bundle(HUDCameraBundle::default())
-        .insert(WorldAxesPositionTag);
-    commands.spawn_bundle(UiCameraBundle::default());
+    commands.spawn_bundle(PointLightBundle {
+        transform: Transform::from_translation(Vec3::new(
+            SPAWN_POINT[0] + 1000.0,
+            SPAWN_POINT[1] + 512.0,
+            SPAWN_POINT[2] + 3200.0,
+        )),
+        point_light: PointLight {
+            color: Color::ANTIQUE_WHITE,
+            intensity: 10000000.0,
+            radius: 1000000.0,
+            range: 1000000.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    // commands
+    //     .spawn_bundle(HUDCameraBundle::default())
+    //     .insert(WorldAxesPositionTag);
+    // commands.spawn_bundle(UiCameraBundle::default());
 
-    let direction = Vec3::new(1.0, -1.0, 1.0).normalize();
-    commands.spawn_bundle((
-        Transform::identity(),
-        GlobalTransform::identity(),
-        DirectionalLight::new(Color::ANTIQUE_WHITE, 1e4, direction),
-    ));
+    // let direction = Vec3::new(1.0, -1.0, 1.0).normalize();
+    // commands.spawn_bundle((
+    //     Transform::identity(),
+    //     GlobalTransform::identity(),
+    //     DirectionalLight::new(Color::ANTIQUE_WHITE, 1e4, direction),
+    // ));
 }
 
-fn update_sun_light_direction(
-    solar_position: Res<SolarPosition>,
-    mut query: Query<&mut DirectionalLight>,
-) {
-    let (azimuth, inclination) = solar_position.get_azimuth_inclination();
-    let (azimuth_radians, inclination_radians) = (
-        (azimuth.to_radians() - std::f64::consts::PI) as f32,
-        inclination.to_radians() as f32,
-    );
-    let light_direction = -Vec3::new(
-        azimuth_radians.cos(),
-        azimuth_radians.sin() * inclination_radians.sin(),
-        azimuth_radians.sin() * inclination_radians.cos(),
-    )
-    .normalize();
-    for mut dir_light in query.iter_mut() {
-        dir_light.set_direction(light_direction);
-        // If the light is pointing upward, it is night time
-        dir_light.illuminance = if light_direction.y >= 0.0 { 0.0 } else { 1e4 }
-    }
-}
+// fn update_sun_light_direction(
+//     solar_position: Res<SolarPosition>,
+//     mut query: Query<&mut DirectionalLight>,
+// ) {
+//     let (azimuth, inclination) = solar_position.get_azimuth_inclination();
+//     let (azimuth_radians, inclination_radians) = (
+//         (azimuth.to_radians() - std::f64::consts::PI) as f32,
+//         inclination.to_radians() as f32,
+//     );
+//     let light_direction = -Vec3::new(
+//         azimuth_radians.cos(),
+//         azimuth_radians.sin() * inclination_radians.sin(),
+//         azimuth_radians.sin() * inclination_radians.cos(),
+//     )
+//     .normalize();
+//     for mut dir_light in query.iter_mut() {
+//         dir_light.set_direction(light_direction);
+//         // If the light is pointing upward, it is night time
+//         dir_light.illuminance = if light_direction.y >= 0.0 { 0.0 } else { 1e4 }
+//     }
+// }
 
-fn toggle_debug_system(
-    keyboard_input: Res<Input<KeyCode>>,
-    mut debug: ResMut<Debug>,
-    mut world_axes: ResMut<WorldAxes>,
-) {
-    if keyboard_input.just_pressed(KeyCode::H) {
-        // Use debug.enabled as the source of truth
-        let new_state = !debug.enabled;
-        debug.enabled = new_state;
-        world_axes.enabled = new_state;
-    }
-}
+// fn toggle_debug_system(
+//     keyboard_input: Res<Input<KeyCode>>,
+//     mut debug: ResMut<Debug>,
+//     mut world_axes: ResMut<WorldAxes>,
+// ) {
+//     if keyboard_input.just_pressed(KeyCode::H) {
+//         // Use debug.enabled as the source of truth
+//         let new_state = !debug.enabled;
+//         debug.enabled = new_state;
+//         world_axes.enabled = new_state;
+//     }
+// }
 
-fn toggle_wireframe_system(
-    keyboard_input: Res<Input<KeyCode>>,
-    mut wireframe_config: ResMut<WireframeConfig>,
-) {
-    if keyboard_input.just_pressed(KeyCode::M) {
-        wireframe_config.global = !wireframe_config.global;
-    }
-}
+// fn toggle_wireframe_system(
+//     keyboard_input: Res<Input<KeyCode>>,
+//     mut wireframe_config: ResMut<WireframeConfig>,
+// ) {
+//     if keyboard_input.just_pressed(KeyCode::M) {
+//         wireframe_config.global = !wireframe_config.global;
+//     }
+// }
 
 fn toggle_third_person(
     keyboard_input: Res<Input<KeyCode>>,

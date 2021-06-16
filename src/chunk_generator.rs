@@ -29,7 +29,9 @@ use crate::voxel_map::{generate_chunk_stack, NoiseConfig, Voxel, VoxelMap, Voxel
 use bevy_prototype_character_controller::controller::CameraTag;
 use building_blocks::{core::extent::bounding_extent, prelude::*};
 
-use bevy::{prelude::*, render::camera::Camera, tasks::ComputeTaskPool};
+use bevy::{
+    ecs::prelude::*, prelude::GlobalTransform, render2::camera::Camera, tasks::ComputeTaskPool,
+};
 use std::collections::VecDeque;
 
 fn max_chunk_creations_per_frame(pool: &ComputeTaskPool) -> usize {

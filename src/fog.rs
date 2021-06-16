@@ -1,6 +1,6 @@
 use bevy::{
-    prelude::*,
-    render::{
+    ecs::prelude::*,
+    render2::{
         render_graph::{base, RenderGraph, RenderResourcesNode},
         renderer::{RenderResource, RenderResources},
     },
@@ -13,7 +13,7 @@ pub const FOG_SETUP_SYSTEM: &str = "fog_setup";
 pub struct FogPlugin;
 
 impl Plugin for FogPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_startup_system(setup.system().label(FOG_SETUP_SYSTEM));
     }
 }
