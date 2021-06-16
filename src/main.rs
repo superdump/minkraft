@@ -145,12 +145,6 @@ fn main() {
             ..Default::default()
         })
         .add_plugin(PhysicalSkyPlugin)
-        .add_system(
-            update_sun_light_position
-                .system()
-                .label("update_sun_light_position")
-                .after(PHYSICAL_SKY_PASS_TIME_SYSTEM),
-        )
         .add_system_set(SystemSet::on_exit(AppState::Loading).with_system(setup_graphics.system()))
         .add_system_set(
             SystemSet::on_exit(AppState::Loading)
@@ -171,6 +165,12 @@ fn main() {
                     .label("mesh_generator_system")
                     .after("level_of_detail_system"),
             ),
+        )
+        .add_system(
+            update_sun_light_direction
+                .system()
+                .label("update_sun_light_direction")
+                .after(PHYSICAL_SKY_PASS_TIME_SYSTEM),
         )
         .add_plugin(FogPlugin)
         .run();
@@ -370,6 +370,7 @@ fn setup_player(
         .spawn_bundle(PerspectiveCameraBundle {
             transform: Transform::from_matrix(camera_transform),
             perspective_projection: PerspectiveProjection {
+                near: 0.1f32,
                 far: 5000.0f32,
                 ..Default::default()
             },
@@ -421,41 +422,34 @@ fn setup_world(
         .spawn_bundle(HUDCameraBundle::default())
         .insert(WorldAxesPositionTag);
     commands.spawn_bundle(UiCameraBundle::default());
-    commands.spawn_bundle(PointLightBundle {
-        transform: Transform::from_translation(Vec3::new(
-            SPAWN_POINT[0] + 1000.0,
-            SPAWN_POINT[1] + 512.0,
-            SPAWN_POINT[2] + 3200.0,
-        )),
-        point_light: PointLight {
-            color: Color::ANTIQUE_WHITE,
-            intensity: 10000000.0,
-            radius: 1000000.0,
-            range: 1000000.0,
-            ..Default::default()
-        },
-        ..Default::default()
-    });
+
+    let direction = Vec3::new(1.0, -1.0, 1.0).normalize();
+    commands.spawn_bundle((
+        Transform::identity(),
+        GlobalTransform::identity(),
+        DirectionalLight::new(Color::ANTIQUE_WHITE, 1e4, direction),
+    ));
 }
 
-fn update_sun_light_position(
+fn update_sun_light_direction(
     solar_position: Res<SolarPosition>,
-    mut query: Query<&mut Transform, With<PointLight>>,
+    mut query: Query<&mut DirectionalLight>,
 ) {
     let (azimuth, inclination) = solar_position.get_azimuth_inclination();
     let (azimuth_radians, inclination_radians) = (
         (azimuth.to_radians() - std::f64::consts::PI) as f32,
         inclination.to_radians() as f32,
     );
-    let translation = Vec3::new(
+    let light_direction = -Vec3::new(
         azimuth_radians.cos(),
         azimuth_radians.sin() * inclination_radians.sin(),
         azimuth_radians.sin() * inclination_radians.cos(),
     )
-    .normalize()
-        * 4500.0;
-    for mut transform in query.iter_mut() {
-        *transform = Transform::from_translation(translation);
+    .normalize();
+    for mut dir_light in query.iter_mut() {
+        dir_light.set_direction(light_direction);
+        // If the light is pointing upward, it is night time
+        dir_light.illuminance = if light_direction.y >= 0.0 { 0.0 } else { 1e4 }
     }
 }
 
