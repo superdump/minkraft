@@ -288,8 +288,6 @@ pub fn track_camera(
     }
 }
 
-const DEGREES_TO_RADIANS: f64 = std::f64::consts::PI / 180.0;
-
 pub fn pass_time(
     time: Res<Time>,
     mut solar_position: ResMut<SolarPosition>,
@@ -300,8 +298,8 @@ pub fn pass_time(
 
     let (azimuth, inclination) = solar_position.get_azimuth_inclination();
     let (azimuth_radians, inclination_radians) = (
-        ((azimuth * DEGREES_TO_RADIANS) - std::f64::consts::PI) as f32,
-        (inclination * DEGREES_TO_RADIANS) as f32,
+        (azimuth.to_radians() - std::f64::consts::PI) as f32,
+        inclination.to_radians() as f32,
     );
 
     for handle in query.iter() {
