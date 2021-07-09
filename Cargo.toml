@@ -6,33 +6,40 @@ edition = "2018"
 license = "MIT"
 
 [dependencies]
-bevy = { git = "https://github.com/cart/bevy", branch = "pipelined-rendering", default-features = false, features = [ "bevy_audio", "bevy_dynamic_plugin", "bevy_gilrs", "bevy_gltf", "bevy_wgpu2", "bevy_sprite2", "bevy_render2", "bevy_pbr2", "bevy_winit", "png", "hdr", "mp3", "x11", ] }
+# bevy = { git = "https://github.com/cart/bevy", branch = "pipelined-rendering", default-features = false, features = [ "bevy_audio", "bevy_dynamic_plugin", "bevy_gilrs", "bevy_gltf", "bevy_sprite2", "bevy_render2", "bevy_pbr2", "bevy_winit", "png", "hdr", "mp3", "x11", ] }
+bevy = { path = "../bevy", default-features = false, features = [ "bevy_audio", "bevy_dynamic_plugin", "bevy_gilrs", "bevy_gltf", "bevy_sprite2", "bevy_render2", "bevy_pbr2", "bevy_winit", "png", "hdr", "mp3", "x11", ] }
 # bevy_frustum_culling = { path = "../bevy_frustum_culling" }
 # bevy-hud-pass = { path = "../bevy-hud-pass" }
 # bevy_mod_bounding = { path = "../bevy_mod_bounding" }
 # bevy-physical-sky = { path = "crates/bevy-physical-sky" }
 bevy_prototype_character_controller = { git = "https://github.com/superdump/bevy_prototype_character_controller", branch = "pipelined-rendering", features = [ "use_rapier" ] }
-bevy_rapier3d = { git = "https://github.com/superdump/bevy_rapier", branch = "pipelined-rendering", features = [ "parallel", "simd-stable" ] }
+# bevy_rapier3d = { git = "https://github.com/superdump/bevy_rapier", branch = "pipelined-rendering", features = [ "parallel", "simd-stable" ] }
+bevy_rapier3d = { path = "../bevy_rapier/bevy_rapier3d", features = [ "parallel", "simd-stable" ] }
 building-blocks = { git = "https://github.com/bonsairobo/building-blocks", rev = "4977a3c5e6fbccfab31ab026dc79bd6d943e2c3c" }
 bytemuck = "1.7"
-env_logger = "0.8"
 log = "0.4.11"
 simdnoise = "3.1.6"
 thread_local = "1.1"
 
 [patch.crates-io]
-bevy = { git = "https://github.com/cart/bevy", branch = "pipelined-rendering" }
+# bevy = { git = "https://github.com/cart/bevy", branch = "pipelined-rendering" }
+bevy = { path = "../bevy" }
 # bevy_mod_bounding = { path = "../bevy_mod_bounding" }
-bevy_rapier3d = { git = "https://github.com/superdump/bevy_rapier", branch = "pipelined-rendering", features = [ "parallel", "simd-stable" ] }
+# bevy_rapier3d = { git = "https://github.com/superdump/bevy_rapier", branch = "pipelined-rendering", features = [ "parallel", "simd-stable" ] }
+bevy_rapier3d = { path = "../bevy_rapier/bevy_rapier3d", features = [ "parallel", "simd-stable" ] }
 
 [patch.'https://github.com/superdump/bevy']
-bevy = { git = "https://github.com/cart/bevy", branch = "pipelined-rendering" }
+# bevy = { git = "https://github.com/cart/bevy", branch = "pipelined-rendering" }
+bevy = { path = "../bevy" }
+
+[patch.'https://github.com/cart/bevy']
+bevy = { path = "../bevy" }
 
 # [patch.'https://github.com/superdump/bevy_mod_bounding']
 # bevy_mod_bounding = { path = "../bevy_mod_bounding" }
 
-# [patch.'https://github.com/superdump/bevy_rapier']
-# bevy_rapier3d = { path = "../bevy_rapier/bevy_rapier3d", features = [ "parallel", "simd-stable" ] }
+[patch.'https://github.com/superdump/bevy_rapier']
+bevy_rapier3d = { path = "../bevy_rapier/bevy_rapier3d", features = [ "parallel", "simd-stable" ] }
 
 [features]
 default = []
@@ -44,7 +51,7 @@ members = ["crates/*"]
 opt-level = 3
 
 [profile.release]
-lto = true
+lto = "thin"
 opt-level = 3
 incremental = false
 codegen-units = 1

@@ -29,7 +29,7 @@ use bevy::{
     prelude::{Assets, Handle},
     render2::{
         mesh::{Indices, Mesh, VertexAttributeValues},
-        pipeline::PrimitiveTopology,
+        render_resource::PrimitiveTopology,
     },
 };
 

@@ -47,7 +47,7 @@ use bevy::{
     pbr2::{PbrBundle, StandardMaterial},
     render2::{
         mesh::{Indices, Mesh},
-        pipeline::PrimitiveTopology,
+        render_resource::PrimitiveTopology,
     },
     tasks::ComputeTaskPool,
 };
@@ -425,7 +425,7 @@ fn spawn_mesh_entities(
                 render_mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions.clone());
                 render_mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
                 render_mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, tex_coords);
-                render_mesh.set_attribute("Vertex_Layer", layer);
+                // render_mesh.set_attribute("Vertex_Layer", layer);
                 render_mesh.set_indices(Some(Indices::U32(indices.clone())));
 
                 let mesh_handle = mesh_assets.add(render_mesh);

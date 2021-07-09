@@ -3,7 +3,7 @@ use bevy::{
     ecs::prelude::*,
     input::{keyboard::KeyCode, system::exit_on_esc_system, Input},
     math::{FaceToward, Mat4, Quat, Vec3},
-    pbr2::{PbrBundle, PointLight, PointLightBundle, StandardMaterial},
+    pbr2::{AmbientLight, PbrBundle, PointLight, PointLightBundle, StandardMaterial},
     prelude::{
         App, AssetServer, Assets, BuildChildren, CoreStage, GlobalTransform, Handle, Msaa,
         Transform, Visible,
@@ -12,12 +12,10 @@ use bevy::{
         camera::{PerspectiveCameraBundle, PerspectiveProjection},
         color::Color,
         mesh::{shape, Mesh},
-        pass::ClearColor,
         render_graph::RenderGraph,
-        texture::Texture,
+        texture::Image,
     },
     tasks::ComputeTaskPool,
-    wgpu2::{WgpuFeature, WgpuFeatures, WgpuOptions},
     window::WindowDescriptor,
     PipelinedDefaultPlugins,
 };
@@ -58,7 +56,7 @@ use minkraft::{
     voxel_map::{NoiseConfig, VoxelMap, VoxelMapConfig, VoxelMapPlugin},
 };
 
-struct ArrayTexture(Handle<Texture>);
+struct ArrayTexture(Handle<Image>);
 
 struct ThirdPerson {
     pub is_third_person: bool,
@@ -72,26 +70,24 @@ const GRAVITY: [f32; 3] = [0.0, -9.81, 0.0];
 const RENDER_BODY: bool = false;
 
 fn main() {
-    env_logger::builder().format_timestamp_micros().init();
-
     App::new()
         // Generic
         .insert_resource(WindowDescriptor {
-            width: 1600.0,
-            height: 900.0,
+            width: 960.0,
+            height: 540.0,
             title: env!("CARGO_PKG_NAME").to_string(),
             vsync: false,
             ..Default::default()
         })
-        .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(Msaa { samples: 4 })
-        .insert_resource(WgpuOptions {
-            features: WgpuFeatures {
-                // The Wireframe requires NonFillPolygonMode feature
-                features: vec![WgpuFeature::NonFillPolygonMode],
-            },
-            ..Default::default()
-        })
+        // .insert_resource(ClearColor(Color::BLACK))
+        // .insert_resource(Msaa { samples: 4 })
+        // .insert_resource(WgpuOptions {
+        //     features: WgpuFeatures {
+        //         // The Wireframe requires NonFillPolygonMode feature
+        //         features: vec![WgpuFeature::NonFillPolygonMode],
+        //     },
+        //     ..Default::default()
+        // })
         .add_plugins(PipelinedDefaultPlugins)
         // .add_plugin(WireframePlugin)
         .insert_resource(AssetServerSettings {
@@ -203,7 +199,7 @@ fn check_loaded(
 
 fn setup_graphics(
     mut commands: Commands,
-    // texture_handle: Res<ArrayTexture>,
+    texture_handle: Res<ArrayTexture>,
     // mut textures: ResMut<Assets<Texture>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     // mut meshes: ResMut<Assets<Mesh>>,
@@ -252,8 +248,9 @@ fn setup_graphics(
     // };
     // texture.reinterpret_stacked_2d_as_array(6);
     // let mut material = StandardMaterial::from(texture_handle.0.clone());
-    // material.roughness = 0.6;
-    let material_handle = materials.add(Color::LIME_GREEN.into());
+    let mut material = StandardMaterial::from(Color::LIME_GREEN);
+    material.perceptual_roughness = 0.6;
+    let material_handle = materials.add(material);
     commands.insert_resource(ArrayTextureMaterial(material_handle));
 
     // render_graph.add_system_node(
@@ -426,21 +423,26 @@ fn setup_world(
     commands.insert_resource(map);
     commands.insert_resource(ChunkMeshes::default());
 
-    commands.spawn_bundle(PointLightBundle {
-        transform: Transform::from_translation(Vec3::new(
-            SPAWN_POINT[0] + 1000.0,
-            SPAWN_POINT[1] + 512.0,
-            SPAWN_POINT[2] + 3200.0,
-        )),
-        point_light: PointLight {
-            color: Color::ANTIQUE_WHITE,
-            intensity: 10000000.0,
-            radius: 1000000.0,
-            range: 1000000.0,
-            ..Default::default()
-        },
-        ..Default::default()
+    commands.insert_resource(AmbientLight {
+        color: Color::WHITE,
+        brightness: 1.0,
     });
+
+    // commands.spawn_bundle(PointLightBundle {
+    //     transform: Transform::from_translation(Vec3::new(
+    //         SPAWN_POINT[0] + 1000.0,
+    //         SPAWN_POINT[1] + 512.0,
+    //         SPAWN_POINT[2] + 3200.0,
+    //     )),
+    //     Point_light: PointLight {
+    //         color: Color::ANTIQUE_WHITE,
+    //         intensity: 10000000.0,
+    //         radius: 1000000.0,
+    //         range: 1000000.0,
+    //         ..Default::default()
+    //     },
+    //     ..Default::default()
+    // });
     // commands
     //     .spawn_bundle(HUDCameraBundle::default())
     //     .insert(WorldAxesPositionTag);
