@@ -30,7 +30,7 @@ use crate::{
 };
 
 use bevy_prototype_character_controller::controller::CameraTag;
-use building_blocks::core::prelude::*;
+use building_blocks::{core::prelude::*, prelude::ChunkUnits};
 
 use bevy::{ecs::prelude::*, prelude::GlobalTransform, render2::camera::Camera};
 
@@ -67,12 +67,12 @@ pub fn level_of_detail_system(
         return;
     }
 
-    let bounding_voxel_extent = voxel_map.pyramid.level(0).bounding_extent();
+    let bounding_voxel_extent = voxel_map.map.bounding_extent(0);
     voxel_map.index.find_clipmap_chunk_updates(
         &bounding_voxel_extent,
         voxel_map_config.clip_box_radius,
-        lod_state.old_lod0_center,
-        lod0_center,
+        ChunkUnits(lod_state.old_lod0_center),
+        ChunkUnits(lod0_center),
         |update| mesh_commands.enqueue(MeshCommand::Update(update)),
     );
 

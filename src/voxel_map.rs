@@ -34,7 +34,7 @@ use bevy::{
 use bevy_prototype_character_controller::controller::CameraTag;
 use building_blocks::{
     prelude::*,
-    storage::{ChunkHashMapPyramid3, OctreeChunkIndex, SmallKeyHashMap},
+    storage::{ChunkHashMap3x1, OctreeChunkIndex},
 };
 
 use building_blocks::mesh::{IsOpaque, MergeVoxel};
@@ -146,7 +146,7 @@ impl MergeVoxel for Voxel {
 }
 
 pub struct VoxelMap {
-    pub pyramid: ChunkHashMapPyramid3<Voxel>,
+    pub map: ChunkHashMap3x1<Voxel>,
     pub index: OctreeChunkIndex,
 }
 
@@ -175,7 +175,7 @@ impl VoxelMap {
         map.index.active_clipmap_lod_chunks(
             &voxel_map_config.visible_voxel_extent,
             voxel_map_config.clip_box_radius,
-            lod0_center,
+            ChunkUnits(lod0_center),
             |chunk_key| mesh_commands.enqueue(MeshCommand::Create(chunk_key)),
         );
         assert!(!mesh_commands.is_empty());
@@ -207,11 +207,11 @@ impl Default for NoiseConfig {
 const VISIBLE_SIZE_VOXELS: i32 = 4096;
 
 pub struct VoxelMapConfig {
-    pub chunk_log2: i32,
+    pub chunk_log2: u8,
     pub chunk_shape: Point3i,
     pub num_lods: u8,
-    pub superchunk_shape: Point3i,
-    pub clip_box_radius: i32,
+    pub superchunk_exponent: u8,
+    pub clip_box_radius: u16,
     pub visible_chunks_extent: Extent3i,
     pub visible_voxel_extent: Extent3i,
 }
@@ -235,16 +235,16 @@ impl Default for VoxelMapConfig {
 
 impl VoxelMapConfig {
     pub fn new(
-        chunk_log2: i32,
+        chunk_log2: u8,
         num_lods: u8,
-        clip_box_radius: i32,
+        clip_box_radius: u16,
         visible_voxel_extent: Extent3i,
     ) -> VoxelMapConfig {
         VoxelMapConfig {
             chunk_log2,
-            chunk_shape: PointN([1 << chunk_log2; 3]),
+            chunk_shape: PointN([1 << chunk_log2 as i32; 3]),
             num_lods,
-            superchunk_shape: PointN([1 << (chunk_log2 + num_lods as i32 - 1); 3]),
+            superchunk_exponent: chunk_log2 + num_lods - 1,
             clip_box_radius,
             visible_chunks_extent: Extent3i {
                 minimum: visible_voxel_extent.minimum >> chunk_log2,
@@ -255,9 +255,9 @@ impl VoxelMapConfig {
     }
 }
 
-const MAX_CLIP_BOX_RADIUS: i32 = 32;
-const MAX_CHUNK_LOG2: i32 = 6;
-// NOTE: Maximum number of LODs supported by building-blocks ChunkPyramidMap is 6
+const MAX_CLIP_BOX_RADIUS: u16 = 32;
+const MAX_CHUNK_LOG2: u8 = 6;
+// NOTE: Maximum number of LODs supported by building-blocks ChunkHashMap3x1 is 6
 // due to using an OctreeSet for a 'superchunk' and OctreeSet LocationCodes are limited
 // to 6 levels.
 const MAX_LODS: u8 = 6;
@@ -344,12 +344,7 @@ pub fn generate_map(
     voxel_map_config: &Res<VoxelMapConfig>,
 ) -> VoxelMap {
     let builder = ChunkMapBuilder3x1::new(voxel_map_config.chunk_shape, Voxel::EMPTY);
-    let mut pyramid = ChunkHashMapPyramid3::new(
-        builder,
-        || SmallKeyHashMap::new(),
-        voxel_map_config.num_lods,
-    );
-    let lod0 = pyramid.level_mut(0);
+    let mut map = builder.build_with_hash_map_storage();
 
     let chunks = pool.scope(|s| {
         for x in chunks_extent.minimum.x()..chunks_extent.least_upper_bound().x() {
@@ -359,16 +354,20 @@ pub fn generate_map(
             }
         }
     });
-    for (chunk_key, chunk) in chunks.into_iter().flatten() {
-        lod0.write_chunk(chunk_key, chunk);
+    for (chunk_minimum, chunk) in chunks.into_iter().flatten() {
+        map.write_chunk(ChunkKey::new(0, chunk_minimum), chunk);
     }
 
-    let index = OctreeChunkIndex::index_chunk_map(voxel_map_config.superchunk_shape, lod0);
+    let index = OctreeChunkIndex::index_chunk_map(
+        voxel_map_config.superchunk_exponent,
+        voxel_map_config.num_lods,
+        &map,
+    );
 
-    let world_extent = lod0.bounding_extent();
-    pyramid.downsample_chunks_with_index(&index, &PointDownsampler, &world_extent);
+    let world_extent = map.bounding_extent(0);
+    map.downsample_chunks_with_index(&index, &PointDownsampler, &world_extent);
 
-    VoxelMap { pyramid, index }
+    VoxelMap { map, index }
 }
 
 fn index(p: Point3i, shape: Point3i) -> usize {

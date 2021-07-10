@@ -102,14 +102,16 @@ pub fn chunk_generator_system(
 
     let mut generated_chunk_extent: Option<Extent3i> = None;
     {
-        let lod0 = voxel_map.pyramid.level_mut(0);
         for command in chunk_commands.commands.iter().rev().cloned() {
             match command {
-                ChunkCommand::Generate(chunk_key) => {
+                ChunkCommand::Generate(chunk_minimum) => {
                     num_generates += 1;
                     for (voxel_key, chunk) in generated_chunks.pop().unwrap().into_iter() {
-                        lod0.write_chunk(voxel_key, chunk);
-                        let chunk_extent = Extent3i::from_min_and_shape(chunk_key, Point3i::ONES);
+                        voxel_map
+                            .map
+                            .write_chunk(ChunkKey::new(0, voxel_key), chunk);
+                        let chunk_extent =
+                            Extent3i::from_min_and_shape(chunk_minimum, Point3i::ONES);
                         if let Some(extent_to_update) = generated_chunk_extent.as_mut() {
                             *extent_to_update = bounding_extent(
                                 [
@@ -126,11 +128,13 @@ pub fn chunk_generator_system(
                         }
                     }
                 }
-                ChunkCommand::Edit(chunk_key, chunk) => {
+                ChunkCommand::Edit(chunk_minimum, chunk) => {
                     num_edits += 1;
-                    lod0.write_chunk(chunk_key, chunk);
+                    voxel_map
+                        .map
+                        .write_chunk(ChunkKey::new(0, chunk_minimum), chunk);
                 }
-                ChunkCommand::Remove(_chunk_key) => {
+                ChunkCommand::Remove(_chunk_minimum) => {
                     num_removes += 1;
                 }
             }
@@ -146,8 +150,8 @@ pub fn chunk_generator_system(
             let voxel_map = &mut voxel_map;
             s.spawn(async move {
                 let mut index = voxel_map.index.clone();
-                index.superchunk_octrees.add_extent(&chunk_extent);
-                voxel_map.pyramid.downsample_chunks_with_index(
+                index.add_extent(ChunkUnits(chunk_extent));
+                voxel_map.map.downsample_chunks_with_index(
                     &index,
                     &PointDownsampler,
                     &voxel_extent,
@@ -178,8 +182,7 @@ pub fn chunk_detection_system(
     *camera_center.y_mut() = 0;
     let visible_extent = voxel_map_config.visible_chunks_extent + camera_center;
 
-    let lod0 = voxel_map.pyramid.level(0);
-    let lod0_voxel_extent = lod0.bounding_extent();
+    let lod0_voxel_extent = voxel_map.map.bounding_extent(0);
     let min_y = lod0_voxel_extent.minimum.y() >> voxel_map_config.chunk_log2;
     let max_y = lod0_voxel_extent.max().y() >> voxel_map_config.chunk_log2;
     for x in visible_extent.minimum.x()..visible_extent.least_upper_bound().x() {
@@ -189,7 +192,11 @@ pub fn chunk_detection_system(
             for y in min_y..=max_y {
                 let chunk_key = PointN([x, y, z]);
                 let voxel_key = chunk_key * voxel_map_config.chunk_shape;
-                if lod0.get_chunk(voxel_key).is_some() {
+                if voxel_map
+                    .map
+                    .get_chunk(ChunkKey::new(0, voxel_key))
+                    .is_some()
+                {
                     exists = true;
                     break;
                 }

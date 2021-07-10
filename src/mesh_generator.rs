@@ -37,7 +37,7 @@ use bevy_rapier3d::prelude::{ColliderBundle, ColliderShape, RigidBodyBundle, Rig
 use building_blocks::{
     mesh::*,
     prelude::*,
-    storage::{LodChunkKey3, LodChunkUpdate3, SmallKeyHashMap},
+    storage::{ChunkKey3, LodChunkUpdate3, SmallKeyHashMap},
 };
 
 use bevy::{
@@ -83,15 +83,15 @@ impl MeshCommandQueue {
 // PERF: try to eliminate the use of multiple Vecs
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MeshCommand {
-    Create(LodChunkKey3),
+    Create(ChunkKey3),
     Update(LodChunkUpdate3),
 }
 
 #[derive(Default)]
 pub struct ChunkMeshes {
     // Map from chunk key to mesh entity.
-    entities: SmallKeyHashMap<LodChunkKey3, (Entity, Handle<Mesh>)>,
-    remove_queue: SmallKeyHashMap<LodChunkKey3, (Entity, Handle<Mesh>)>,
+    entities: SmallKeyHashMap<ChunkKey3, (Entity, Handle<Mesh>)>,
+    remove_queue: SmallKeyHashMap<ChunkKey3, (Entity, Handle<Mesh>)>,
 }
 
 impl ChunkMeshes {
@@ -108,7 +108,7 @@ impl ChunkMeshes {
 
     pub fn remove_entity(
         &mut self,
-        lod_chunk_key: &LodChunkKey3,
+        lod_chunk_key: &ChunkKey3,
         commands: &mut Commands,
         meshes: &mut Assets<Mesh>,
     ) {
@@ -226,7 +226,7 @@ fn apply_mesh_commands(
     commands: &mut Commands,
     first_run: bool,
     mut meshes: &mut Assets<Mesh>,
-) -> Vec<(LodChunkKey3, Option<MeshBuf>)> {
+) -> Vec<(ChunkKey3, Option<MeshBuf>)> {
     let num_chunks_to_mesh = mesh_commands.len().min(max_mesh_creations_per_frame(pool));
 
     let mut num_creates = 0;
@@ -318,7 +318,7 @@ fn apply_mesh_commands(
 //     mut commands: Commands,
 //     mut chunk_meshes: ResMut<ChunkMeshes>,
 //     mut meshes: ResMut<Assets<Mesh>>,
-//     query: Query<(&FadeUniform, &LodChunkKey3), With<Handle<Mesh>>>,
+//     query: Query<(&FadeUniform, &ChunkKey3), With<Handle<Mesh>>>,
 // ) {
 //     for (fade, lod_chunk_key) in query.iter() {
 //         if !fade.fade_in && fade.remaining == 0.0 {
@@ -331,13 +331,12 @@ fn apply_mesh_commands(
 // }
 
 fn create_mesh_for_chunk(
-    key: LodChunkKey3,
+    key: ChunkKey3,
     voxel_map: &VoxelMap,
     local_mesh_buffers: &ThreadLocalMeshBuffers,
 ) -> Option<MeshBuf> {
-    let chunks = voxel_map.pyramid.level(key.lod);
-
-    let chunk_extent = chunks.indexer.extent_for_chunk_at_key(key.chunk_key);
+    let chunks = &voxel_map.map;
+    let chunk_extent = chunks.indexer.extent_for_chunk_with_min(key.minimum);
     let padded_chunk_extent = padded_greedy_quads_chunk_extent(&chunk_extent);
 
     // Keep a thread-local cache of buffers to avoid expensive reallocations every time we want to mesh a chunk.
@@ -362,7 +361,11 @@ fn create_mesh_for_chunk(
     neighborhood_buffer.set_minimum(padded_chunk_extent.minimum);
 
     // Only copy the chunk_extent, leaving the padding empty so that we don't get holes on LOD boundaries.
-    copy_extent(&chunk_extent, chunks, neighborhood_buffer);
+    copy_extent(
+        &padded_chunk_extent,
+        &chunks.lod_view(key.lod),
+        neighborhood_buffer,
+    );
 
     let voxel_size = (1 << key.lod) as f32;
     greedy_quads(neighborhood_buffer, &padded_chunk_extent, &mut *mesh_buffer);
@@ -371,7 +374,7 @@ fn create_mesh_for_chunk(
         None
     } else {
         let mut mesh_buf = MeshBuf::default();
-        mesh_buf.extent = chunk_extent * voxel_map.pyramid.chunk_shape();
+        mesh_buf.extent = chunk_extent * voxel_map.map.chunk_shape();
         for group in mesh_buffer.quad_groups.iter() {
             for quad in group.quads.iter() {
                 let mat = neighborhood_buffer.get(quad.minimum);
@@ -399,7 +402,7 @@ pub struct LocalSurfaceNetsBuffers {
 }
 
 fn spawn_mesh_entities(
-    new_chunk_meshes: Vec<(LodChunkKey3, Option<MeshBuf>)>,
+    new_chunk_meshes: Vec<(ChunkKey3, Option<MeshBuf>)>,
     commands: &mut Commands,
     mesh_assets: &mut Assets<Mesh>,
     chunk_meshes: &mut ChunkMeshes,

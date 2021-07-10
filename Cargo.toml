@@ -15,7 +15,7 @@ bevy = { path = "../bevy", default-features = false, features = [ "bevy_audio", 
 bevy_prototype_character_controller = { git = "https://github.com/superdump/bevy_prototype_character_controller", branch = "pipelined-rendering", features = [ "use_rapier" ] }
 # bevy_rapier3d = { git = "https://github.com/superdump/bevy_rapier", branch = "pipelined-rendering", features = [ "parallel", "simd-stable" ] }
 bevy_rapier3d = { path = "../bevy_rapier/bevy_rapier3d", features = [ "parallel", "simd-stable" ] }
-building-blocks = { git = "https://github.com/bonsairobo/building-blocks", rev = "4977a3c5e6fbccfab31ab026dc79bd6d943e2c3c" }
+building-blocks = { git = "https://github.com/bonsairobo/building-blocks", rev = "6a23ad88fdfddec879768db0442444b01094e9a0" }
 bytemuck = "1.7"
 log = "0.4.11"
 simdnoise = "3.1.6"
